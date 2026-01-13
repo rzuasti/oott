@@ -1,19 +1,9 @@
 use crate::device_finders::Device;
-use async_arp::{Client, ClientConfigBuilder, ClientSpinner, ProbeStatus, Result};
-use std::io::Write;
-use std::time::{Duration, Instant};
+
+mod helper_async_arp;
 
 pub fn find() -> Vec<Device> {
-    let mut devices = Vec::new();
-    devices.push(Device {
-        mac_address: String::from("mac1"),
-    });
-    devices.push(Device {
-        mac_address: String::from("mac2"),
-    });
-    devices.push(Device {
-        mac_address: String::from("mac3"),
-    });
+    let devices = helper_async_arp::execute_probe(&String::from("eno1"));
 
     devices
 }
