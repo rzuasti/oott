@@ -7,7 +7,7 @@ use pnet::{
     ipnetwork::IpNetwork,
 };
 use tokio::task;
-use tokio::time::{Duration, timeout};
+use tokio::time::{Duration, sleep, timeout};
 
 mod packet_send_receive;
 
@@ -59,6 +59,7 @@ pub async fn find(interface: &str) -> Vec<Device> {
     let send_result = timeout(
         Duration::from_secs(2),
         send_packet(sender, send_interface, ipv4_net, mac),
+        // test_timeout(),
     )
     .await;
     match send_result {
@@ -66,15 +67,15 @@ pub async fn find(interface: &str) -> Vec<Device> {
         Err(_) => println!("Sender timed out"),
     };
 
-    let receive_result = timeout(
-        Duration::from_secs(5),
-        listen_for_packets(receiver, ipv4_net),
-    )
-    .await;
-    match receive_result {
-        Ok(_) => println!("Receiver done"),
-        Err(_) => println!("Receiver timed out"),
-    };
+    // let receive_result = timeout(
+    //     Duration::from_secs(5),
+    //     listen_for_packets(receiver, ipv4_net),
+    // )
+    // .await;
+    // match receive_result {
+    //     Ok(_) => println!("Receiver done"),
+    //     Err(_) => println!("Receiver timed out"),
+    // };
 
     // println!("Spawning receiver threads");
     // let reciever_thread = thread::spawn(move || {
@@ -103,6 +104,6 @@ pub async fn find(interface: &str) -> Vec<Device> {
     devices
 }
 
-// async fn test_timeout() {
-//     sleep(Duration::from_secs(10)).await;
-// }
+async fn test_timeout() {
+    sleep(Duration::from_secs(10)).await;
+}

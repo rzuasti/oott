@@ -4,6 +4,7 @@ use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPa
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket};
 use pnet::packet::{MutablePacket, Packet};
 use pnet::util::MacAddr;
+use tokio::time::{Duration, sleep, timeout};
 
 pub async fn send_packet(
     mut tx: Box<dyn DataLinkSender>,
@@ -46,6 +47,7 @@ pub async fn send_packet(
             );
             // thread::sleep(Duration::from_millis(2));
         }
+        sleep(Duration::from_secs(5)).await;
         // thread::sleep(Duration::from_millis(2));
     }
 }
