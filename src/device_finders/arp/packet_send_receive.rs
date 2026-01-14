@@ -45,10 +45,8 @@ pub async fn send_packet(
                 &ethernet_packet.to_immutable().packet(),
                 Some(interface.clone()),
             );
-            // thread::sleep(Duration::from_millis(2));
         }
-        sleep(Duration::from_secs(5)).await;
-        // thread::sleep(Duration::from_millis(2));
+        // sleep(Duration::from_millis(1)).await;
     }
 }
 

@@ -7,7 +7,7 @@ use pnet::{
     ipnetwork::IpNetwork,
 };
 use tokio::task;
-use tokio::time::{Duration, sleep, timeout};
+use tokio::time::{Duration, Instant, sleep, timeout};
 
 mod packet_send_receive;
 
@@ -55,17 +55,21 @@ pub async fn find(interface: &str) -> Vec<Device> {
     let send_interface = network_interface.clone();
 
     println!("Starting sender");
+    let start = Instant::now();
 
     let send_result = timeout(
-        Duration::from_secs(2),
+        Duration::from_millis(10),
         send_packet(sender, send_interface, ipv4_net, mac),
-        // test_timeout(),
     )
     .await;
     match send_result {
         Ok(_) => println!("Sender done"),
         Err(_) => println!("Sender timed out"),
     };
+    println!(
+        "Sender took {} millisecs",
+        (Instant::now() - start).as_millis()
+    );
 
     // let receive_result = timeout(
     //     Duration::from_secs(5),
