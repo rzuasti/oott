@@ -1,3 +1,4 @@
+use log::{debug, info, warn};
 use pnet::datalink::{DataLinkReceiver, DataLinkSender, NetworkInterface};
 use pnet::ipnetwork::Ipv4Network;
 use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPacket};
@@ -12,11 +13,12 @@ pub async fn send_packet(
     sender_ip: Ipv4Network,
     sender_macaddr: MacAddr,
 ) {
+    info!("Starting ARP sender loop");
     for target_ip in sender_ip.iter() {
         if target_ip == sender_ip.ip() {
             continue;
         }
-        println!("Sending to {}", target_ip);
+        debug!("Sending ARP packet to {}", target_ip);
         for _ in 0..1 {
             //arp packet
             let mut arp_buf = [0u8; 28];
@@ -46,11 +48,13 @@ pub async fn send_packet(
                 Some(interface.clone()),
             );
         }
-        // sleep(Duration::from_millis(1)).await;
+        // Sleep  1 millisecond between IPs
+        sleep(Duration::from_millis(1)).await;
     }
 }
 
 pub async fn listen_for_packets(mut rx: Box<dyn DataLinkReceiver>, ipv4_net: Ipv4Network) {
+    info!("Starting ARP receiver loop");
     loop {
         let arp_buffer = match rx.next() {
             Ok(buffer) => buffer,
@@ -59,19 +63,20 @@ pub async fn listen_for_packets(mut rx: Box<dyn DataLinkReceiver>, ipv4_net: Ipv
         let ethernet_packet = EthernetPacket::new(arp_buffer).unwrap();
 
         if ethernet_packet.get_ethertype() == EtherTypes::Arp {
+            debug!("ARP packet received");
             let arp_packet = ArpPacket::new(ethernet_packet.payload()).unwrap();
             if arp_packet.get_operation() == ArpOperations::Reply {
+                debug!("It is an ARP reply packet");
                 if arp_packet.get_target_proto_addr() == ipv4_net.ip() {
-                    print!(".");
-                    println!("Status ONLINE");
-                    println!(
-                        "IP addr:\t{} \nMac addr:\t{}",
+                    info!(
+                        "Found online  device - IP addr={} - MAC addr={}",
                         arp_packet.get_sender_proto_addr(),
                         arp_packet.get_sender_hw_addr()
                     );
-                    println!("----------------------");
                 }
             }
         }
+        // Sleep  1 millisecond between IPs
+        sleep(Duration::from_millis(1)).await;
     }
 }
