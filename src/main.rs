@@ -7,11 +7,12 @@ async fn main() {
     env_logger::init();
     info!("Starting up oott");
 
-    let devices = device_finders::arp::find("eno1").await;
+    let devices = device_finders::arp::find("wlp1s0").await;
 
     info!("Done with ARP probes");
+    info!("Found {} online devices", devices.iter().count());
     for device in devices.iter() {
-        debug!("Device found {}", device);
+        info!("Device found {}", device);
     }
     info!("Exiting");
 }

@@ -1,3 +1,4 @@
+use crate::device_finders::Device;
 use log::{debug, info, warn};
 use pnet::datalink::{DataLinkReceiver, DataLinkSender, NetworkInterface};
 use pnet::ipnetwork::Ipv4Network;
@@ -5,7 +6,7 @@ use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPa
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket};
 use pnet::packet::{MutablePacket, Packet};
 use pnet::util::MacAddr;
-use tokio::time::{Duration, sleep, timeout};
+use tokio::time::{Duration, Instant, sleep};
 
 pub async fn send_packet(
     mut tx: Box<dyn DataLinkSender>,
@@ -13,7 +14,9 @@ pub async fn send_packet(
     sender_ip: Ipv4Network,
     sender_macaddr: MacAddr,
 ) {
-    info!("Starting ARP sender loop");
+    info!("Starting ARP sender");
+    let sender_start = Instant::now();
+
     for target_ip in sender_ip.iter() {
         if target_ip == sender_ip.ip() {
             continue;
@@ -51,11 +54,24 @@ pub async fn send_packet(
         // Sleep  1 millisecond between IPs
         sleep(Duration::from_millis(1)).await;
     }
+    info!(
+        "ARP sender took {} secs",
+        (Instant::now() - sender_start).as_secs()
+    );
 }
 
-pub async fn listen_for_packets(mut rx: Box<dyn DataLinkReceiver>, ipv4_net: Ipv4Network) {
-    info!("Starting ARP receiver loop");
-    loop {
+pub async fn listen_for_packets(
+    mut rx: Box<dyn DataLinkReceiver>,
+    ipv4_net: Ipv4Network,
+    run_for_secs: u64,
+) -> Vec<Device> {
+    info!("Starting ARP receiver for {} secs", run_for_secs);
+    let start_time = Instant::now();
+
+    let mut devices = Vec::new();
+
+    // Run while still under the time window
+    while (Instant::now() - start_time).as_secs() <= run_for_secs {
         let arp_buffer = match rx.next() {
             Ok(buffer) => buffer,
             Err(_) => continue,
@@ -68,15 +84,25 @@ pub async fn listen_for_packets(mut rx: Box<dyn DataLinkReceiver>, ipv4_net: Ipv
             if arp_packet.get_operation() == ArpOperations::Reply {
                 debug!("It is an ARP reply packet");
                 if arp_packet.get_target_proto_addr() == ipv4_net.ip() {
-                    info!(
+                    debug!(
                         "Found online  device - IP addr={} - MAC addr={}",
                         arp_packet.get_sender_proto_addr(),
                         arp_packet.get_sender_hw_addr()
                     );
+                    devices.push(Device {
+                        mac_address: arp_packet.get_sender_hw_addr().to_string(),
+                        ipv4_address: arp_packet.get_sender_proto_addr().to_string(),
+                    });
                 }
             }
         }
         // Sleep  1 millisecond between IPs
         sleep(Duration::from_millis(1)).await;
     }
+    info!(
+        "ARP receiver run for {} secs",
+        (Instant::now() - start_time).as_secs()
+    );
+
+    devices
 }
