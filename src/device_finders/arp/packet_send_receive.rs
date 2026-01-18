@@ -1,5 +1,5 @@
 use crate::device_finders::Device;
-use log::{debug, info, warn};
+use log::{debug, info};
 use pnet::datalink::{DataLinkReceiver, DataLinkSender, NetworkInterface};
 use pnet::ipnetwork::Ipv4Network;
 use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPacket};
@@ -100,7 +100,7 @@ pub async fn listen_for_packets(
         sleep(Duration::from_millis(1)).await;
     }
     info!(
-        "ARP receiver run for {} secs",
+        "ARP receiver ran for {} secs",
         (Instant::now() - start_time).as_secs()
     );
 

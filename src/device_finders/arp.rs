@@ -7,7 +7,7 @@ use pnet::{
     datalink::{self, Channel, NetworkInterface},
     ipnetwork::IpNetwork,
 };
-use tokio::time::{Duration, Instant, timeout};
+use tokio::time::{Duration, timeout};
 
 const DEFAULT_SENDER_TIMEOUT: u64 = 60; // 1 minute to send all packets - good for a class C network
 const DEFAULT_SCAN_DURATION: u64 = 300; // 5 minutes to wait per round to receive responses

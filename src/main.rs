@@ -1,4 +1,4 @@
-use log::{debug, info};
+use log::info;
 mod config;
 mod device_finders;
 
