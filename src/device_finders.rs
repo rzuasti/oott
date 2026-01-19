@@ -7,6 +7,12 @@ pub struct Device {
     pub ipv4_address: String,
 }
 
+impl Device {
+    pub fn get_mac_prefix(&self) -> String {
+        self.mac_address.get(0..8).unwrap_or("").to_string()
+    }
+}
+
 impl fmt::Display for Device {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "mac={}, ip={}", self.mac_address, self.ipv4_address)
