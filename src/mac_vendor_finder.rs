@@ -1,4 +1,4 @@
-use log::{debug, info, warn};
+use log::{debug, info};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;

@@ -1,0 +1,6 @@
+- [ ] Proper error handling across the board
+- [ ] Insert new devices in database or update existing ones last_seen
+- [ ] Generate an event when a new device is inserted
+- [ ] Run as an endless loop with a configurable pause
+- [ ] Deploy as a service in a docker container
+- [ ] Deploy as a service via a nix flake
