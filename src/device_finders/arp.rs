@@ -1,7 +1,7 @@
 mod packet_send_receive;
 
 use crate::{config, device_finders::Device};
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use packet_send_receive::{listen_for_packets, send_packet};
 use pnet::{
     datalink::{self, Channel, NetworkInterface},
@@ -12,20 +12,25 @@ use tokio::time::{Duration, timeout};
 const DEFAULT_SENDER_TIMEOUT: u64 = 60; // 1 minute to send all packets - good for a class C network
 const DEFAULT_SCAN_DURATION: u64 = 300; // 5 minutes to wait per round to receive responses
 
-pub async fn find(interface: &str) -> Vec<Device> {
+pub async fn find(interface: &str) -> Result<Vec<Device>, String> {
     debug!("Looking up devices via ARP using interface {}", interface);
 
     // Get the network device to use
-    let network_interface: NetworkInterface = datalink::interfaces()
+    let network_interface: NetworkInterface = match datalink::interfaces()
         .iter()
         .filter(|el| el.is_up())
         .filter(|el| el.name == interface)
         .next()
-        .expect("Selected interface not found")
-        .clone();
+    {
+        Some(value) => value.clone(),
+        None => {
+            error!("Interface ({interface}) not found or not active.");
+            return Err(format!("Interface ({interface}) not found or not active.").to_string());
+        }
+    };
 
     // Get the IPV4 network to use
-    let ipv4_net = network_interface
+    let ipv4_net = match network_interface
         .ips
         .iter()
         .filter_map(|el| match el {
@@ -33,13 +38,25 @@ pub async fn find(interface: &str) -> Vec<Device> {
             _ => None,
         })
         .next()
-        .expect("No local ip address found");
+    {
+        Some(value) => value,
+        None => {
+            error!("No IP address found for selected interface ({interface}).");
+            return Err(
+                format!("No IP address found for selected interface ({interface}).").to_string(),
+            );
+        }
+    };
 
     // Get the local MAC address
     let mac = match network_interface.mac {
         Some(mac) => mac,
         None => {
-            panic!("No local MAC address found");
+            error!("Could not get MAC address for selected interface ({interface}).");
+            return Err(
+                format!("Could not get MAC address for selected interface ({interface}).")
+                    .to_string(),
+            );
         }
     };
 
@@ -48,11 +65,20 @@ pub async fn find(interface: &str) -> Vec<Device> {
 
     // Data channel
     debug!("Creating data channel");
-    let tunnel = datalink::channel(&network_interface, datalink::Config::default())
-        .expect("Failed to create datalink channel");
+    let tunnel: Channel = match datalink::channel(&network_interface, datalink::Config::default()) {
+        Ok(value) => value,
+        Err(error) => {
+            error!("Could not create data channel: {error}");
+            return Err(format!("Could not create data channel: {error}").to_string());
+        }
+    };
+
     let (sender, receiver) = match tunnel {
         Channel::Ethernet(tx, rx) => (tx, rx),
-        _ => panic!("Unsupported data channel type"),
+        _ => {
+            error!("Unsupported data channel type");
+            return Err("Unsupported data channel type".to_string());
+        }
     };
 
     let send_interface = network_interface.clone();
@@ -68,7 +94,10 @@ pub async fn find(interface: &str) -> Vec<Device> {
     info!("Receiver timeout set to {} seconds", receiver_timeout);
 
     if sender_timeout >= scan_duration {
-        panic!("OOTT_ARP_SENDER_TIMEOUT needs to be smaller than OOTT_ARP_SCAN_DURATION");
+        warn!(
+            "OOTT_ARP_SENDER_TIMEOUT ({sender_timeout}) needs to be smaller than OOTT_ARP_SCAN_DURATION ({scan_duration})."
+        );
+        return Err(format!("OOTT_ARP_SENDER_TIMEOUT ({sender_timeout}) needs to be smaller than OOTT_ARP_SCAN_DURATION ({scan_duration}).").to_string());
     }
 
     let result = tokio::join!(
@@ -88,5 +117,5 @@ pub async fn find(interface: &str) -> Vec<Device> {
         (_, Err(_)) => info!("ARP receiver timed out"),
     };
 
-    result.1.unwrap_or(Vec::new())
+    Ok(result.1.unwrap_or(Vec::new()))
 }

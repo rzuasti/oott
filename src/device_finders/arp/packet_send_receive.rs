@@ -1,4 +1,5 @@
 use crate::device_finders::Device;
+use crate::mac_vendor_finder;
 use log::{debug, info};
 use pnet::datalink::{DataLinkReceiver, DataLinkSender, NetworkInterface};
 use pnet::ipnetwork::Ipv4Network;
@@ -84,14 +85,20 @@ pub async fn listen_for_packets(
             if arp_packet.get_operation() == ArpOperations::Reply {
                 debug!("It is an ARP reply packet");
                 if arp_packet.get_target_proto_addr() == ipv4_net.ip() {
+                    let packet_mac_address = arp_packet.get_sender_hw_addr().to_string();
+                    let packet_ip_address = arp_packet.get_sender_proto_addr().to_string();
+                    let packet_vendor = mac_vendor_finder::find(
+                        packet_mac_address.get(0..8).unwrap_or("").to_string(),
+                    );
+
                     debug!(
-                        "Found online  device - IP addr={} - MAC addr={}",
-                        arp_packet.get_sender_proto_addr(),
-                        arp_packet.get_sender_hw_addr()
+                        "Found online  device - IP addr={} - MAC addr={} - vendor={}",
+                        packet_ip_address, packet_mac_address, packet_vendor
                     );
                     devices.push(Device {
-                        mac_address: arp_packet.get_sender_hw_addr().to_string(),
-                        ipv4_address: arp_packet.get_sender_proto_addr().to_string(),
+                        mac_address: packet_mac_address,
+                        ipv4_address: packet_ip_address,
+                        vendor: packet_vendor,
                     });
                 }
             }

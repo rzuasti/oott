@@ -1,6 +1,4 @@
-use crate::mac_vendor_finder::MacVendorFinder;
-use log::info;
-use rusqlite::Connection;
+use log::{debug, info};
 
 mod config;
 mod db;
@@ -12,21 +10,18 @@ async fn main() {
     env_logger::init();
     info!("Starting up oott");
 
-    let mut mac_vendor_finder = MacVendorFinder::new();
-    let mut db_conn = db::init_db().unwrap();
+    let db_conn = db::init_db();
 
-    // let devices = device_finders::arp::find("eno1").await;
+    let devices = device_finders::arp::find("eno1").await.unwrap();
 
-    // info!("Done with ARP probes");
-    // info!("Found {} online devices", devices.iter().count());
-    // for device in devices.iter() {
-    //     info!("Device found {}", device);
-    //     let vendor_result = mac_vendor_finder.find(device.get_mac_prefix().as_str());
-    //     match vendor_result {
-    //         Some(vendor) => info!("Device vendor = {}", vendor),
-    //         None => info!("Device vendor not found"),
-    //     }
-    // }
+    info!("Done with ARP probes");
+    info!("Found {} online devices", devices.iter().count());
+
+    // mac_vendor_finder.populate_vendors(&devices);
+
+    for device in devices.iter() {
+        debug!("Device found {}", device);
+    }
 
     info!("Exiting");
 }

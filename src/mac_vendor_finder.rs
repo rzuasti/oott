@@ -1,11 +1,8 @@
-use log::{debug, info};
+use log::{debug, error, info};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
-
-pub struct MacVendorFinder {
-    mac_vendors_database: HashMap<String, String>,
-}
+use std::sync::LazyLock;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,29 +14,41 @@ struct MacRecord {
     // last_update: String,
 }
 
-impl MacVendorFinder {
-    pub fn new() -> MacVendorFinder {
-        info!("Loading MAC vendor database into memory");
+// Initialize mac vendors database as a static lazy loaded unit
+static MAC_VENDORS_DATABASE: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
+    info!("Loading MAC vendor database into memory");
 
-        let mut database = HashMap::new();
-        let data = fs::read_to_string("data/mac-vendors-export.json").unwrap();
-        let json: Vec<MacRecord> = serde_json::from_str(&data).unwrap();
-
-        debug!("Found {} records in the database", json.len());
-
-        for el in json {
-            database.insert(el.mac_prefix.to_uppercase(), el.vendor_name);
+    let mut database = HashMap::new();
+    let data = match fs::read_to_string("data/mac-vendors-export.json") {
+        Ok(value) => value,
+        Err(error) => {
+            error!("Error reading mac vendors database (data/mac-vendors-export.json): {error}");
+            panic!("Error reading mac vendors database (data/mac-vendors-export.json): {error}");
         }
+    };
 
-        info!("MAC vendor database loaded");
-
-        MacVendorFinder {
-            mac_vendors_database: database,
+    let json: Vec<MacRecord> = match serde_json::from_str(&data) {
+        Ok(value) => value,
+        Err(error) => {
+            error!("Error parsing mac vendors database (data/mac-vendors-export.json): {error}");
+            panic!("Error parsing mac vendors database (data/mac-vendors-export.json): {error}");
         }
+    };
+
+    debug!("Found {} records in the database", json.len());
+
+    for el in json {
+        database.insert(el.mac_prefix.to_uppercase(), el.vendor_name);
     }
 
-    pub fn find(&mut self, mac_prefix: &str) -> Option<&String> {
-        self.mac_vendors_database
-            .get(mac_prefix.to_uppercase().as_str())
-    }
+    info!("MAC vendor database loaded");
+    database
+});
+
+// Find a vendor based on the MAC prefix
+pub fn find(mac_prefix: String) -> String {
+    MAC_VENDORS_DATABASE
+        .get(&mac_prefix.to_uppercase())
+        .unwrap_or(&"".to_string())
+        .to_string()
 }
