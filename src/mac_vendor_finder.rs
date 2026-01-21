@@ -14,6 +14,7 @@ struct MacRecord {
     // last_update: String,
 }
 
+// TODO : Change to lazy_load macro (like CONFIG)
 // Initialize mac vendors database as a static lazy loaded unit
 static MAC_VENDORS_DATABASE: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     info!("Loading MAC vendor database into memory");
