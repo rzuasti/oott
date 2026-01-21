@@ -1,15 +1,33 @@
-use log::{debug, info};
+use log::{LevelFilter, debug, info};
 use std::sync::{Arc, Mutex};
 
-mod config;
+use crate::settings::CONFIG;
+
 mod db;
 mod device_finders;
 mod events;
 mod mac_vendor_finder;
+mod settings;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
-    env_logger::init();
+    // Initialize logging
+    let log_level = match CONFIG.log.level.as_str() {
+        "off" => LevelFilter::Off,
+        "error" => LevelFilter::Error,
+        "warn" => LevelFilter::Warn,
+        "info" => LevelFilter::Info,
+        "debug" => LevelFilter::Debug,
+        "trace" => LevelFilter::Trace,
+        _ => LevelFilter::Error,
+    };
+
+    env_logger::Builder::new()
+        .filter(None, log_level)
+        .write_style(env_logger::WriteStyle::Always)
+        .init();
+
+    // Now onto the important stuff
     info!("Starting up oott");
 
     // Get database connection - thread protected

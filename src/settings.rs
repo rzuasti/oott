@@ -1,0 +1,47 @@
+use config::{Config, ConfigError, File};
+use lazy_static::lazy_static;
+use log::error;
+use serde::Deserialize;
+
+// -----------------------------------------------------------
+// Configuration structure
+#[derive(Debug, Deserialize, Clone)]
+pub struct Log {
+    pub level: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Timings {
+    pub arp_sender_timeout: u64,
+    pub arp_scan_duration: u64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Settings {
+    pub log: Log,
+    pub timings: Timings,
+}
+// End configuration structure
+// -----------------------------------------------------------
+
+const CONFIG_FILE_PATH: &str = "./oott.toml";
+
+impl Settings {
+    pub fn new() -> Result<Self, ConfigError> {
+        let local_settings = Config::builder()
+            .add_source(File::with_name(CONFIG_FILE_PATH))
+            .build()?;
+
+        local_settings.try_deserialize()
+    }
+}
+
+lazy_static! {
+    pub static ref CONFIG: Settings = match Settings::new() {
+        Ok(value) => value,
+        Err(error) => {
+            error!("Error reading configuration file ({CONFIG_FILE_PATH}): {error}");
+            panic!("Error reading configuration file ({CONFIG_FILE_PATH}): {error}");
+        }
+    };
+}

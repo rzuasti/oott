@@ -14,3 +14,6 @@ rusqlite = { version = "0.38.0", features = ["bundled", "chrono"] }
 rusqlite_migration = { version = "2.4.0", features = ["from-directory"] }
 include_dir = "0.7.4"
 chrono = "0.4.43"
+pushover = "0.4.0"
+config = "0.15.19"
+lazy_static = "1.5.0"

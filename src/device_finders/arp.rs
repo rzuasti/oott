@@ -1,6 +1,6 @@
 mod packet_send_receive;
 
-use crate::{config, device_finders::Device};
+use crate::{device_finders::Device, settings::CONFIG};
 use log::{debug, error, info, warn};
 use packet_send_receive::{listen_for_packets, send_packet};
 use pnet::{
@@ -8,9 +8,6 @@ use pnet::{
     ipnetwork::IpNetwork,
 };
 use tokio::time::{Duration, timeout};
-
-const DEFAULT_SENDER_TIMEOUT: u64 = 60; // 1 minute to send all packets - good for a class C network
-const DEFAULT_SCAN_DURATION: u64 = 300; // 5 minutes to wait per round to receive responses
 
 pub async fn find(interface: &str) -> Result<Vec<Device>, String> {
     debug!("Looking up devices via ARP using interface {}", interface);
@@ -84,11 +81,9 @@ pub async fn find(interface: &str) -> Result<Vec<Device>, String> {
     let send_interface = network_interface.clone();
 
     // Get timeouts
-    let sender_timeout =
-        config::parse_env("OOTT_ARP_SENDER_TIMEOUT").unwrap_or(DEFAULT_SENDER_TIMEOUT);
+    let sender_timeout = CONFIG.timings.arp_sender_timeout;
     info!("Sender timeout set to {} seconds", sender_timeout);
-    let scan_duration =
-        config::parse_env("OOTT_ARP_SCAN_DURATION").unwrap_or(DEFAULT_SCAN_DURATION);
+    let scan_duration = CONFIG.timings.arp_scan_duration;
     let receiver_timeout = scan_duration * 2;
     info!("Scan duration set to {} seconds", scan_duration);
     info!("Receiver timeout set to {} seconds", receiver_timeout);

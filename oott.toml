@@ -1,0 +1,6 @@
+[log]
+level = "info" # off, error, warn, info, debug, trace
+
+[timings]
+arp_sender_timeout="30"
+arp_scan_duration="60"
