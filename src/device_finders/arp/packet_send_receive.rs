@@ -1,5 +1,6 @@
 use crate::device_finders::Device;
 use crate::mac_vendor_finder;
+use chrono::Local;
 use log::{debug, info};
 use pnet::datalink::{DataLinkReceiver, DataLinkSender, NetworkInterface};
 use pnet::ipnetwork::Ipv4Network;
@@ -99,6 +100,7 @@ pub async fn listen_for_packets(
                         mac_address: packet_mac_address,
                         ipv4_address: packet_ip_address,
                         vendor: packet_vendor,
+                        last_seen: Local::now().naive_local(),
                     });
                 }
             }

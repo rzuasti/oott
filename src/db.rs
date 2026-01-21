@@ -1,3 +1,5 @@
+pub mod devices;
+
 use include_dir::{Dir, include_dir};
 use log::{debug, error};
 use rusqlite::Connection;
