@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 mod config;
 mod db;
 mod device_finders;
+mod events;
 mod mac_vendor_finder;
 
 #[tokio::main]
@@ -35,21 +36,22 @@ async fn main() -> Result<(), String> {
         match recorded_device_result {
             Some(recorded_device) => {
                 // If it exists update its last seen date
-                info!(
+                debug!(
                     "Device found in database {}. Updating to {}.",
                     recorded_device, device
                 );
-                // TODO: If IPv4 or vendor changed do something
-                db::devices::update(db_conn_clone.lock().unwrap(), device.clone());
+                db::devices::update(db_conn_clone.lock().unwrap(), device.clone())?;
+                events::trigger_existing_device(recorded_device, device.clone());
             }
             None => {
                 // If it doesn't exist insert it
-                info!(
+                debug!(
                     "Device with MAC address {} not found in database. Inserting it.",
                     device.mac_address
                 );
 
-                db::devices::insert(db_conn_clone.lock().unwrap(), device.clone());
+                db::devices::insert(db_conn_clone.lock().unwrap(), device.clone())?;
+                events::trigger_new_device(device.clone());
             }
         };
     }
