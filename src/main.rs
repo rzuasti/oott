@@ -59,7 +59,7 @@ async fn main() -> Result<(), String> {
                     recorded_device, device
                 );
                 db::devices::update(db_conn_clone.lock().unwrap(), device.clone())?;
-                events::trigger_existing_device(recorded_device, device.clone());
+                events::trigger_existing_device(recorded_device, device.clone()).ok(); // Ignoring errors here, do not stop loop if notification delivery fails
             }
             None => {
                 // If it doesn't exist insert it
@@ -69,7 +69,7 @@ async fn main() -> Result<(), String> {
                 );
 
                 db::devices::insert(db_conn_clone.lock().unwrap(), device.clone())?;
-                events::trigger_new_device(device.clone());
+                events::trigger_new_device(device.clone()).ok(); // Ignoring errors here, do not stop loop if notification delivery fails
             }
         };
     }

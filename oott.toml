@@ -4,3 +4,10 @@ level = "info" # off, error, warn, info, debug, trace
 [timings]
 arp_sender_timeout="30"
 arp_scan_duration="60"
+
+[notifications]
+method="pushover" # For now just pushover
+
+[notifications.pushover]
+token="acxa8ouwj5iraswe8pupnpp12kmsm7" # Your pushover token goes here, just copy&paste from their website after creating the app
+user_key="u872udy8xc8ceys9ee6iur229xs3fj" # User key goes here, this is the account wide code for pushover

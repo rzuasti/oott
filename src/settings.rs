@@ -17,9 +17,22 @@ pub struct Timings {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct Pushover {
+    pub token: String,
+    pub user_key: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Notifications {
+    pub method: String,
+    pub pushover: Pushover,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub log: Log,
     pub timings: Timings,
+    pub notifications: Notifications,
 }
 // End configuration structure
 // -----------------------------------------------------------
