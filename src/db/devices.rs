@@ -6,7 +6,6 @@ use crate::device_finders::Device;
 
 // Read device from its MAC address
 pub fn read(conn: MutexGuard<Connection>, mac_address: String) -> Option<Device> {
-    // TODO: Add last_seen
     let result: Result<Device, rusqlite::Error> = conn.query_one(
         "SELECT mac_address, ipv4_address, vendor, last_seen FROM devices WHERE mac_address=?1",
         params![mac_address],
