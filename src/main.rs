@@ -78,6 +78,6 @@ async fn main() -> Result<(), String> {
             "Scan finished. Sleeping for {} seconds",
             CONFIG.timings.wait_between_scans
         );
-        sleep(Duration::from_secs(CONFIG.timings.wait_between_scans)).await;
+        sleep(Duration::from(CONFIG.timings.wait_between_scans)).await;
     }
 }

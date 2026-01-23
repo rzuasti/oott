@@ -1,6 +1,7 @@
 use crate::device_finders::Device;
 use crate::mac_vendor_finder;
 use chrono::Local;
+use duration_string::DurationString;
 use log::{debug, info};
 use pnet::datalink::{DataLinkReceiver, DataLinkSender, NetworkInterface};
 use pnet::ipnetwork::Ipv4Network;
@@ -65,15 +66,18 @@ pub async fn send_packet(
 pub async fn listen_for_packets(
     mut rx: Box<dyn DataLinkReceiver>,
     ipv4_net: Ipv4Network,
-    run_for_secs: u64,
+    run_for: Duration,
 ) -> Vec<Device> {
-    info!("Starting ARP receiver for {} secs", run_for_secs);
+    info!(
+        "Starting ARP receiver for {}",
+        String::from(DurationString::from(run_for))
+    );
     let start_time = Instant::now();
 
     let mut devices = Vec::new();
 
     // Run while still under the time window
-    while (Instant::now() - start_time).as_secs() <= run_for_secs {
+    while start_time.elapsed() <= run_for {
         let arp_buffer = match rx.next() {
             Ok(buffer) => buffer,
             Err(_) => continue,
@@ -109,8 +113,10 @@ pub async fn listen_for_packets(
         sleep(Duration::from_millis(1)).await;
     }
     info!(
-        "ARP receiver ran for {} secs",
-        (Instant::now() - start_time).as_secs()
+        "ARP receiver ran for {}",
+        String::from(DurationString::from(Duration::from_secs(
+            start_time.elapsed().as_secs()
+        )))
     );
 
     devices

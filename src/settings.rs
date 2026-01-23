@@ -1,4 +1,5 @@
 use config::{Config, ConfigError, File};
+use duration_string::DurationString;
 use lazy_static::lazy_static;
 use log::error;
 use serde::Deserialize;
@@ -18,9 +19,9 @@ pub struct Log {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Timings {
-    pub wait_between_scans: u64,
-    pub arp_sender_timeout: u64,
-    pub arp_scan_duration: u64,
+    pub wait_between_scans: DurationString,
+    pub arp_sender_timeout: DurationString,
+    pub arp_scan_duration: DurationString,
 }
 
 #[derive(Debug, Deserialize, Clone)]

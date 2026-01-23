@@ -406,6 +406,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "duration-string"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edbd404ab304f4426de3e981a875a77129597ce04202c9b8b4502c6f1c246809"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "encoding_rs"
 version = "0.8.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1283,6 +1292,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "config",
+ "duration-string",
  "env_logger",
  "include_dir",
  "lazy_static",

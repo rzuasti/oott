@@ -1,6 +1,7 @@
 mod packet_send_receive;
 
 use crate::{device_finders::Device, settings::CONFIG};
+use duration_string::DurationString;
 use log::{debug, error, info, warn};
 use packet_send_receive::{listen_for_packets, send_packet};
 use pnet::{
@@ -81,34 +82,45 @@ pub async fn find(interface: String) -> Result<Vec<Device>, String> {
     let send_interface = network_interface.clone();
 
     // Get timeouts
-    let sender_timeout = CONFIG.timings.arp_sender_timeout;
-    info!("Sender timeout set to {} seconds", sender_timeout);
-    let scan_duration = CONFIG.timings.arp_scan_duration;
-    let receiver_timeout = scan_duration * 2;
-    info!("Scan duration set to {} seconds", scan_duration);
-    info!("Receiver timeout set to {} seconds", receiver_timeout);
+    let sender_timeout: Duration = CONFIG.timings.arp_sender_timeout.into();
+    info!(
+        "Sender timeout set to {}",
+        CONFIG.timings.arp_sender_timeout
+    );
+    let scan_duration: Duration = CONFIG.timings.arp_scan_duration.into();
+    let receiver_timeout: Duration = scan_duration * 2;
+    info!("Scan duration set to {}", CONFIG.timings.arp_scan_duration);
+    info!(
+        "Receiver timeout set to {}",
+        String::from(DurationString::from(receiver_timeout))
+    );
 
     if sender_timeout >= scan_duration {
         warn!(
-            "OOTT_ARP_SENDER_TIMEOUT ({sender_timeout}) needs to be smaller than OOTT_ARP_SCAN_DURATION ({scan_duration})."
+            "OOTT_ARP_SENDER_TIMEOUT ({}) needs to be smaller than OOTT_ARP_SCAN_DURATION ({}).",
+            CONFIG.timings.arp_sender_timeout, CONFIG.timings.arp_scan_duration
         );
-        return Err(format!("OOTT_ARP_SENDER_TIMEOUT ({sender_timeout}) needs to be smaller than OOTT_ARP_SCAN_DURATION ({scan_duration}).").to_string());
+        return Err(format!(
+            "OOTT_ARP_SENDER_TIMEOUT ({}) needs to be smaller than OOTT_ARP_SCAN_DURATION ({}).",
+            CONFIG.timings.arp_sender_timeout, CONFIG.timings.arp_scan_duration
+        )
+        .to_string());
     }
 
     let result = tokio::join!(
         timeout(
-            Duration::from_secs(sender_timeout),
+            sender_timeout,
             send_packet(sender, send_interface, ipv4_net, mac),
         ),
         timeout(
-            Duration::from_secs(receiver_timeout),
+            receiver_timeout,
             listen_for_packets(receiver, ipv4_net, scan_duration),
         )
     );
 
     match result {
         (Ok(_), Ok(_)) => info!("ARP sender and receiver done"),
-        (Err(_), _) => warn!("ARP sender timed out"),
+        (Err(_), _) => warn!("ARP sender timed out. Consider increasing its duration."),
         (_, Err(_)) => info!("ARP receiver timed out"),
     };
 
