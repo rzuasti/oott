@@ -9,7 +9,7 @@ use pnet::{
 };
 use tokio::time::{Duration, timeout};
 
-pub async fn find(interface: &str) -> Result<Vec<Device>, String> {
+pub async fn find(interface: String) -> Result<Vec<Device>, String> {
     debug!("Looking up devices via ARP using interface {}", interface);
 
     // Get the network device to use

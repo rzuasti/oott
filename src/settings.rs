@@ -5,6 +5,12 @@ use serde::Deserialize;
 
 // -----------------------------------------------------------
 // Configuration structure
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Networking {
+    pub interface: String,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Log {
     pub level: String,
@@ -12,6 +18,7 @@ pub struct Log {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Timings {
+    pub wait_between_scans: u64,
     pub arp_sender_timeout: u64,
     pub arp_scan_duration: u64,
 }
@@ -30,6 +37,7 @@ pub struct Notifications {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
+    pub networking: Networking,
     pub log: Log,
     pub timings: Timings,
     pub notifications: Notifications,

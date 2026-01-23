@@ -1,7 +1,11 @@
+[networking]
+interface = "eno1" # Network interface to use for scans
+
 [log]
 level = "info" # off, error, warn, info, debug, trace
 
 [timings]
+wait_between_scans="30"
 arp_sender_timeout="30"
 arp_scan_duration="60"
 
