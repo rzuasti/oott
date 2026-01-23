@@ -34,6 +34,7 @@ pub struct Pushover {
 pub struct Notifications {
     pub method: String,
     pub pushover: Pushover,
+    pub notify_when_not_seen_for: DurationString,
 }
 
 #[derive(Debug, Deserialize, Clone)]

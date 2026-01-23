@@ -1,6 +1,10 @@
 mod pushover;
 
+use std::time::Duration;
+
 use crate::{device_finders::Device, settings::CONFIG};
+use chrono::Local;
+use duration_string::DurationString;
 use log::{debug, info, warn};
 
 // Private helper function to deliver messages
@@ -26,6 +30,25 @@ pub fn trigger_new_device(device: Device) -> Result<(), String> {
 }
 
 pub fn trigger_existing_device(existing_device: Device, new_device: Device) -> Result<(), String> {
+    // Notify if the device comes back online after not being seen for the configured period
+    let elapsed_since_last_seen: Duration = (Local::now().naive_local()
+        - existing_device.last_seen)
+        .to_std()
+        .unwrap_or(Duration::from_secs(0));
+
+    if elapsed_since_last_seen >= Duration::from(CONFIG.notifications.notify_when_not_seen_for) {
+        send_message(format!(
+            "Device MAC {} - IP {} - Vendor {} came back online after {}.",
+            new_device.mac_address,
+            new_device.ipv4_address,
+            new_device.vendor,
+            String::from(DurationString::from(Duration::from_secs(
+                elapsed_since_last_seen.as_secs()
+            )))
+        ))?;
+    }
+
+    // Notify if the devices vendor and/or IP changed
     if (existing_device.ipv4_address != new_device.ipv4_address)
         && (existing_device.vendor != new_device.vendor)
     {

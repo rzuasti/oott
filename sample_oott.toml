@@ -11,6 +11,7 @@ arp_scan_duration="30s" # How long to wait for response packets on each scan (5m
 
 [notifications]
 method="pushover" # For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)
+notify_when_not_seen_for="1w" # Send a notification if a device comes back online after not being seen for this timeframe
 
 [notifications.pushover]
 token="" # Your pushover token goes here, just copy&paste from their website after creating the app
