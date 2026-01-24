@@ -1,5 +1,5 @@
 {
-  # description = "OOTT - An easy to setup and use network device monitoring service";
+  description = "OOTT - An easy to setup and use network device monitoring service";
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
