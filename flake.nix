@@ -31,7 +31,59 @@
         cargoLock = {
           lockFile = ./Cargo.lock;
         };
+
+        nativeBuildInputs = [pkgs.pkg-config];
+        PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
       };
     });
+
+    nixosModule = forAllSystems (system: let
+      pkgs = nixpkgsFor.${system};
+    in
+      {
+        config,
+        lib,
+        pkgs,
+        ...
+      }:
+        with lib; let
+          cfg = config.services.oott;
+        in {
+          options.services.oott = {
+            enable = mkEnableOption "Enable oott as a service";
+
+            package = mkOption {
+              type = types.package;
+              default = self.packages.${system}.oott;
+              description = "oott package to use";
+            };
+            networking.interface = mkOption {
+              type = types.str;
+              description = "Network interface to use for scans";
+              default = "eno1";
+            };
+            log.level = mkOption {
+              type = types.str;
+              description = "Log level for the oott service";
+              default = "info";
+            };
+          };
+          config = mkIf cfg.enable {
+            systemd.services.oott = {
+              description = "oott - network device scanner";
+              wantedBy = ["multi-user.target"];
+
+              serviceConfig = {
+                ExecStart = "${cfg.package}/bin/oott ${
+                  builtins.toFile "oott.toml"
+                  (generators.toTOML {} cfg)
+                }";
+                ProtectHome = "read-only";
+                Restart = "on-failure";
+                Type = "exec";
+              };
+            };
+          };
+        });
   };
 }
