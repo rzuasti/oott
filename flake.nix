@@ -28,7 +28,9 @@
         inherit pname;
         inherit version;
         src = ./.;
-        cargoLock = ./Cargo.lock;
+        cargoLock = {
+          lockFile = ./Cargo.lock;
+        };
       };
     });
   };
