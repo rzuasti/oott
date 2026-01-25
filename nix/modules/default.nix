@@ -1,5 +1,5 @@
 {overlays}: {
-  simple-go-server = import ./oott-service.nix;
+  oott = import ./oott-service.nix;
 
   overlayNixpkgsForThisInstance = {pkgs, ...}: {
     nixpkgs = {
