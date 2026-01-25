@@ -21,6 +21,10 @@
     version = "0.0.1";
     pname = "oott";
   in {
+    # A Nixpkgs overlay that provides a 'oott' package.
+    overlays.default = final: prev: {oott = final.callPackage self {};};
+
+    # Package definition
     packages = forAllSystems (system: let
       pkgs = nixpkgsFor.${system};
     in {
@@ -37,6 +41,7 @@
       };
     });
 
+    # Module definition
     nixosModules = forAllSystems (system: let
       pkgs = nixpkgsFor.${system};
     in
