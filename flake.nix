@@ -37,7 +37,7 @@
       };
     });
 
-    nixosModule = forAllSystems (system: let
+    nixosModules = forAllSystems (system: let
       pkgs = nixpkgsFor.${system};
     in
       {
