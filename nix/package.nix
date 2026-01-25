@@ -1,12 +1,7 @@
-{
-  pkgs,
-  buildRustPackage,
-  pname,
-  version,
-}:
-buildRustPackage rec {
-  inherit pname;
-  inherit version;
+{pkgs}:
+pkgs.rustPlatform.buildRustPackage rec {
+  pname = "oott";
+  version = "0.0.1";
   src = ./.;
   cargoLock = {
     lockFile = ./Cargo.lock;

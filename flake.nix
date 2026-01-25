@@ -25,20 +25,17 @@
         inherit system;
         overlays = overlayList;
       });
-
-    version = "0.0.1";
-    pname = "oott";
   in rec {
     # A Nixpkgs overlay that provides a 'oott' package.
-    overlays.default = final: prev: {oott = final.callPackage ./package.nix {};};
+    overlays.default = final: prev: {oott = final.callPackage ./nix/package.nix {};};
 
     # Package definition
     packages = forEachSystem (system: {
-      ${pname} = pkgsBySystem.${system}.${pname};
-      default = pkgsBySystem.${system}.${pname};
+      oott = pkgsBySystem.${system}.oott;
+      default = pkgsBySystem.${system}.oott;
     });
 
     # Modules definition
-    nixosModules = import ./modules.nix {overlays = overlayList;};
+    nixosModules = import ./nix/modules {overlays = overlayList;};
   };
 }
