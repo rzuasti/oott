@@ -8,13 +8,13 @@ with lib; let
   cfg = config.services.oott;
 in {
   # Service options
-  options.services.oott = {
-    enable = mkEnableOption "Enable oott as a service";
-
-    package = mkOption {
-      type = types.package;
-      default = self.packages.${system}.oott;
-      description = "oott package to use";
+  options.services.oott = rec {
+    enable = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        Whether to run the oott service
+      '';
     };
     networking.interface = mkOption {
       type = types.str;
@@ -40,7 +40,7 @@ in {
         #   builtins.toFile "oott.toml"
         #   (generators.toTOML {} cfg)
         # }";
-        ExecStart = "${cfg.package}/bin/oott";
+        ExecStart = "${pkgs.oott}/bin/oott";
         ProtectHome = "read-only";
         Restart = "on-failure";
         Type = "exec";
