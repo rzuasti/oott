@@ -8,87 +8,37 @@
   outputs = {
     self,
     nixpkgs,
+    nix,
   }: let
     # System types to support.
     supportedSystems = ["x86_64-linux"];
 
     # Helper function to generate an attrset '{ x86_64-linux = f "x86_64-linux"; ... }'.
-    forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+    forEachSystem = nixpkgs.lib.genAttrs supportedSystems;
+
+    # Package overlays to include
+    overlayList = [self.overlays.default];
 
     # Nixpkgs instantiated for supported system types.
-    nixpkgsFor = forAllSystems (system: import nixpkgs {inherit system;});
+    pkgsBySystem = forEachSystem (system:
+      import nixpkgs {
+        inherit system;
+        overlays = overlayList;
+      });
 
     version = "0.0.1";
     pname = "oott";
-  in {
+  in rec {
     # A Nixpkgs overlay that provides a 'oott' package.
-    overlays.default = final: prev: {oott = final.callPackage self {};};
+    overlays.default = final: prev: {oott = final.callPackage ./package.nix {};};
 
     # Package definition
-    packages = forAllSystems (system: let
-      pkgs = nixpkgsFor.${system};
-    in {
-      ${pname} = pkgs.rustPlatform.buildRustPackage rec {
-        inherit pname;
-        inherit version;
-        src = ./.;
-        cargoLock = {
-          lockFile = ./Cargo.lock;
-        };
-
-        nativeBuildInputs = [pkgs.pkg-config];
-        PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
-      };
+    packages = forEachSystem (system: {
+      ${pname} = pkgsBySystem.${system}.${pname};
+      default = pkgsBySystem.${system}.${pname};
     });
 
-    # Module definition
-    nixosModules = forAllSystems (system: let
-      pkgs = nixpkgsFor.${system};
-    in
-      {
-        config,
-        lib,
-        pkgs,
-        ...
-      }:
-        with lib; let
-          cfg = config.services.oott;
-        in {
-          options.services.oott = {
-            enable = mkEnableOption "Enable oott as a service";
-
-            package = mkOption {
-              type = types.package;
-              default = self.packages.${system}.oott;
-              description = "oott package to use";
-            };
-            networking.interface = mkOption {
-              type = types.str;
-              description = "Network interface to use for scans";
-              default = "eno1";
-            };
-            log.level = mkOption {
-              type = types.str;
-              description = "Log level for the oott service";
-              default = "info";
-            };
-          };
-          config = mkIf cfg.enable {
-            systemd.services.oott = {
-              description = "oott - network device scanner";
-              wantedBy = ["multi-user.target"];
-
-              serviceConfig = {
-                ExecStart = "${cfg.package}/bin/oott ${
-                  builtins.toFile "oott.toml"
-                  (generators.toTOML {} cfg)
-                }";
-                ProtectHome = "read-only";
-                Restart = "on-failure";
-                Type = "exec";
-              };
-            };
-          };
-        });
+    # Modules definition
+    nixosModules = import ./modules.nix {overlays = overlayList;};
   };
 }
