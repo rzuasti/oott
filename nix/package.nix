@@ -2,9 +2,9 @@
 pkgs.rustPlatform.buildRustPackage rec {
   pname = "oott";
   version = "0.0.1";
-  src = ./.;
+  src = ./..;
   cargoLock = {
-    lockFile = ./Cargo.lock;
+    lockFile = ./../Cargo.lock;
   };
 
   nativeBuildInputs = [pkgs.pkg-config];
