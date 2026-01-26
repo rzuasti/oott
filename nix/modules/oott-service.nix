@@ -37,7 +37,7 @@ in {
 
       serviceConfig = {
         ExecStart = "${pkgs.oott}/bin/oott ${
-          builtins.toFile "oott.toml"
+          builtins.toFile "oott.yaml"
           (generators.toYAML {} cfg)
         }";
         # ExecStart = "${pkgs.oott}/bin/oott";
