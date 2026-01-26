@@ -38,7 +38,7 @@ in {
       serviceConfig = {
         ExecStart = "${pkgs.oott}/bin/oott ${
           builtins.toFile "oott.toml"
-          (generators.toTOML {} cfg)
+          (generators.toYAML {} cfg)
         }";
         # ExecStart = "${pkgs.oott}/bin/oott";
         ProtectHome = "read-only";
