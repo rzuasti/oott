@@ -36,11 +36,11 @@ in {
       wantedBy = ["multi-user.target"];
 
       serviceConfig = {
-        # ExecStart = "${cfg.package}/bin/oott ${
-        #   builtins.toFile "oott.toml"
-        #   (generators.toTOML {} cfg)
-        # }";
-        ExecStart = "${pkgs.oott}/bin/oott";
+        ExecStart = "${pkgs.oott}/bin/oott ${
+          builtins.toFile "oott.toml"
+          (generators.toTOML {} cfg)
+        }";
+        # ExecStart = "${pkgs.oott}/bin/oott";
         ProtectHome = "read-only";
         Restart = "on-failure";
         Type = "exec";
