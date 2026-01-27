@@ -1,7 +1,8 @@
+use clap::Parser;
 use config::{Config, ConfigError, File};
 use duration_string::DurationString;
 use lazy_static::lazy_static;
-use log::error;
+use log::{error, info};
 use serde::Deserialize;
 
 // -----------------------------------------------------------
@@ -47,12 +48,27 @@ pub struct Settings {
 // End configuration structure
 // -----------------------------------------------------------
 
-const CONFIG_FILE_PATH: &str = "./oott.toml";
+// Command line parameters relevant to configuration
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Config file path
+    #[arg(short, long)]
+    config: Option<String>,
+}
+
+const DEFAULT_CONFIG_FILE_PATH: &str = "./oott.toml";
 
 impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
+        let args = Args::parse();
+
+        let config_path = args.config.unwrap_or(DEFAULT_CONFIG_FILE_PATH.to_string());
+
+        info!("Reading configuration from {}", config_path);
+
         let local_settings = Config::builder()
-            .add_source(File::with_name(CONFIG_FILE_PATH))
+            .add_source(File::with_name(config_path.as_str()))
             .build()?;
 
         local_settings.try_deserialize()
@@ -63,8 +79,8 @@ lazy_static! {
     pub static ref CONFIG: Settings = match Settings::new() {
         Ok(value) => value,
         Err(error) => {
-            error!("Error reading configuration file ({CONFIG_FILE_PATH}): {error}");
-            panic!("Error reading configuration file ({CONFIG_FILE_PATH}): {error}");
+            error!("Error reading configuration file: {error}");
+            panic!("Error reading configuration file: {error}");
         }
     };
 }
