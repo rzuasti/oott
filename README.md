@@ -15,6 +15,38 @@ OOTT can be installed as a NixOS module (using flakes) or as a docker image, see
 TODO
 
 ## Install OOTT using NixOS flakes
+OOTT comes with a pre-built NixOS flake that you can integrate in your configuration. If you are not using flakes, well you should. If you still won't I guess you can use the [flake code](https://github.com/rzuasti/oott/tree/main/nix) as a baseline and write your own derivation.
+
+To integrate the OOTT flake into your config in most cases you should do the following:
+#### 1. Add OOTT to your inputs
+In your `flake.nix` inputs section add OOTT:
+```
+inputs = {
+  ...
+  oott = {
+    url = "github:rzuasti/oott";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+  ...
+};
+```
+
+#### 2. Add the OOTT module and overlay
+In your `flake.nix` modules section add the OOTT module and overlay:
+```
+...
+modules = [
+  ...
+  oott.nixosModules.oott
+  ({pkgs, ...}: {
+    nixpkgs.overlays = [
+      oott.overlays.default
+      ];
+  })
+  ...
+];
+...
+```
 
 ## Configuration options
 The system configuration is centralized in a single config file, you can use TOML, JSON or YAML to write it.
