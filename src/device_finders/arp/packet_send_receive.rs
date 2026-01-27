@@ -20,6 +20,7 @@ pub async fn send_packet(
     info!("Starting ARP sender");
     let sender_start = Instant::now();
 
+    let mut count = 0;
     for target_ip in sender_ip.iter() {
         if target_ip == sender_ip.ip() {
             continue;
@@ -54,8 +55,11 @@ pub async fn send_packet(
                 Some(interface.clone()),
             );
         }
-        // Sleep  1 millisecond between IPs
-        sleep(Duration::from_millis(1)).await;
+        count += 1;
+        // Sleep  1 millisecond every 50 packets
+        if (count % 50) == 0 {
+            sleep(Duration::from_millis(1)).await;
+        }
     }
     info!(
         "ARP sender took {} secs",
@@ -76,6 +80,7 @@ pub async fn listen_for_packets(
 
     let mut devices = Vec::new();
 
+    let mut count = 0;
     // Run while still under the time window
     while start_time.elapsed() <= run_for {
         let arp_buffer = match rx.next() {
@@ -109,8 +114,11 @@ pub async fn listen_for_packets(
                 }
             }
         }
-        // Sleep  1 millisecond between IPs
-        sleep(Duration::from_millis(1)).await;
+        count += 1;
+        if (count % 10) == 0 {
+            // Sleep  1 millisecond every 10 packets
+            sleep(Duration::from_millis(1)).await;
+        }
     }
     info!(
         "ARP receiver ran for {}",
