@@ -2,7 +2,6 @@ use lazy_static::lazy_static;
 use log::{debug, error, info};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::fs;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -20,17 +19,7 @@ lazy_static! {
         info!("Loading MAC vendor database into memory");
 
         let mut database = HashMap::new();
-        let data = match fs::read_to_string("data/mac-vendors-export.json") {
-            Ok(value) => value,
-            Err(error) => {
-                error!(
-                    "Error reading mac vendors database (data/mac-vendors-export.json): {error}"
-                );
-                panic!(
-                    "Error reading mac vendors database (data/mac-vendors-export.json): {error}"
-                );
-            }
-        };
+        let data = include_str!("../data/mac-vendors-export.json");
 
         let json: Vec<MacRecord> = match serde_json::from_str(&data) {
             Ok(value) => value,
