@@ -56,8 +56,8 @@ pub async fn send_packet(
             );
         }
         count += 1;
-        // Sleep  1 millisecond every 50 packets
-        if (count % 50) == 0 {
+        // Sleep  1 millisecond every 255 packets
+        if (count % 255) == 0 {
             debug!("Sent {count} ARP packets so far.");
             sleep(Duration::from_millis(1)).await;
         }
