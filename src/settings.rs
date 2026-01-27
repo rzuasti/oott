@@ -9,6 +9,11 @@ use serde::Deserialize;
 // Configuration structure
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct Database {
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Networking {
     pub interface: String,
 }
@@ -40,6 +45,7 @@ pub struct Notifications {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
+    pub database: Database,
     pub networking: Networking,
     pub log: Log,
     pub timings: Timings,
