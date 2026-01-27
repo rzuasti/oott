@@ -18,9 +18,13 @@ TODO
 OOTT comes with a pre-built NixOS flake that you can integrate in your configuration. If you are not using flakes, well you should. If you still won't I guess you can use the [flake code](https://github.com/rzuasti/oott/tree/main/nix) as a baseline and write your own derivation.
 
 To integrate the OOTT flake into your config in most cases you should do the following:
+1. Add OOTT to your inputs
+2. Add the OOTT module and overlay
+3. Enable and setup OOTT in your system configuration
+
 #### 1. Add OOTT to your inputs
 In your `flake.nix` inputs section add OOTT:
-```
+```nix
 inputs = {
   ...
   oott = {
@@ -33,7 +37,7 @@ inputs = {
 
 #### 2. Add the OOTT module and overlay
 In your `flake.nix` modules section add the OOTT module and overlay:
-```
+```nix
 ...
 modules = [
   ...
@@ -46,6 +50,33 @@ modules = [
   ...
 ];
 ...
+```
+#### 3. Enable and setup OOTT in your system configuration
+Finally, in your `configuration.nix` (or in an import file) enable and configure OOTT (note that you should embed the following sections in your file appropriately):
+```nix
+{
+  pkgs,
+  ...
+}
+: {
+  environment.systemPackages = with pkgs; [
+    oott
+  ];
+
+  services.oott = {
+    enable = true;
+    database.path = "/var/lib/oott.db";
+    networking.interface = "eth0";
+    log.level = "info";
+    timings.wait_between_scans = "15m";
+    timings.arp_sender_timeout = "20m";
+    timings.arp_scan_duration = "30m";
+    notifications.method = "pushover";
+    notifications.notify_when_not_seen_for = "1w";
+    notifications.pushover.token = "YOUR API TOKEN GOES HERE";
+    notifications.pushover.user_key = "YOUR USER TOKEN GOES HERE";
+  };
+}
 ```
 
 ## Configuration options
