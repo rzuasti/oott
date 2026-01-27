@@ -2,7 +2,7 @@ use crate::device_finders::Device;
 use crate::mac_vendor_finder;
 use chrono::Local;
 use duration_string::DurationString;
-use log::{debug, info};
+use log::{debug, info, trace};
 use pnet::datalink::{DataLinkReceiver, DataLinkSender, NetworkInterface};
 use pnet::ipnetwork::Ipv4Network;
 use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPacket};
@@ -25,7 +25,7 @@ pub async fn send_packet(
         if target_ip == sender_ip.ip() {
             continue;
         }
-        debug!("Sending ARP packet to {}", target_ip);
+        trace!("Sending ARP packet to {}", target_ip);
         for _ in 0..1 {
             //arp packet
             let mut arp_buf = [0u8; 28];
@@ -58,6 +58,7 @@ pub async fn send_packet(
         count += 1;
         // Sleep  1 millisecond every 50 packets
         if (count % 50) == 0 {
+            debug!("Sent {count} ARP packets so far.");
             sleep(Duration::from_millis(1)).await;
         }
     }
