@@ -1,6 +1,8 @@
 # OOTT
 Easy to setup and use network device discovery and alert system 
 
+[TOC]
+
 ## What is it?
 OOTT provides a service that runs behind the scenes and monitors your local network. It's most relevant features are:
 * Scan network regularly using ARP probes
