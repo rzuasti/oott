@@ -8,9 +8,9 @@ interface = "eno1" # Network interface to use for scans
 level = "info" # off, error, warn, info, debug, trace
 
 [timings]
-wait_between_scans="15m" # Wait time between scans. This does not include the scan time
+wait_between_scans="10m" # Wait time between scans. This does not include the scan time
 arp_sender_timeout="1m" # If the ARP sender process takes longer than this it will be stopped (for a class C network - 254 IPs - it should take less than a minute)
-arp_scan_duration="30s" # How long to wait for response packets on each scan (5m to 10m is a good timeframe for a class B or C network)
+arp_scan_duration="10m" # How long to wait for response packets on each scan (5m to 10m is a good timeframe for a class B or C network)
 
 [notifications]
 method="pushover" # For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)

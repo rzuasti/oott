@@ -95,34 +95,27 @@ pub async fn find(interface: String) -> Result<Vec<Device>, String> {
         String::from(DurationString::from(receiver_timeout))
     );
 
-    if sender_timeout >= scan_duration {
-        warn!(
-            "OOTT_ARP_SENDER_TIMEOUT ({}) needs to be smaller than OOTT_ARP_SCAN_DURATION ({}).",
-            CONFIG.timings.arp_sender_timeout, CONFIG.timings.arp_scan_duration
-        );
-        return Err(format!(
-            "OOTT_ARP_SENDER_TIMEOUT ({}) needs to be smaller than OOTT_ARP_SCAN_DURATION ({}).",
-            CONFIG.timings.arp_sender_timeout, CONFIG.timings.arp_scan_duration
-        )
-        .to_string());
-    }
+    let result_send = timeout(
+        sender_timeout,
+        send_packet(sender, send_interface, ipv4_net, mac),
+    )
+    .await;
 
-    let result = tokio::join!(
-        timeout(
-            sender_timeout,
-            send_packet(sender, send_interface, ipv4_net, mac),
-        ),
-        timeout(
-            receiver_timeout,
-            listen_for_packets(receiver, ipv4_net, scan_duration),
-        )
-    );
-
-    match result {
-        (Ok(_), Ok(_)) => info!("ARP sender and receiver done"),
-        (Err(_), _) => warn!("ARP sender timed out. Consider increasing its duration."),
-        (_, Err(_)) => info!("ARP receiver timed out"),
+    match result_send {
+        Ok(_) => info!("ARP sender done."),
+        Err(_) => warn!("ARP sender timed out. Consider increasing its duration."),
     };
 
-    Ok(result.1.unwrap_or(Vec::new()))
+    let result_receive = timeout(
+        receiver_timeout,
+        listen_for_packets(receiver, ipv4_net, scan_duration),
+    )
+    .await;
+
+    match result_receive {
+        Ok(_) => info!("ARP receiver done."),
+        Err(_) => info!("ARP receiver timed out."),
+    };
+
+    Ok(result_receive.unwrap_or(Vec::new()))
 }
