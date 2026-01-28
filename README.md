@@ -12,7 +12,39 @@ OOTT can be installed as a NixOS module (using flakes) or as a docker image, see
 
 # Installation & configuration
 ## Install OOTT using Docker
-TODO
+OOTT is available on Docker Hub as a pre-built image [here](https://hub.docker.com/repository/docker/rzuasti/oott/general).
+To use it I recommend using docker compose, you can find a sample compose file [here](https://github.com/rzuasti/oott/blob/main/examples/docker-compose.yml).
+
+If you use our Docker Hub image and docker compose the steps you have to follow are:
+1. Create a folder structure in your host
+2. Create the configuration file
+3. Create the `docker-compose.yml` file
+4. Start the service
+
+#### 1. Create a folder structure in your host
+You need a place to store the docker-compose.yml file, the OOTT configuration file and the database that will store the application state:
+```bash
+mkdir -p /docker/oott/config
+mkdir -p /docker/oott/db
+```
+
+You can choose whatever structure or locations you choose. Note that:
+* The user that runs the docker process must have read access to the config folder and read/write access to the db folder
+* OOTT uses SQLite and it doesn't really like remote access so the `db/` folder should be local to your docker host
+
+#### 2. Create the configuration file
+Create the `oott.toml` file (for example at `/docker/oott/config/oott.toml` in your docker host) and populate it with your preferences. You can use the [provided example](https://github.com/rzuasti/oott/blob/main/examples/sample_oott.toml) as baseline.
+
+> [!IMPORTANT]
+> The `database.path` option must always be set to `"/db/oott.db"` when using our docker image.
+
+#### 3. Create the `docker-compose.yml` file
+Create a docker compose file to run the container (for example at `/docker/oott/docker-compose.yml`), you can use the [provided example](https://github.com/rzuasti/oott/blob/main/examples/docker-compose.yml) as is or adjust it to match your environment.
+
+#### 4. Start the service
+Run `docker compose up -d` from where you placed your `docker-compose.yml` file and verify everything is running smoothly.
+
+You can check the applications log using `docker logs CONTAINER_ID -f`, to see the active containers you can use `docker ps`.
 
 ## Install OOTT using NixOS flakes
 OOTT comes with a pre-built NixOS flake that you can integrate in your configuration. If you are not using flakes, well you should. If you still won't I guess you can use the [flake code](https://github.com/rzuasti/oott/tree/main/nix) as a baseline and write your own derivation.
@@ -84,7 +116,7 @@ The system configuration is centralized in a single config file, you can use TOM
 
 If you are using the provided NixOS flake you should set all the options via nix in the service definition (see above).
 
-If you are using Docker I recommend writing the config using TOML, [here](https://github.com/rzuasti/oott/blob/main/sample_oott.toml) is a sample with all the supported options.
+If you are using Docker I recommend writing the config using TOML, [here](https://github.com/rzuasti/oott/blob/main/examples/sample_oott.toml) is a sample with all the supported options.
 
 ### Options list
 |Option|Sample value|Description|
