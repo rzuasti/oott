@@ -1,7 +1,11 @@
 # OOTT
 Easy to setup and use network device discovery and alert system 
 
-[TOC]
+* [What is it?](#what-is-it)
+  - [Installation & configuration](#installation-configuration)
+* [Install OOTT using Docker](#install-oott-using-docker)
+* [Install OOTT using NixOS flakes](#install-oott-using-nixos-flakes)
+* [Configuration options](#configuration-options)
 
 ## What is it?
 OOTT provides a service that runs behind the scenes and monitors your local network. It's most relevant features are:
