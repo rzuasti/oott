@@ -2,9 +2,9 @@
 Easy to setup and use network device discovery and alert system 
 
 * [What is it?](#what-is-it)
-  - [Installation & configuration](#installation-configuration)
-* [Install OOTT using Docker](#install-oott-using-docker)
-* [Install OOTT using NixOS flakes](#install-oott-using-nixos-flakes)
+* [Installation & configuration](#installation-configuration)
+** [Install OOTT using Docker](#install-oott-using-docker)
+** [Install OOTT using NixOS flakes](#install-oott-using-nixos-flakes)
 * [Configuration options](#configuration-options)
 
 ## What is it?
