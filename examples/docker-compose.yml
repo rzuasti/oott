@@ -1,0 +1,9 @@
+name: oott
+
+services:
+  oott:
+    image: oott:latest
+    volumes:
+      - /docker/oott/config:/config
+      - /docker/oott/db:/db
+    network_mode: host

@@ -33,6 +33,26 @@
     packages = forEachSystem (system: {
       oott = pkgsBySystem.${system}.oott;
       default = pkgsBySystem.${system}.oott;
+
+      # Docker image generation
+      # use via 'nix build .#dockerImage'
+      dockerImage = with pkgsBySystem.${system};
+        dockerTools.buildLayeredImage {
+          # Based on the official nixos image
+          fromImage = dockerTools.pullImage {
+            imageName = "nixos/nix";
+            imageDigest = "sha256:d5cce2440bda1f966357732c06d86cb92368069fb52dfb6b2bae8725eea488a5";
+            sha256 = "sha256-4+99v7Jej0dY0zv8iJLtFiulCsw90ZnGwtjTaGu2L+c=";
+            finalImageTag = "2.33.1";
+            finalImageName = "nix";
+          };
+          name = "oott";
+          tag = "latest";
+          contents = [oott curl bash openssl cacert];
+          config = {
+            Cmd = ["${oott}/bin/oott" "--config" "/config/oott.toml"];
+          };
+        };
     });
 
     # Modules definition
