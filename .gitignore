@@ -1,4 +1,5 @@
 /target
+/backend/target
 /result
 oott.db
 oott.toml
