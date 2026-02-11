@@ -14,7 +14,7 @@ final GoRouter router = GoRouter(
         GoRoute(
           path: '/events',
           name: 'events',
-          builder: (context, state) => const EventsList(),
+          builder: (context, state) => EventsList(),
         ),
         GoRoute(
           path: '/devices',
@@ -49,7 +49,9 @@ class MainShell extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             title: const Text('OOTT'),
-            backgroundColor: Theme.of(context).colorScheme.surfaceBright,
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerLowest,
           ),
           body: Row(
             children: [
@@ -57,7 +59,7 @@ class MainShell extends StatelessWidget {
                 child: NavigationRail(
                   backgroundColor: Theme.of(
                     context,
-                  ).colorScheme.primaryContainer,
+                  ).colorScheme.surfaceContainerLow,
                   extended: constraints.maxWidth >= 600,
                   destinations: [
                     NavigationRailDestination(
@@ -89,7 +91,7 @@ class MainShell extends StatelessWidget {
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.all(20),
-                  color: Theme.of(context).colorScheme.surfaceDim,
+                  color: Theme.of(context).colorScheme.surface,
                   child: child,
                 ),
               ),
