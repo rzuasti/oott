@@ -1,0 +1,22 @@
+name: frontend
+description: "OOTT - Easy to setup and use network device discovery and alert system"
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  go_router: ^17.1.0
+  intl: ^0.20.2
+  provider: ^6.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

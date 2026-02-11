@@ -24,8 +24,36 @@
       import nixpkgs {
         inherit system;
         overlays = overlayList;
+
+        # Front-end specific items
+        config = {
+          android_sdk.accept_license = true;
+          allowUnfree = true;
+        };
       });
   in rec {
+    # Development shell to test the app locally
+    devShells = forEachSystem (system: {
+      default = pkgsBySystem.${system}.mkShell rec {
+        androidSdk = pkgsBySystem.${system}.androidenv.androidPkgs.androidsdk;
+        ANDROID_SDK_ROOT = "${androidSdk}/libexec/android-sdk";
+
+        nativeBuildInputs = with pkgsBySystem.${system}; [
+          pkg-config
+        ];
+        buildInputs = with pkgsBySystem.${system}; [
+          openssl
+          rustc
+          cargo
+          sqlite
+          flutter
+          android-tools
+          androidSdk
+          jdk17
+        ];
+      };
+    });
+
     # A Nixpkgs overlay that provides a 'oott' package.
     overlays.default = final: prev: {oott = final.callPackage ./nix/package.nix {};};
 
