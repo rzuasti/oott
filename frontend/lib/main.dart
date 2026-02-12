@@ -17,7 +17,7 @@ class MainApp extends StatelessWidget {
         title: 'OOTT',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepOrange,
+            seedColor: Colors.green,
             brightness: Brightness.dark,
           ),
         ),
