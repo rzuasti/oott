@@ -14,6 +14,7 @@ in
   pkgs.stdenv.mkDerivation {
     name = "oott";
     buildInputs = [oott-backend];
+    src = ./../extras;
     installPhase = ''
       cp ${oott-backend}/bin/* $out/bin/
     '';
