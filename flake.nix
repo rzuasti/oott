@@ -55,7 +55,7 @@
     });
 
     # A Nixpkgs overlay that provides a 'oott' package.
-    overlays.default = final: prev: {oott = final.callPackage ./nix/package.nix {};};
+    overlays.default = final: prev: {oott = final.callPackage ./nix/package.nix {inherit pkgsBySystem;};};
 
     # Package definition
     packages = forEachSystem (system: {
