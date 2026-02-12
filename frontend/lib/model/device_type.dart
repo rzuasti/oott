@@ -16,8 +16,6 @@ enum DeviceType {
         return Icons.tablet;
       case server:
         return Icons.storage;
-      default:
-        return Icons.device_unknown;
     }
   }
 }
