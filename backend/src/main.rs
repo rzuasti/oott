@@ -1,7 +1,10 @@
 use crate::settings::CONFIG;
+use axum::{Router, routing::get};
 use log::{LevelFilter, debug, info};
+use rusqlite::Connection;
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use tokio::time::{Duration, sleep};
+use tokio::time::{self, Duration, sleep};
 
 mod db;
 mod device_finders;
@@ -30,6 +33,26 @@ async fn main() -> Result<(), String> {
     // Now onto the important stuff
     info!("Starting up oott");
 
+    let result = tokio::join!(scanner(), web_server());
+
+    Ok(())
+}
+
+async fn web_server() -> Result<(), String> {
+    info!("Starting web server");
+    let app = Router::new().route("/", get(root));
+    info!("Server running at http://0.0.0.0:3000");
+    // Start the server
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+    Ok(())
+}
+
+async fn root() -> &'static str {
+    "Welcome to the Rust Web Server!"
+}
+
+async fn scanner() -> Result<(), String> {
     // Get database connection - thread protected
     let db_conn = Arc::new(Mutex::new(db::init_db().unwrap()));
 

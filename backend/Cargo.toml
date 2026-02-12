@@ -19,3 +19,4 @@ config = "0.15.19"
 lazy_static = "1.5.0"
 duration-string = { version="0.5.3", features = ["serde"] }
 clap = {version="4.5.54", features=["derive"]}
+axum = "0.8.8"
