@@ -5,6 +5,7 @@ use rusqlite::Connection;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use tokio::time::{self, Duration, sleep};
+use tower_http::services::ServeDir;
 
 mod db;
 mod device_finders;
@@ -40,16 +41,16 @@ async fn main() -> Result<(), String> {
 
 async fn web_server() -> Result<(), String> {
     info!("Starting web server");
-    let app = Router::new().route("/", get(root));
+    let static_files = ServeDir::new("./web");
+
+    let router = Router::new()
+        .route("/", get(|| async { "hello" }))
+        .nest_service("/web", static_files);
     info!("Server running at http://0.0.0.0:3000");
     // Start the server
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, router).await.unwrap();
     Ok(())
-}
-
-async fn root() -> &'static str {
-    "Welcome to the Rust Web Server!"
 }
 
 async fn scanner() -> Result<(), String> {
