@@ -1,10 +1,8 @@
 use crate::settings::CONFIG;
 use axum::{Router, routing::get};
 use log::{LevelFilter, debug, info};
-use rusqlite::Connection;
-use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use tokio::time::{self, Duration, sleep};
+use tokio::time::{Duration, sleep};
 use tower_http::services::ServeDir;
 
 mod db;
@@ -34,9 +32,7 @@ async fn main() -> Result<(), String> {
     // Now onto the important stuff
     info!("Starting up oott");
 
-    let result = tokio::join!(scanner(), web_server());
-
-    Ok(())
+    tokio::join!(scanner(), web_server()).0
 }
 
 async fn web_server() -> Result<(), String> {
