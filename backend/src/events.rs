@@ -2,7 +2,8 @@ mod pushover;
 
 use std::time::Duration;
 
-use crate::{device_finders::Device, settings::CONFIG};
+use crate::model::devices::Device;
+use crate::settings::CONFIG;
 use chrono::Local;
 use duration_string::DurationString;
 use log::{debug, info, warn};
@@ -31,8 +32,7 @@ pub fn trigger_new_device(device: Device) -> Result<(), String> {
 
 pub fn trigger_existing_device(existing_device: Device, new_device: Device) -> Result<(), String> {
     // Notify if the device comes back online after not being seen for the configured period
-    let elapsed_since_last_seen: Duration = (Local::now().naive_local()
-        - existing_device.last_seen)
+    let elapsed_since_last_seen: Duration = (Local::now().to_utc() - existing_device.last_seen)
         .to_std()
         .unwrap_or(Duration::from_secs(0));
 

@@ -2,7 +2,7 @@ use log::{debug, error};
 use rusqlite::{Connection, params};
 use std::sync::MutexGuard;
 
-use crate::device_finders::Device;
+use crate::model::devices::Device;
 
 // Read device from its MAC address
 pub fn read(conn: MutexGuard<Connection>, mac_address: String) -> Option<Device> {

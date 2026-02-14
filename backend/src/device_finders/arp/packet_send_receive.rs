@@ -1,5 +1,5 @@
-use crate::device_finders::Device;
 use crate::mac_vendor_finder;
+use crate::model::devices::Device;
 use chrono::Local;
 use duration_string::DurationString;
 use log::{debug, info, trace};
@@ -110,7 +110,7 @@ pub async fn listen_for_packets(
                         mac_address: packet_mac_address,
                         ipv4_address: packet_ip_address,
                         vendor: packet_vendor,
-                        last_seen: Local::now().naive_local(),
+                        last_seen: Local::now().to_utc(),
                     });
                 }
             }

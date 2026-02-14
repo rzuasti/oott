@@ -9,6 +9,7 @@ mod db;
 mod device_finders;
 mod events;
 mod mac_vendor_finder;
+mod model;
 mod settings;
 
 #[tokio::main]

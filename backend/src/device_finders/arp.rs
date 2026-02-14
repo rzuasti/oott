@@ -1,6 +1,7 @@
 mod packet_send_receive;
 
-use crate::{device_finders::Device, settings::CONFIG};
+use crate::model::devices::Device;
+use crate::settings::CONFIG;
 use duration_string::DurationString;
 use log::{debug, error, info, warn};
 use packet_send_receive::{listen_for_packets, send_packet};
