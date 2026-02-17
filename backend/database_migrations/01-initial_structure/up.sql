@@ -4,3 +4,12 @@ CREATE TABLE devices(
     vendor TEXT,
     last_seen TEXT NOT NULL
 );
+
+CREATE TABLE notifications(
+    id INTEGER PRIMARY KEY,
+    created_on TEXT NOT NULL,
+    notification_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT,
+    is_new INTEGER NOT NULL
+);
