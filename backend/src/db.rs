@@ -1,50 +1,63 @@
 pub mod devices;
 
 use include_dir::{Dir, include_dir};
+use lazy_static::lazy_static;
 use log::{debug, error};
-use rusqlite::Connection;
+use r2d2::PooledConnection;
+use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite_migration::Migrations;
-use std::result::Result;
-use std::sync::LazyLock;
+use tokio::sync::Mutex;
 
 use crate::settings;
 
 static MIGRATIONS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/database_migrations");
+static INITIALISED: Mutex<bool> = Mutex::const_new(false);
 
-// Define migrations. These are applied atomically.
-static MIGRATIONS: LazyLock<Migrations<'static>> =
-    LazyLock::new(|| Migrations::from_directory(&MIGRATIONS_DIR).unwrap());
+lazy_static! {
+    // Define migrations. These are applied atomically.
+    static ref MIGRATIONS: Migrations<'static> =
+        Migrations::from_directory(&MIGRATIONS_DIR).unwrap();
 
-pub fn init_db() -> Result<Connection, String> {
-    if settings::CONFIG.database.path.is_empty() {
-        error!("Database path not set. Make sure to define database.path in your config file.");
-        Err(format!(
-            "Database path not set. Make sure to define database.path in your config file."
-        ))
-    } else {
-        debug!("Opening database at {}.", settings::CONFIG.database.path);
+    // TODO : Move pool size to configuration file
+    static ref POOL: r2d2::Pool<SqliteConnectionManager> = r2d2::Pool::builder().max_size(10).build(r2d2_sqlite::SqliteConnectionManager::file(settings::CONFIG.database.path.as_str())).unwrap();
+}
 
-        let database_path = settings::CONFIG.database.path.clone();
+pub fn get_db_connection() -> PooledConnection<SqliteConnectionManager> {
+    let result = POOL.get();
 
-        let mut conn = match Connection::open(database_path) {
-            Ok(value) => value,
-            Err(error) => {
-                error!("Error opening database (oott.db): {error}");
-                return Err(format!("Error opening database (oott.db): {error}"));
-            }
-        };
-
-        debug!("Database open, executing migrations if needed.");
-        // Update the database schema, atomically
-        match MIGRATIONS.to_latest(&mut conn) {
-            Ok(_) => {
-                debug!("Database up to date.");
-                Ok(conn)
-            }
-            Err(error) => {
-                error!("Error updating database: {error}");
-                Err(format!("Error updating database: {error}"))
-            }
+    match result {
+        Ok(value) => value,
+        Err(error) => {
+            error!("Error obtaining database connection from the pool: {error}");
+            panic!("Error obtaining database connection from the pool: {error}");
         }
     }
+}
+
+pub async fn init_db() -> Result<(), String> {
+    let mut initialised = INITIALISED.lock().await;
+    if *initialised {
+        return Ok(());
+    }
+
+    debug!("Getting database connection");
+
+    let mut conn = get_db_connection();
+
+    debug!("Executing database migrations if needed.");
+
+    let result = match MIGRATIONS.to_latest(&mut conn) {
+        Ok(_) => {
+            debug!("Database up to date.");
+            Ok(())
+        }
+        Err(error) => {
+            error!("Error updating database: {error}");
+            Err(format!("Error updating database: {error}"))
+        }
+    };
+
+    *initialised = true;
+
+    result
 }

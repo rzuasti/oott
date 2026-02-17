@@ -31,6 +31,9 @@ async fn main() -> Result<(), String> {
     // Now onto the important stuff
     info!("Starting up oott");
 
+    // Initialize database
+    db::init_db().await?;
+
     // Start the device scanner and web server (for API and UI) in parallel
     tokio::join!(scanner::scan(), web_server::serve()).0
 }

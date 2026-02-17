@@ -1,11 +1,12 @@
 use log::{debug, error};
-use rusqlite::{Connection, params};
-use std::sync::MutexGuard;
+use rusqlite::params;
 
-use crate::model::devices::Device;
+use crate::{db, model::devices::Device};
 
 // Read device from its MAC address
-pub fn read(conn: MutexGuard<Connection>, mac_address: String) -> Option<Device> {
+pub fn read(mac_address: String) -> Option<Device> {
+    let conn = db::get_db_connection();
+
     let result: Result<Device, rusqlite::Error> = conn.query_one(
         "SELECT mac_address, ipv4_address, vendor, last_seen FROM devices WHERE mac_address=?1",
         params![mac_address],
@@ -33,7 +34,9 @@ pub fn read(conn: MutexGuard<Connection>, mac_address: String) -> Option<Device>
     }
 }
 
-pub fn insert(conn: MutexGuard<Connection>, device: Device) -> Result<(), String> {
+pub fn insert(device: Device) -> Result<(), String> {
+    let conn = db::get_db_connection();
+
     match conn.execute(
         "INSERT INTO devices (mac_address, ipv4_address, vendor, last_seen) VALUES (?1, ?2, ?3, ?4)",
         params![device.mac_address, device.ipv4_address, device.vendor, device.last_seen]) {
@@ -48,7 +51,8 @@ pub fn insert(conn: MutexGuard<Connection>, device: Device) -> Result<(), String
     }
 }
 
-pub fn update(conn: MutexGuard<Connection>, device: Device) -> Result<(), String> {
+pub fn update(device: Device) -> Result<(), String> {
+    let conn = db::get_db_connection();
     match conn.execute(
         "UPDATE devices SET ipv4_address=?1, vendor=?2, last_seen=?3 WHERE mac_address=?4",
         params![
