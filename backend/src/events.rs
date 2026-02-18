@@ -3,7 +3,7 @@ mod pushover;
 use std::time::Duration;
 
 use crate::model::devices::Device;
-use crate::settings::CONFIG;
+use crate::settings::get_settings;
 use chrono::Local;
 use duration_string::DurationString;
 use log::{debug, info, warn};
@@ -12,7 +12,7 @@ use log::{debug, info, warn};
 fn send_message(body: String) -> Result<(), String> {
     debug!("About to send notification ({body}).");
 
-    match CONFIG.notifications.method.as_str() {
+    match get_settings().notifications.method.as_str() {
         "pushover" => {
             pushover::send_message(body)?;
         }
@@ -36,7 +36,9 @@ pub fn trigger_existing_device(existing_device: Device, new_device: Device) -> R
         .to_std()
         .unwrap_or(Duration::from_secs(0));
 
-    if elapsed_since_last_seen >= Duration::from(CONFIG.notifications.notify_when_not_seen_for) {
+    if elapsed_since_last_seen
+        >= Duration::from(get_settings().notifications.notify_when_not_seen_for)
+    {
         send_message(format!(
             "Device MAC {} - IP {} - Vendor {} came back online after {}.",
             new_device.mac_address,

@@ -1,8 +1,10 @@
 use chrono::Local;
+use log::debug;
 
 use crate::model::{self, notifications::Notification};
 
 pub fn list() -> Vec<model::notifications::Notification> {
+    debug!("Listing notifications");
     let mut result = Vec::new();
     result.push(Notification {
         id: 1,
@@ -23,7 +25,7 @@ mod tests {
 
     #[tokio::test]
     async fn list_default() {
-        tests_common::setup_database().await;
+        tests_common::setup().await;
         let notifications = list();
         assert_eq!(notifications.len(), 1);
     }

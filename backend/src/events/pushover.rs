@@ -2,15 +2,15 @@ use log::{debug, error};
 use pushover::API;
 use pushover::requests::message::SendMessage;
 
-use crate::settings::CONFIG;
+use crate::settings::get_settings;
 
 pub fn send_message(body: String) -> Result<(), String> {
     debug!("About to send message via pushover ({body})");
     let api = API::new();
 
     let msg = SendMessage::new(
-        CONFIG.notifications.pushover.token.as_str(),
-        CONFIG.notifications.pushover.user_key.as_str(),
+        get_settings().notifications.pushover.token.as_str(),
+        get_settings().notifications.pushover.user_key.as_str(),
         body,
     );
 

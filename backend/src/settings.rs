@@ -1,8 +1,6 @@
-use clap::Parser;
 use config::{Config, ConfigError, File};
 use duration_string::DurationString;
-use lazy_static::lazy_static;
-use log::{debug, error, info};
+use once_cell::sync::OnceCell;
 use serde::Deserialize;
 
 // -----------------------------------------------------------
@@ -54,29 +52,9 @@ pub struct Settings {
 // End configuration structure
 // -----------------------------------------------------------
 
-// Command line parameters relevant to configuration
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Config file path
-    #[arg(short, long)]
-    config: Option<String>,
-}
-
-const DEFAULT_CONFIG_FILE_PATH: &str = "./oott.toml";
-
 impl Settings {
-    pub fn new() -> Result<Self, ConfigError> {
-        debug!("Starting configuration");
-
-        let args_result = Args::try_parse();
-
-        let config_path = match args_result {
-            Ok(value) => value.config.unwrap_or(DEFAULT_CONFIG_FILE_PATH.to_string()),
-            Err(_) => DEFAULT_CONFIG_FILE_PATH.to_string(),
-        };
-
-        info!("Reading configuration from {}", config_path);
+    pub fn new(config_path: String) -> Result<Self, ConfigError> {
+        println!("Reading configuration from {}", config_path);
 
         let local_settings = Config::builder()
             .add_source(File::with_name(config_path.as_str()))
@@ -86,12 +64,24 @@ impl Settings {
     }
 }
 
-lazy_static! {
-    pub static ref CONFIG: Settings = match Settings::new() {
-        Ok(value) => value,
-        Err(error) => {
-            error!("Error reading configuration file: {error}");
-            panic!("Error reading configuration file: {error}");
+pub const DEFAULT_CONFIG_FILE_PATH: &str = "./oott.toml";
+static SETTINGS: OnceCell<Settings> = OnceCell::new();
+
+pub fn get_settings() -> &'static Settings {
+    match SETTINGS.get() {
+        Some(value) => value,
+        None => {
+            println!(
+                "Configuration was not initialized, reading from default path ({})",
+                DEFAULT_CONFIG_FILE_PATH
+            );
+            let settings = Settings::new(DEFAULT_CONFIG_FILE_PATH.to_string()).unwrap();
+            let _ = SETTINGS.set(settings);
+            SETTINGS.get().unwrap()
         }
-    };
+    }
+}
+
+pub fn init(config_path: String) {
+    let _ = SETTINGS.set(Settings::new(config_path).unwrap());
 }

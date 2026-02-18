@@ -1540,6 +1540,7 @@ dependencies = [
  "include_dir",
  "lazy_static",
  "log",
+ "once_cell",
  "pnet",
  "pushover",
  "r2d2",

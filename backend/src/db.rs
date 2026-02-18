@@ -9,7 +9,7 @@ use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite_migration::Migrations;
 use tokio::sync::Mutex;
 
-use crate::settings;
+use crate::settings::get_settings;
 
 static MIGRATIONS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/database_migrations");
 static INITIALISED: Mutex<bool> = Mutex::const_new(false);
@@ -20,7 +20,11 @@ lazy_static! {
         Migrations::from_directory(&MIGRATIONS_DIR).unwrap();
 
     // TODO : Move pool size to configuration file
-    static ref POOL: r2d2::Pool<SqliteConnectionManager> = r2d2::Pool::builder().max_size(10).build(r2d2_sqlite::SqliteConnectionManager::file(settings::CONFIG.database.path.as_str())).unwrap();
+    static ref POOL: r2d2::Pool<SqliteConnectionManager> = r2d2::Pool::builder().
+        max_size(10).
+        build(
+            r2d2_sqlite::SqliteConnectionManager::file(get_settings().database.path.as_str())
+        ).unwrap();
 }
 
 pub fn get_db_connection() -> PooledConnection<SqliteConnectionManager> {

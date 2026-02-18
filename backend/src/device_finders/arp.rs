@@ -1,7 +1,7 @@
 mod packet_send_receive;
 
 use crate::model::devices::Device;
-use crate::settings::CONFIG;
+use crate::settings::get_settings;
 use duration_string::DurationString;
 use log::{debug, error, info, warn};
 use packet_send_receive::{listen_for_packets, send_packet};
@@ -83,14 +83,17 @@ pub async fn find(interface: String) -> Result<Vec<Device>, String> {
     let send_interface = network_interface.clone();
 
     // Get timeouts
-    let sender_timeout: Duration = CONFIG.timings.arp_sender_timeout.into();
+    let sender_timeout: Duration = get_settings().timings.arp_sender_timeout.into();
     info!(
         "Sender timeout set to {}",
-        CONFIG.timings.arp_sender_timeout
+        get_settings().timings.arp_sender_timeout
     );
-    let scan_duration: Duration = CONFIG.timings.arp_scan_duration.into();
+    let scan_duration: Duration = get_settings().timings.arp_scan_duration.into();
     let receiver_timeout: Duration = scan_duration * 2;
-    info!("Scan duration set to {}", CONFIG.timings.arp_scan_duration);
+    info!(
+        "Scan duration set to {}",
+        get_settings().timings.arp_scan_duration
+    );
     info!(
         "Receiver timeout set to {}",
         String::from(DurationString::from(receiver_timeout))

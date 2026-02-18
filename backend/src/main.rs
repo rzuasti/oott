@@ -1,4 +1,5 @@
-use crate::settings::CONFIG;
+use crate::settings::get_settings;
+use clap::Parser;
 use log::{LevelFilter, info};
 
 mod db;
@@ -13,10 +14,27 @@ mod web_server;
 #[cfg(test)]
 mod tests_common;
 
+// Command line parameters
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Config file path
+    #[arg(short, long)]
+    config: Option<String>,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), String> {
+    // Parse command line parameters and init settings
+    // this is not thread safe so it needs to run just once
+    let args = Args::parse();
+    let config_path = args
+        .config
+        .unwrap_or(settings::DEFAULT_CONFIG_FILE_PATH.to_string());
+    settings::init(config_path);
+
     // Initialize logging
-    let log_level = match CONFIG.log.level.as_str() {
+    let log_level = match get_settings().log.level.as_str() {
         "off" => LevelFilter::Off,
         "error" => LevelFilter::Error,
         "warn" => LevelFilter::Warn,

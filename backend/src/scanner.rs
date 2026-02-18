@@ -1,14 +1,15 @@
 use crate::db;
 use crate::device_finders;
 use crate::events;
-use crate::settings::CONFIG;
+use crate::settings::get_settings;
 use log::{debug, info};
 use tokio::time::{Duration, sleep};
 
 pub async fn scan() -> Result<(), String> {
     loop {
         // Find online devices via ARP
-        let devices = device_finders::arp::find(CONFIG.networking.interface.to_string()).await?;
+        let devices =
+            device_finders::arp::find(get_settings().networking.interface.to_string()).await?;
 
         info!("Done with ARP probes");
         info!("Found {} online devices", devices.iter().count());
@@ -44,8 +45,8 @@ pub async fn scan() -> Result<(), String> {
         }
         info!(
             "Scan finished. Sleeping for {} seconds",
-            CONFIG.timings.wait_between_scans
+            get_settings().timings.wait_between_scans
         );
-        sleep(Duration::from(CONFIG.timings.wait_between_scans)).await;
+        sleep(Duration::from(get_settings().timings.wait_between_scans)).await;
     }
 }
