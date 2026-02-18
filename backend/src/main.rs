@@ -10,6 +10,9 @@ mod scanner;
 mod settings;
 mod web_server;
 
+#[cfg(test)]
+mod tests_common;
+
 #[tokio::main]
 async fn main() -> Result<(), String> {
     // Initialize logging

@@ -1,4 +1,5 @@
 pub mod devices;
+pub mod notifications;
 
 use include_dir::{Dir, include_dir};
 use lazy_static::lazy_static;
