@@ -1,7 +1,19 @@
-use crate::model;
+use chrono::Local;
+
+use crate::model::{self, notifications::Notification};
 
 pub fn list() -> Vec<model::notifications::Notification> {
-    unimplemented!("Not ready yet");
+    let mut result = Vec::new();
+    result.push(Notification {
+        id: 1,
+        created_on: Local::now().to_utc(),
+        is_new: true,
+        notification_type: model::notifications::NotificationType::NewDeviceFound,
+        title: "title".to_string(),
+        body: "body".to_string(),
+    });
+
+    result
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@ use clap::Parser;
 use config::{Config, ConfigError, File};
 use duration_string::DurationString;
 use lazy_static::lazy_static;
-use log::{error, info};
+use log::{debug, error, info};
 use serde::Deserialize;
 
 // -----------------------------------------------------------
@@ -67,9 +67,14 @@ const DEFAULT_CONFIG_FILE_PATH: &str = "./oott.toml";
 
 impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
-        let args = Args::parse();
+        debug!("Starting configuration");
 
-        let config_path = args.config.unwrap_or(DEFAULT_CONFIG_FILE_PATH.to_string());
+        let args_result = Args::try_parse();
+
+        let config_path = match args_result {
+            Ok(value) => value.config.unwrap_or(DEFAULT_CONFIG_FILE_PATH.to_string()),
+            Err(_) => DEFAULT_CONFIG_FILE_PATH.to_string(),
+        };
 
         info!("Reading configuration from {}", config_path);
 
