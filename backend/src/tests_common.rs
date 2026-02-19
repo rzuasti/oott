@@ -45,7 +45,7 @@ pub async fn setup() {
 
             if entry.path().extension().map_or(false, |ext| ext == "sql") {
                 let sql = entry.as_file().unwrap().contents_utf8().unwrap();
-                conn.execute(&sql, []).unwrap_or_else(|err| {
+                conn.execute_batch(&sql).unwrap_or_else(|err| {
                     panic!("Error executing script: {}", err);
                 });
             };

@@ -30,7 +30,7 @@ pub fn list() -> Result<Vec<Notification>, DbError> {
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+    use chrono::{TimeZone, Utc};
 
     use super::*;
     use crate::{model::notifications::NotificationType, tests_common};
@@ -91,10 +91,10 @@ mod tests {
             .next()
             .unwrap();
 
-        // 2026-01-03 14:13:12
+        // 2026-01-03 14:13:12 - UTC
         assert_eq!(
             notification1.created_on,
-            Local.with_ymd_and_hms(2026, 1, 3, 14, 13, 12).unwrap(),
+            Utc.with_ymd_and_hms(2026, 1, 3, 14, 13, 12).unwrap(),
             "Incorrect created_on date/time for notification 1."
         );
 
