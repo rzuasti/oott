@@ -1,9 +1,12 @@
 use axum::{Json, Router, http::StatusCode, routing::get};
 use chrono::Local;
-use log::info;
+use log::{error, info};
 use tower_http::services::ServeDir;
 
-use crate::model::devices::Device;
+use crate::{
+    db,
+    model::{devices::Device, notifications::Notification},
+};
 
 pub async fn serve() -> Result<(), String> {
     info!("Starting web server");
@@ -12,6 +15,7 @@ pub async fn serve() -> Result<(), String> {
     let router = Router::new()
         .route("/", get(|| async { "hello" }))
         .route("/devices", get(get_devices))
+        .route("/notifications", get(list_notifications))
         .nest_service("/web", static_files);
     info!("Server running at http://0.0.0.0:3000");
     // Start the server
@@ -31,4 +35,14 @@ async fn get_devices() -> Result<Json<Vec<Device>>, StatusCode> {
     });
 
     Ok(Json(devices))
+}
+
+async fn list_notifications() -> Result<Json<Vec<Notification>>, StatusCode> {
+    match db::notifications::list() {
+        Ok(value) => Ok(Json(value)),
+        Err(err) => {
+            error!("Error listing notifications: {}", err);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
