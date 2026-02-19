@@ -5,7 +5,7 @@ use std::{error::Error, fmt, str::FromStr};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Notification {
-    pub id: u64,
+    pub id: i64,
     #[serde(with = "ts_seconds")]
     pub created_on: DateTime<Utc>,
     pub notification_type: NotificationType,
@@ -24,7 +24,13 @@ impl fmt::Display for Notification {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+impl PartialEq for Notification {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum NotificationType {
     NewDeviceFound,
     DeviceOnlineAfterTime,

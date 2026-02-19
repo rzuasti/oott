@@ -1,4 +1,5 @@
 pub mod devices;
+pub mod error;
 pub mod notifications;
 
 use include_dir::{Dir, include_dir};
