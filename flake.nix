@@ -51,6 +51,11 @@
           androidSdk
           jdk17
         ];
+
+        # fish > all
+        shellHook = ''
+          exec fish
+        '';
       };
     });
 
