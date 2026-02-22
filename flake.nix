@@ -54,7 +54,7 @@
 
         # fish > all
         shellHook = ''
-          exec fish
+          DEV_SHELL=oott exec fish
         '';
       };
     });
