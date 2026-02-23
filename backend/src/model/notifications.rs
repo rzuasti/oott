@@ -14,6 +14,25 @@ pub struct Notification {
     pub is_new: bool,
 }
 
+impl Notification {
+    pub fn new(
+        created_on: DateTime<Utc>,
+        notification_type: NotificationType,
+        title: String,
+        body: String,
+        is_new: bool,
+    ) -> Self {
+        Self {
+            id: -1,
+            created_on: created_on,
+            notification_type: notification_type,
+            title: title,
+            body: body,
+            is_new: is_new,
+        }
+    }
+}
+
 impl fmt::Display for Notification {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -30,7 +49,7 @@ impl PartialEq for Notification {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum NotificationType {
     NewDeviceFound,
     DeviceOnlineAfterTime,
