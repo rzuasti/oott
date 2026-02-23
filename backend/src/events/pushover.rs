@@ -1,18 +1,21 @@
 use log::{debug, error};
+use pushover::API;
 use pushover::requests::message::SendMessage;
-use pushover::{API, Error};
 
+use crate::events::error::DeliveryError;
 use crate::settings::get_settings;
 
-pub fn send_message(body: String) -> Result<(), Error> {
+pub fn send_message(title: String, body: String) -> Result<(), DeliveryError> {
     debug!("About to send message via pushover ({body})");
     let api = API::new();
 
-    let msg = SendMessage::new(
+    let mut msg = SendMessage::new(
         get_settings().notifications.pushover.token.as_str(),
         get_settings().notifications.pushover.user_key.as_str(),
         body,
     );
+
+    msg.set_title(title);
 
     match api.send(&msg) {
         Ok(_) => {
@@ -21,7 +24,7 @@ pub fn send_message(body: String) -> Result<(), Error> {
         }
         Err(error) => {
             error!("Error sending message via pushover: {error}");
-            Err(error)
+            Err(DeliveryError::from(error))
         }
     }
 }

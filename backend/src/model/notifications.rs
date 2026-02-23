@@ -53,6 +53,7 @@ impl PartialEq for Notification {
 pub enum NotificationType {
     NewDeviceFound,
     DeviceOnlineAfterTime,
+    DeviceChanged,
     Other,
 }
 
@@ -61,6 +62,7 @@ impl fmt::Display for NotificationType {
         match self {
             Self::NewDeviceFound => write!(f, "NewDeviceFound"),
             Self::DeviceOnlineAfterTime => write!(f, "DeviceOnlineAfterTime"),
+            Self::DeviceChanged => write!(f, "DeviceChanged"),
             Self::Other => write!(f, "Other"),
         }
     }
