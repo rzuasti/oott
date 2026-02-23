@@ -1,10 +1,10 @@
 use log::{debug, error};
-use pushover::API;
 use pushover::requests::message::SendMessage;
+use pushover::{API, Error};
 
 use crate::settings::get_settings;
 
-pub fn send_message(body: String) -> Result<(), String> {
+pub fn send_message(body: String) -> Result<(), Error> {
     debug!("About to send message via pushover ({body})");
     let api = API::new();
 
@@ -21,7 +21,7 @@ pub fn send_message(body: String) -> Result<(), String> {
         }
         Err(error) => {
             error!("Error sending message via pushover: {error}");
-            Err(format!("Error sending message via pushover: {error}"))
+            Err(error)
         }
     }
 }

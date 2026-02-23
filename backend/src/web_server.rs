@@ -1,6 +1,8 @@
+use std::error::Error;
+
 use axum::{Json, Router, http::StatusCode, routing::get};
 use chrono::Local;
-use log::{error, info};
+use log::{debug, error, info};
 use tower_http::services::ServeDir;
 
 use crate::{
@@ -8,7 +10,7 @@ use crate::{
     model::{devices::Device, notifications::Notification},
 };
 
-pub async fn serve() -> Result<(), String> {
+pub async fn serve() -> Result<(), Box<dyn Error>> {
     info!("Starting web server");
     let static_files = ServeDir::new("./web");
 
@@ -17,10 +19,13 @@ pub async fn serve() -> Result<(), String> {
         .route("/devices", get(get_devices))
         .route("/notifications", get(list_notifications))
         .nest_service("/web", static_files);
-    info!("Server running at http://0.0.0.0:3000");
+    info!("Web server starting at http://0.0.0.0:3000");
     // Start the server
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(listener, router).await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+
+    debug!("Web server bound to IP and port");
+
+    axum::serve(listener, router).await?;
     Ok(())
 }
 

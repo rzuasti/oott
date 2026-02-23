@@ -1,5 +1,8 @@
 mod packet_send_receive;
 
+use crate::device_finders::error::{
+    DataChannelError, InvalidDeviceError, NoIPAddressError, NoMACAddressError,
+};
 use crate::model::devices::Device;
 use crate::settings::get_settings;
 use duration_string::DurationString;
@@ -11,7 +14,7 @@ use pnet::{
 };
 use tokio::time::{Duration, timeout};
 
-pub async fn find(interface: String) -> Result<Vec<Device>, String> {
+pub async fn find(interface: String) -> Result<Vec<Device>, Box<dyn std::error::Error>> {
     debug!("Looking up devices via ARP using interface {}", interface);
 
     // Get the network device to use
@@ -24,7 +27,7 @@ pub async fn find(interface: String) -> Result<Vec<Device>, String> {
         Some(value) => value.clone(),
         None => {
             error!("Interface ({interface}) not found or not active.");
-            return Err(format!("Interface ({interface}) not found or not active.").to_string());
+            return Err(InvalidDeviceError.into());
         }
     };
 
@@ -41,9 +44,7 @@ pub async fn find(interface: String) -> Result<Vec<Device>, String> {
         Some(value) => value,
         None => {
             error!("No IP address found for selected interface ({interface}).");
-            return Err(
-                format!("No IP address found for selected interface ({interface}).").to_string(),
-            );
+            return Err(NoIPAddressError.into());
         }
     };
 
@@ -52,10 +53,7 @@ pub async fn find(interface: String) -> Result<Vec<Device>, String> {
         Some(mac) => mac,
         None => {
             error!("Could not get MAC address for selected interface ({interface}).");
-            return Err(
-                format!("Could not get MAC address for selected interface ({interface}).")
-                    .to_string(),
-            );
+            return Err(NoMACAddressError.into());
         }
     };
 
@@ -68,7 +66,7 @@ pub async fn find(interface: String) -> Result<Vec<Device>, String> {
         Ok(value) => value,
         Err(error) => {
             error!("Could not create data channel: {error}");
-            return Err(format!("Could not create data channel: {error}").to_string());
+            return Err(DataChannelError.into());
         }
     };
 
@@ -76,7 +74,7 @@ pub async fn find(interface: String) -> Result<Vec<Device>, String> {
         Channel::Ethernet(tx, rx) => (tx, rx),
         _ => {
             error!("Unsupported data channel type");
-            return Err("Unsupported data channel type".to_string());
+            return Err(DataChannelError.into());
         }
     };
 

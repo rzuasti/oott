@@ -1,7 +1,10 @@
 use log::{debug, error};
 use rusqlite::params;
 
-use crate::{db, model::devices::Device};
+use crate::{
+    db::{self, error::DbError},
+    model::devices::Device,
+};
 
 // Read device from its MAC address
 pub fn read(mac_address: String) -> Option<Device> {
@@ -34,7 +37,7 @@ pub fn read(mac_address: String) -> Option<Device> {
     }
 }
 
-pub fn insert(device: Device) -> Result<(), String> {
+pub fn insert(device: Device) -> Result<(), DbError> {
     let conn = db::get_db_connection();
 
     match conn.execute(
@@ -46,12 +49,12 @@ pub fn insert(device: Device) -> Result<(), String> {
             },
             Err(error) => {
                 error!("Error inserting device ({device}) into database: {error}");
-                Err(format!("Error inserting device ({device}) into database: {error}").to_string())
+                Err(DbError::from(error))
             },
     }
 }
 
-pub fn update(device: Device) -> Result<(), String> {
+pub fn update(device: Device) -> Result<(), DbError> {
     let conn = db::get_db_connection();
     match conn.execute(
         "UPDATE devices SET ipv4_address=?1, vendor=?2, last_seen=?3 WHERE mac_address=?4",
@@ -68,7 +71,7 @@ pub fn update(device: Device) -> Result<(), String> {
         }
         Err(error) => {
             error!("Error updating device ({device}) in database: {error}");
-            Err(format!("Error updating device ({device}) in database: {error}").to_string())
+            Err(DbError::from(error))
         }
     }
 }

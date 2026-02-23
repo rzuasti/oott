@@ -24,7 +24,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), String> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse command line parameters and init settings
     // this is not thread safe so it needs to run just once
     let args = Args::parse();

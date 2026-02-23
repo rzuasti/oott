@@ -1,15 +1,16 @@
+mod error;
 mod pushover;
 
 use std::time::Duration;
 
-use crate::model::devices::Device;
 use crate::settings::get_settings;
+use crate::{events::error::DeliveryError, model::devices::Device};
 use chrono::Local;
 use duration_string::DurationString;
 use log::{debug, info, warn};
 
 // Private helper function to deliver messages
-fn send_message(body: String) -> Result<(), String> {
+fn send_message(body: String) -> Result<(), DeliveryError> {
     debug!("About to send notification ({body}).");
 
     match get_settings().notifications.method.as_str() {
@@ -25,12 +26,15 @@ fn send_message(body: String) -> Result<(), String> {
     Ok(())
 }
 
-pub fn trigger_new_device(device: Device) -> Result<(), String> {
+pub fn trigger_new_device(device: Device) -> Result<(), DeliveryError> {
     send_message(format!("New device found in your network: {device}"))?;
     Ok(())
 }
 
-pub fn trigger_existing_device(existing_device: Device, new_device: Device) -> Result<(), String> {
+pub fn trigger_existing_device(
+    existing_device: Device,
+    new_device: Device,
+) -> Result<(), DeliveryError> {
     // Notify if the device comes back online after not being seen for the configured period
     let elapsed_since_last_seen: Duration = (Local::now().to_utc() - existing_device.last_seen)
         .to_std()

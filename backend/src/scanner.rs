@@ -5,7 +5,7 @@ use crate::settings::get_settings;
 use log::{debug, info};
 use tokio::time::{Duration, sleep};
 
-pub async fn scan() -> Result<(), String> {
+pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         // Find online devices via ARP
         let devices =

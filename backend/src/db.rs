@@ -10,7 +10,7 @@ use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite_migration::Migrations;
 use tokio::sync::Mutex;
 
-use crate::settings::get_settings;
+use crate::{db::error::DbError, settings::get_settings};
 
 static MIGRATIONS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/database_migrations");
 static INITIALISED: Mutex<bool> = Mutex::const_new(false);
@@ -40,7 +40,7 @@ pub fn get_db_connection() -> PooledConnection<SqliteConnectionManager> {
     }
 }
 
-pub async fn init_db() -> Result<(), String> {
+pub async fn init_db() -> Result<(), DbError> {
     let mut initialised = INITIALISED.lock().await;
     if *initialised {
         return Ok(());
@@ -59,7 +59,7 @@ pub async fn init_db() -> Result<(), String> {
         }
         Err(error) => {
             error!("Error updating database: {error}");
-            Err(format!("Error updating database: {error}"))
+            Err(DbError::from(error))
         }
     };
 
