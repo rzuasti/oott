@@ -1,7 +1,6 @@
 use std::error::Error;
 
-use axum::{Json, Router, http::StatusCode, routing::get};
-use chrono::Local;
+use axum::{Json, Router, extract::Path, http::StatusCode, routing::get};
 use log::{debug, error, info};
 use tower_http::services::ServeDir;
 
@@ -16,8 +15,13 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
 
     let router = Router::new()
         .route("/", get(|| async { "hello" }))
-        .route("/devices", get(get_devices))
-        .route("/notifications", get(list_notifications))
+        .route("/api/devices", get(get_devices))
+        .route("/api/notifications", get(list_notifications))
+        .route("/api/notifications/{id}", get(read_notification))
+        .route(
+            "/api/notifications/{id}/read_without_flagging",
+            get(read_notification_without_flagging),
+        )
         .nest_service("/web", static_files);
     info!("Web server starting at http://0.0.0.0:3000");
     // Start the server
@@ -30,16 +34,31 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
 }
 
 async fn get_devices() -> Result<Json<Vec<Device>>, StatusCode> {
-    let mut devices = Vec::new();
+    unimplemented!();
+}
 
-    devices.push(Device {
-        mac_address: "mac".to_string(),
-        ipv4_address: "ip".to_string(),
-        vendor: "vendor".to_string(),
-        last_seen: Local::now().to_utc(),
-    });
+async fn read_notification(Path(id): Path<i64>) -> Result<Json<Notification>, StatusCode> {
+    match db::notifications::mark_as_old(id) {
+        Ok(_) => {}
+        Err(err) => {
+            error!("Error marking notification (id={id}) as old: {}", err);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
 
-    Ok(Json(devices))
+    match db::notifications::read(id) {
+        Some(value) => Ok(Json(value)),
+        None => Err(StatusCode::NOT_FOUND),
+    }
+}
+
+async fn read_notification_without_flagging(
+    Path(id): Path<i64>,
+) -> Result<Json<Notification>, StatusCode> {
+    match db::notifications::read(id) {
+        Some(value) => Ok(Json(value)),
+        None => Err(StatusCode::NOT_FOUND),
+    }
 }
 
 async fn list_notifications() -> Result<Json<Vec<Notification>>, StatusCode> {

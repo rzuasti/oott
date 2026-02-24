@@ -46,6 +46,21 @@ pub fn insert(notification: Notification) -> Result<i64, DbError> {
         }
 }
 
+pub fn mark_as_old(id: i64) -> Result<(), DbError> {
+    let conn = db::get_db_connection();
+
+    match conn.execute("UPDATE notifications SET is_new=0 WHERE id=?1", params![id]) {
+        Ok(_) => {
+            debug!("Notification id={} flagged as old", id);
+            Ok(())
+        }
+        Err(error) => {
+            error!("Error marking notification ({id}) as old: {error}");
+            Err(DbError::from(error))
+        }
+    }
+}
+
 pub fn read(id: i64) -> Option<Notification> {
     let conn = db::get_db_connection();
 
@@ -84,6 +99,36 @@ mod tests {
 
     use super::*;
     use crate::{model::notifications::NotificationType, tests_common};
+
+    #[tokio::test]
+    async fn test_mark_as_old() {
+        tests_common::setup().await;
+
+        // Mark unexistant notification (should be fine)
+        mark_as_old(9999999).unwrap();
+
+        // Create new notification
+        let created_on = Utc::now();
+        let inserted_id = insert(Notification::new(
+            created_on,
+            NotificationType::DeviceOnlineAfterTime,
+            "New notification title".to_string(),
+            "New notification body".to_string(),
+            true,
+        ))
+        .unwrap();
+
+        // Mark it as old
+        mark_as_old(inserted_id).unwrap();
+
+        // Read it and validate
+        let notification = read(inserted_id).unwrap();
+
+        assert!(
+            !notification.is_new,
+            "Notification id={inserted_id} should have is_new=0."
+        );
+    }
 
     #[tokio::test]
     async fn test_insert_default() {
