@@ -106,12 +106,12 @@ pub async fn listen_for_packets(
                         "Found online  device - IP addr={} - MAC addr={} - vendor={}",
                         packet_ip_address, packet_mac_address, packet_vendor
                     );
-                    devices.push(Device {
-                        mac_address: packet_mac_address,
-                        ipv4_address: packet_ip_address,
-                        vendor: packet_vendor,
-                        last_seen: Local::now().to_utc(),
-                    });
+                    devices.push(Device::new(
+                        packet_mac_address,
+                        packet_ip_address,
+                        packet_vendor,
+                        Local::now().to_utc(),
+                    ));
                 }
             }
         }
