@@ -104,7 +104,7 @@ mod tests {
     async fn test_mark_as_old() {
         tests_common::setup().await;
 
-        // Mark unexistant notification (should be fine)
+        // Mark non-existant notification (should be fine)
         mark_as_old(9999999).unwrap();
 
         // Create new notification
