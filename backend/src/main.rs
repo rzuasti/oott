@@ -9,6 +9,7 @@ mod mac_vendor_finder;
 mod model;
 mod scanner;
 mod settings;
+mod utils;
 mod web_server;
 
 #[cfg(test)]

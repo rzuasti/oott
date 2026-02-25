@@ -1,4 +1,5 @@
-use chrono::{DateTime, Utc, serde::ts_seconds};
+use crate::utils::date_serializer;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -7,7 +8,7 @@ pub struct Device {
     pub mac_address: String,
     pub ipv4_address: String,
     pub vendor: String,
-    #[serde(with = "ts_seconds")]
+    #[serde(with = "date_serializer")]
     pub last_seen: DateTime<Utc>,
     pub is_registered: bool,
     pub owner: String,
