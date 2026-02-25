@@ -15,6 +15,8 @@ use crate::{
     model::{devices::Device, notifications::Notification},
 };
 
+// TODO: Split into modules by object and utils
+
 pub async fn serve() -> Result<(), Box<dyn Error>> {
     info!("Starting web server");
     let static_files = ServeDir::new("./web");
