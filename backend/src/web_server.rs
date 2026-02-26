@@ -1,6 +1,10 @@
 use std::error::Error;
 
 use axum::Router;
+use axum::extract::Request;
+use axum::http::StatusCode;
+use axum::middleware::Next;
+use axum::response::Response;
 use axum::routing::{delete, get, put};
 use log::{debug, info};
 use tower_http::services::ServeDir;
@@ -9,15 +13,13 @@ pub mod devices;
 pub mod notifications;
 pub mod utils;
 
+const API_KEY: &str = "very_secret_key";
+
 pub async fn serve() -> Result<(), Box<dyn Error>> {
     info!("Starting web server");
     let static_files = ServeDir::new("./web");
 
     let router = Router::new()
-        .route(
-            "/",
-            get(|| async { "Go to /web for the UI or to /api for the better UI." }),
-        )
         .route("/api/devices", get(devices::list))
         .route("/api/devices", put(devices::register))
         .route("/api/devices/{mac_address}", delete(devices::unregister))
@@ -28,6 +30,11 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
             "/api/notifications/{id}/read_without_flagging",
             get(notifications::read_without_flagging),
         )
+        .route_layer(axum::middleware::from_fn(auth))
+        .route(
+            "/",
+            get(|| async { "Go to /web for the UI or to /api for the better UI." }),
+        )
         .nest_service("/web", static_files);
     info!("Web server starting at http://0.0.0.0:3000");
     // Start the server
@@ -37,4 +44,25 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
 
     axum::serve(listener, router).await?;
     Ok(())
+}
+
+async fn auth(request: Request, next: Next) -> Result<Response, StatusCode> {
+    let auth_header = request
+        .headers()
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|header| header.to_str().ok());
+
+    let auth_header = match auth_header {
+        Some(value) => value,
+        None => return Err(StatusCode::UNAUTHORIZED),
+    };
+
+    let mut valid_header = "Bearer ".to_string();
+    valid_header.push_str(API_KEY);
+
+    if auth_header == valid_header {
+        Ok(next.run(request).await)
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
+    }
 }
