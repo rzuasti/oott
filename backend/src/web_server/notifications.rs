@@ -3,7 +3,7 @@ use log::error;
 
 use crate::{db, model::notifications::Notification};
 
-pub async fn read_notification(Path(id): Path<i64>) -> Result<Json<Notification>, StatusCode> {
+pub async fn read(Path(id): Path<i64>) -> Result<Json<Notification>, StatusCode> {
     match db::notifications::mark_as_old(id) {
         Ok(_) => {}
         Err(err) => {
@@ -18,16 +18,14 @@ pub async fn read_notification(Path(id): Path<i64>) -> Result<Json<Notification>
     }
 }
 
-pub async fn read_notification_without_flagging(
-    Path(id): Path<i64>,
-) -> Result<Json<Notification>, StatusCode> {
+pub async fn read_without_flagging(Path(id): Path<i64>) -> Result<Json<Notification>, StatusCode> {
     match db::notifications::read(id) {
         Some(value) => Ok(Json(value)),
         None => Err(StatusCode::NOT_FOUND),
     }
 }
 
-pub async fn list_notifications() -> Result<Json<Vec<Notification>>, StatusCode> {
+pub async fn list() -> Result<Json<Vec<Notification>>, StatusCode> {
     match db::notifications::list() {
         Ok(value) => Ok(Json(value)),
         Err(err) => {

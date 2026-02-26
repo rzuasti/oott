@@ -1,6 +1,7 @@
 use std::error::Error;
 
-use axum::{Router, routing::get};
+use axum::Router;
+use axum::routing::{delete, get, put};
 use log::{debug, info};
 use tower_http::services::ServeDir;
 
@@ -13,16 +14,19 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
     let static_files = ServeDir::new("./web");
 
     let router = Router::new()
-        .route("/", get(|| async { "hello" }))
-        .route("/api/devices", get(devices::list_devices))
-        .route("/api/notifications", get(notifications::list_notifications))
         .route(
-            "/api/notifications/{id}",
-            get(notifications::read_notification),
+            "/",
+            get(|| async { "Go to /web for the UI or to /api for the better UI." }),
         )
+        .route("/api/devices", get(devices::list))
+        .route("/api/devices", put(devices::register))
+        .route("/api/devices/{mac_address}", delete(devices::unregister))
+        .route("/api/devices/{mac_address}", get(devices::read))
+        .route("/api/notifications", get(notifications::list))
+        .route("/api/notifications/{id}", get(notifications::read))
         .route(
             "/api/notifications/{id}/read_without_flagging",
-            get(notifications::read_notification_without_flagging),
+            get(notifications::read_without_flagging),
         )
         .nest_service("/web", static_files);
     info!("Web server starting at http://0.0.0.0:3000");
