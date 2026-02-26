@@ -1,19 +1,18 @@
 use std::error::Error;
 
+use crate::settings::get_settings;
 use axum::Router;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::{delete, get, put};
-use log::{debug, info};
+use log::{debug, error, info};
 use tower_http::services::ServeDir;
 
 pub mod devices;
 pub mod notifications;
 pub mod utils;
-
-const API_KEY: &str = "very_secret_key";
 
 pub async fn serve() -> Result<(), Box<dyn Error>> {
     info!("Starting web server");
@@ -36,9 +35,16 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
             get(|| async { "Go to /web for the UI or to /api for the better UI." }),
         )
         .nest_service("/web", static_files);
-    info!("Web server starting at http://0.0.0.0:3000");
+
+    let web_server_host_and_port = format!(
+        "{}:{}",
+        get_settings().web_server.ip_address,
+        get_settings().web_server.port
+    );
+
+    info!("Web server starting at http://{}", web_server_host_and_port);
     // Start the server
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    let listener = tokio::net::TcpListener::bind(web_server_host_and_port).await?;
 
     debug!("Web server bound to IP and port");
 
@@ -58,7 +64,13 @@ async fn auth(request: Request, next: Next) -> Result<Response, StatusCode> {
     };
 
     let mut valid_header = "Bearer ".to_string();
-    valid_header.push_str(API_KEY);
+    let api_key = get_settings().web_server.api_key.as_str();
+    if api_key == "CHANGE_ME" {
+        error!("The configured api_key is still 'CHANGE_ME', please change it.");
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    valid_header.push_str(api_key);
 
     if auth_header == valid_header {
         Ok(next.run(request).await)

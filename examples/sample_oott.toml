@@ -19,3 +19,8 @@ notify_when_not_seen_for="1w" # Send a notification if a device comes back onlin
 [notifications.pushover]
 token="" # Your pushover token goes here, just copy&paste from their website after creating the app
 user_key="" # User key goes here, this is the account wide code for pushover
+
+[web_server]
+ip_address="0.0.0.0" # IP to bind the web server for the API and web UI to, use 0.0.0.0 to bind it to all interfaces
+port=3000 # Port to listen on
+api_key="CHANGE_ME" # API Key to use the system's API, change this!

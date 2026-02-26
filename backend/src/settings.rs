@@ -42,12 +42,20 @@ pub struct Notifications {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct WebServer {
+    pub ip_address: String,
+    pub port: u16,
+    pub api_key: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub database: Database,
     pub networking: Networking,
     pub log: Log,
     pub timings: Timings,
     pub notifications: Notifications,
+    pub web_server: WebServer,
 }
 // End configuration structure
 // -----------------------------------------------------------
