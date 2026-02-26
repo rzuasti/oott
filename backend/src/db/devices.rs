@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use log::{debug, error};
-use rusqlite::{ToSql, params, params_from_iter};
+use rusqlite::{params, params_from_iter};
 
 use crate::{
     db::{self, error::DbError},
