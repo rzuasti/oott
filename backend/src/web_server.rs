@@ -1,13 +1,15 @@
 use std::error::Error;
 
 use crate::settings::get_settings;
-use axum::Router;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::{delete, get, put};
+use axum::{Router, http};
 use log::{debug, error, info};
+use tower::ServiceBuilder;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
 pub mod devices;
@@ -17,6 +19,11 @@ pub mod utils;
 pub async fn serve() -> Result<(), Box<dyn Error>> {
     info!("Starting web server");
     let static_files = ServeDir::new("./web");
+
+    // Allow all origins and headers for API
+    let cors_layer = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_headers([http::header::AUTHORIZATION, http::header::CONTENT_TYPE]);
 
     let router = Router::new()
         .route("/api/devices", get(devices::list))
@@ -30,6 +37,7 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
             get(notifications::read_without_flagging),
         )
         .route_layer(axum::middleware::from_fn(auth))
+        .layer(ServiceBuilder::new().layer(cors_layer))
         .route(
             "/",
             get(|| async { "Go to /web for the UI or to /api for the better UI." }),

@@ -131,7 +131,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_insert_default() {
+    async fn test_insert() {
         tests_common::setup().await;
 
         // Insert notification and read with returned ID
@@ -216,7 +216,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_read_default() {
+    async fn test_read() {
         tests_common::setup().await;
 
         // Read existing notification
@@ -300,7 +300,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_list_default() {
+    async fn test_list() {
         tests_common::setup().await;
         let notifications = list().unwrap();
 
