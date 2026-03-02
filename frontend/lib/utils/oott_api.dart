@@ -1,28 +1,42 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:frontend/model/event.dart';
+import 'package:encrypter/encrypter/xor.dart';
+import 'package:frontend/utils/pref_utils.dart';
+import '../model/notification.dart';
 
 class BackendAPI {
-  BackendAPI._singleton();
+  static final BackendAPI _instance = BackendAPI._internal();
 
-  static final BackendAPI instance = BackendAPI._singleton();
+  static BackendAPI get instance => _instance;
 
-  static final String _baseUrl = 'http://localhost:3000/api';
-  static final String _apiKey = 'super_secret';
+  BackendAPI._internal() {
+    // _baseUrl =
+    // PrefUtil.getValue("base_url", "http://localhost:3000/api") as String;
+    // _apiKey = XOR().xorDecode(PrefUtil.getValue("api_key", "") as String);
 
-  final Dio _dio = Dio(
-    BaseOptions(
-      baseUrl: _baseUrl,
-      headers: {
-        HttpHeaders.contentTypeHeader: 'application/json',
-        HttpHeaders.authorizationHeader: 'Bearer $_apiKey',
-      },
-    ),
-  );
+    _baseUrl = "http://localhost:3000/api";
+    _apiKey = "super_secret";
 
-  Future<List<Event>> listNotifications() async {
+    print('Base URL: $_baseUrl');
+    print('API KEY $_apiKey');
+
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: _baseUrl,
+        headers: {
+          HttpHeaders.contentTypeHeader: 'application/json',
+          HttpHeaders.authorizationHeader: 'Bearer $_apiKey',
+        },
+      ),
+    );
+  }
+
+  late String _baseUrl;
+  late String _apiKey;
+  late Dio _dio;
+
+  Future<List<Notification>> listNotifications() async {
     print('About to call /notifications');
 
     Response response;
@@ -33,8 +47,8 @@ class BackendAPI {
     List<dynamic> list = response.data;
     print('List contains ' + list.length.toString() + ' items');
 
-    List<Event> events = List<Event>.from(
-      list.map((item) => Event.fromJson(item)),
+    List<Notification> events = List<Notification>.from(
+      list.map((item) => Notification.fromJson(item)),
     );
 
     print('Parsed ' + events.length.toString() + ' events');

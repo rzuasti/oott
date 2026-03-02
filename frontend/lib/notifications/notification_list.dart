@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import '../utils/friendly_date_formatter.dart';
-import '../model/event.dart';
+import '../model/notification.dart' as oott_model;
 import '../utils/oott_api.dart';
 
-class EventsList extends StatefulWidget {
+class NotificationList extends StatefulWidget {
   @override
-  _EventListState createState() => _EventListState();
+  _NotificationListState createState() => _NotificationListState();
 }
 
-class _EventListState extends State<EventsList> {
+class _NotificationListState extends State<NotificationList> {
   bool _isLoading = true;
-  List<Event>? _events;
+  List<oott_model.Notification>? _events;
 
   @override
   void initState() {
@@ -27,7 +27,7 @@ class _EventListState extends State<EventsList> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Events')),
+      appBar: AppBar(title: const Text('Notifications')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView.separated(

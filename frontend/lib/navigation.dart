@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'events/events_list.dart';
+import 'notifications/notification_list.dart';
 
 // Routes definitions
 final GoRouter router = GoRouter(
-  initialLocation: '/events',
+  initialLocation: '/notifications',
   routes: [
     ShellRoute(
       builder: (context, state, child) {
@@ -12,9 +12,9 @@ final GoRouter router = GoRouter(
       },
       routes: [
         GoRoute(
-          path: '/events',
-          name: 'events',
-          builder: (context, state) => EventsList(),
+          path: '/notifications',
+          name: 'notifications',
+          builder: (context, state) => NotificationList(),
         ),
         GoRoute(
           path: '/devices',
@@ -65,7 +65,7 @@ class MainShell extends StatelessWidget {
                     NavigationRailDestination(
                       icon: Icon(Icons.notifications_outlined),
                       selectedIcon: Icon(Icons.notifications),
-                      label: Text('Events'),
+                      label: Text('Notifications'),
                     ),
                     NavigationRailDestination(
                       icon: Icon(Icons.devices_other_outlined),
@@ -105,7 +105,7 @@ class MainShell extends StatelessWidget {
 
 int _calculateSelectedIndex(BuildContext context) {
   final location = GoRouterState.of(context).uri.path;
-  if (location.startsWith('/events')) return 0;
+  if (location.startsWith('/notifications')) return 0;
   if (location.startsWith('/devices')) return 1;
   if (location.startsWith('/settings')) return 2;
   if (location.startsWith('/about')) return 3;
@@ -115,7 +115,7 @@ int _calculateSelectedIndex(BuildContext context) {
 void _onDestinationSelected(int index, BuildContext context) {
   switch (index) {
     case 0:
-      context.go('/events');
+      context.go('/notifications');
       break;
     case 1:
       context.go('/devices');

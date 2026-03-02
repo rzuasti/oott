@@ -1,6 +1,6 @@
 import 'notification_type.dart';
 
-class Event {
+class Notification {
   int id;
   String title;
   String body;
@@ -8,7 +8,7 @@ class Event {
   NotificationType notificationType;
   DateTime createdOn;
 
-  Event({
+  Notification({
     required this.id,
     required this.title,
     required this.body,
@@ -17,7 +17,7 @@ class Event {
     this.isNew = true,
   });
 
-  Event.fromJson(Map<String, dynamic> json)
+  Notification.fromJson(Map<String, dynamic> json)
     : id = json['id'] as int,
       createdOn = DateTime.parse(json['created_on'] as String),
       notificationType = NotificationType.fromString(

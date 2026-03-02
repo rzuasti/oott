@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/utils/pref_utils.dart';
 import 'package:provider/provider.dart';
 import 'navigation.dart';
 
-void main() {
+void main() async {
+  PrefUtil.init();
   runApp(const MainApp());
 }
 
@@ -17,7 +19,7 @@ final class MainApp extends StatelessWidget {
         title: 'OOTT',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.green,
+            seedColor: Colors.deepOrange,
             brightness: Brightness.dark,
           ),
         ),

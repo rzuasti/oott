@@ -44,7 +44,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
             };
         }
         info!(
-            "Scan finished. Sleeping for {} seconds",
+            "Scan finished. Sleeping for {}",
             get_settings().timings.wait_between_scans
         );
         sleep(Duration::from(get_settings().timings.wait_between_scans)).await;
