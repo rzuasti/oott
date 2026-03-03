@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/settings/settings.dart';
 import 'package:go_router/go_router.dart';
 import 'notifications/notification_list.dart';
+import 'utils/pref_utils.dart';
 
 // Routes definitions
 final GoRouter router = GoRouter(
+  // If there is no API base URL send the user to settings
   initialLocation: '/notifications',
   routes: [
     ShellRoute(
@@ -15,16 +18,18 @@ final GoRouter router = GoRouter(
           path: '/notifications',
           name: 'notifications',
           builder: (context, state) => NotificationList(),
+          redirect: (context, state) => _redirectToSettings(),
         ),
         GoRoute(
           path: '/devices',
           name: 'devices',
           builder: (context, state) => const Placeholder(),
+          redirect: (context, state) => _redirectToSettings(),
         ),
         GoRoute(
           path: '/settings',
           name: 'settings',
-          builder: (context, state) => const Placeholder(),
+          builder: (context, state) => Settings(),
         ),
         GoRoute(
           path: '/about',
@@ -101,6 +106,12 @@ class MainShell extends StatelessWidget {
       },
     );
   }
+}
+
+String? _redirectToSettings() {
+  return (PrefUtil.getValue("base_url", "") as String == "")
+      ? '/settings'
+      : null;
 }
 
 int _calculateSelectedIndex(BuildContext context) {

@@ -28,11 +28,11 @@ class PrefUtil {
   static Object getValue(String key, Object defaultValue) {
     switch (defaultValue.runtimeType) {
       case String:
-        return preferences.getString(key) ?? "";
+        return preferences.getString(key) ?? defaultValue;
       case bool:
-        return preferences.getBool(key) ?? false;
+        return preferences.getBool(key) ?? defaultValue;
       case int:
-        return preferences.getInt(key) ?? 0;
+        return preferences.getInt(key) ?? defaultValue;
       default:
         return defaultValue;
     }
