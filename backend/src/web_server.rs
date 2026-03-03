@@ -11,6 +11,7 @@ use log::{debug, error, info};
 use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
+use axum::Json;
 
 pub mod devices;
 pub mod notifications;
@@ -26,6 +27,7 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .allow_headers([http::header::AUTHORIZATION, http::header::CONTENT_TYPE]);
 
     let router = Router::new()
+        .route("/api/test", get(test_api))
         .route("/api/devices", get(devices::list))
         .route("/api/devices", put(devices::register))
         .route("/api/devices/{mac_address}", delete(devices::unregister))
@@ -58,6 +60,10 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
 
     axum::serve(listener, router).await?;
     Ok(())
+}
+
+async fn test_api() -> Result<Json<String>, StatusCode> {
+    Ok(Json("OOTT_API_OK".to_string()))
 }
 
 async fn auth(request: Request, next: Next) -> Result<Response, StatusCode> {

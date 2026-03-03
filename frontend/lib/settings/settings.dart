@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:encrypter/encrypter/xor.dart';
 import 'package:flutter/material.dart';
 import '../utils/oott_api.dart';
 import '../utils/pref_utils.dart';
+import '../utils/ui_snackbars.dart';
 
 class Settings extends StatefulWidget {
   @override
@@ -10,9 +13,12 @@ class Settings extends StatefulWidget {
 
 class _SettingsState extends State<Settings> {
   bool _isLoading = true;
+  bool _isSaving = false;
   final _baseUrlController = TextEditingController();
   final _apiKeyController = TextEditingController();
   bool _apiKeyVisible = false;
+  bool _testOk = false;
+
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -37,6 +43,11 @@ class _SettingsState extends State<Settings> {
     setState(() {});
   }
 
+  void _saveData() {
+    PrefUtil.setValue("base_url", _baseUrlController.text);
+    PrefUtil.setValue("api_key", XOR().xorEncode(_apiKeyController.text));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,8 +59,20 @@ class _SettingsState extends State<Settings> {
               child: Column(
                 children: <Widget>[
                   SizedBox(height: 16),
+                  // Base URL
                   TextFormField(
                     controller: _baseUrlController,
+                    onChanged: (text) {
+                      setState(() {
+                        _testOk = false;
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return "The URL cannot be empty";
+                      }
+                      return null;
+                    },
                     decoration: const InputDecoration(
                       border: UnderlineInputBorder(),
                       labelText: 'Base URL of your OOTT server\'s API',
@@ -57,12 +80,25 @@ class _SettingsState extends State<Settings> {
                     ),
                   ),
                   SizedBox(height: 16),
+                  // API Key
                   TextFormField(
                     controller: _apiKeyController,
+                    onChanged: (text) {
+                      setState(() {
+                        _testOk = false;
+                      });
+                    },
+
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return "The API key cannot be empty";
+                      }
+                      return null;
+                    },
                     obscureText: !_apiKeyVisible,
                     decoration: InputDecoration(
                       border: UnderlineInputBorder(),
-                      labelText: 'API Key',
+                      labelText: 'API key',
                       suffixIcon: IconButton(
                         icon: Icon(
                           _apiKeyVisible
@@ -78,23 +114,78 @@ class _SettingsState extends State<Settings> {
                     ),
                   ),
                   SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) {
-                          return AlertDialog(
-                            content: Text(
-                              _baseUrlController.text +
-                                  ' - ' +
-                                  _apiKeyController.text,
-                            ),
-                          );
+                  // Button row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // Test button
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          if (_formKey.currentState!.validate()) {
+                            String? testResult = await BackendAPI.test(
+                              _baseUrlController.text,
+                              _apiKeyController.text,
+                            );
+
+                            setState(() {
+                              _testOk = testResult == null;
+                            });
+
+                            if (testResult == null) {
+                              UISnackbars.showSuccess(context, 'It works!');
+                            } else {
+                              UISnackbars.showError(context, testResult);
+                            }
+                          }
                         },
-                      );
-                    },
-                    label: Text('Test'),
-                    icon: const Icon(Icons.check),
+                        label: Text('Test'),
+                        icon: _testOk
+                            ? Icon(Icons.check)
+                            : Icon(Icons.play_arrow),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _testOk
+                              ? Colors.lightGreen
+                              : Theme.of(context).colorScheme.secondary,
+                          foregroundColor: _testOk
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : Theme.of(context).colorScheme.onSecondary,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+
+                      // Save button
+                      ElevatedButton.icon(
+                        onPressed: ((!_testOk) || _isSaving)
+                            ? null
+                            : () async {
+                                if (_formKey.currentState!.validate()) {
+                                  setState(() {
+                                    _isSaving = true;
+                                  });
+                                  _saveData();
+
+                                  setState(() {
+                                    _isSaving = false;
+                                  });
+                                  UISnackbars.showSuccess(
+                                    context,
+                                    'Settings saved successfully',
+                                  );
+                                }
+                              },
+                        label: Text(_isSaving ? 'Saving...' : 'Save'),
+
+                        icon: _isSaving ? null : Icon(Icons.save),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

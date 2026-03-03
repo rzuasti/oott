@@ -11,12 +11,9 @@ class BackendAPI {
   static BackendAPI get instance => _instance;
 
   BackendAPI._internal() {
-    // _baseUrl =
-    // PrefUtil.getValue("base_url", "http://localhost:3000/api") as String;
-    // _apiKey = XOR().xorDecode(PrefUtil.getValue("api_key", "") as String);
-
-    _baseUrl = "http://localhost:3000/api";
-    _apiKey = "super_secret";
+    _baseUrl =
+        PrefUtil.getValue("base_url", "http://localhost:3000/api") as String;
+    _apiKey = XOR().xorDecode(PrefUtil.getValue("api_key", "") as String);
 
     print('Base URL: $_baseUrl');
     print('API KEY $_apiKey');
@@ -30,6 +27,38 @@ class BackendAPI {
         },
       ),
     );
+  }
+
+  // Returns null if the test was successful, and a String with a message about the issue if not
+  static Future<String?> test(String baseUrl, String apiKey) async {
+    print('About to test API with baseUrl=$baseUrl and apiKey=$apiKey');
+    Dio dio = Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        headers: {
+          HttpHeaders.contentTypeHeader: 'application/json',
+          HttpHeaders.authorizationHeader: 'Bearer $apiKey',
+        },
+      ),
+    );
+
+    try {
+      Response response = await dio.get('/test');
+      return response.toString().contains('OOTT_API_OK')
+          ? null
+          : "URL successfully called but didn't return the expected value. Check your URL and make sure it points to your OOTT backend base URL.";
+    } on DioException catch (e) {
+      if (e.response != null) {
+        if (e.response!.statusCode == 401) {
+          return "Authorization failed, check your API Key.";
+        } else {
+          return "Error querying the given URL (${e.response!.statusCode} - ${e.message ?? 'N/A'})";
+        }
+      } else {
+        // Response was null, something happened while sending the message
+        return "Error sending message to provided URL (${e.message ?? 'no message'})";
+      }
+    }
   }
 
   late String _baseUrl;
