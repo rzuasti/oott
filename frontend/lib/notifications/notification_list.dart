@@ -13,65 +13,128 @@ class NotificationList extends StatefulWidget {
 }
 
 class _NotificationListState extends State<NotificationList> {
-  final _pagingController = PagingController<int, oott_model.Notification>(
+  int _filterChoice = 1; // 1 => Only new, 2=> Only old, 3=> All
+
+  late final _pagingController = PagingController<int, oott_model.Notification>(
     getNextPageKey: (state) => state.lastPageIsEmpty
         ? null
         : (state.items == null ? 0 : state.items?.length),
-    fetchPage: (pageKey) => BackendAPI.instance.listNotifications(pageKey),
-  );
+    fetchPage: (pageKey) {
+      bool? isNew;
 
-  @override
-  void dispose() {
-    _pagingController.dispose();
-    super.dispose();
-  }
+      if (_filterChoice == 1) {
+        isNew = true;
+      } else if (_filterChoice == 2) {
+        isNew = false;
+      }
+
+      return BackendAPI.instance.listNotifications(isNew, pageKey);
+    },
+  );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
-      body: PagingListener(
-        controller: _pagingController,
-        builder: (context, state, fetchNextPage) =>
-            PagedListView<int, oott_model.Notification>(
-              state: state,
-              fetchNextPage: fetchNextPage,
-              builderDelegate: PagedChildBuilderDelegate(
-                itemBuilder: (context, item, index) {
-                  return Dismissible(
-                    key: UniqueKey(),
-                    onDismissed: (direction) {
-                      setState(() {
-                        // _events!.removeAt(index);
-                      });
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Event marked as read'),
-                          behavior: SnackBarBehavior.floating,
-                          showCloseIcon: true,
+      body:
+          // Paginated list start
+          PagingListener(
+            controller: _pagingController,
+            builder: (context, state, fetchNextPage) => CustomScrollView(
+              slivers: [
+                // Filters go here
+                SliverToBoxAdapter(
+                  child: Container(
+                    height: 50,
+                    alignment: Alignment.centerRight,
+                    child: Wrap(
+                      spacing: 8.0,
+                      children: [
+                        ChoiceChip(
+                          label: Text('New'),
+                          selected: _filterChoice == 1,
+                          onSelected: (bool selected) {
+                            _filterChoice = 1;
+                            _pagingController.refresh();
+                          },
                         ),
+                        ChoiceChip(
+                          label: Text('Old'),
+                          selected: _filterChoice == 2,
+                          onSelected: (bool selected) {
+                            _filterChoice = 2;
+                            _pagingController.refresh();
+                          },
+                        ),
+                        ChoiceChip(
+                          label: Text('All'),
+                          selected: _filterChoice == 3,
+                          onSelected: (bool selected) {
+                            _filterChoice = 3;
+                            _pagingController.refresh();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                PagedSliverList<int, oott_model.Notification>(
+                  state: state,
+                  fetchNextPage: fetchNextPage,
+                  builderDelegate: PagedChildBuilderDelegate(
+                    itemBuilder: (context, item, index) {
+                      return Column(
+                        children: [
+                          Dismissible(
+                            key: UniqueKey(),
+                            onDismissed: (direction) {
+                              setState(() {
+                                // _events!.removeAt(index);
+                              });
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Event marked as read'),
+                                  behavior: SnackBarBehavior.floating,
+                                  showCloseIcon: true,
+                                ),
+                              );
+                            },
+                            background: Container(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer,
+                              alignment: Alignment.center,
+                              child: Icon(Icons.done),
+                            ),
+                            child: ListTile(
+                              // tileColor: item.isNew ? Colors.amber : null,
+                              leading: Icon(item.notificationType.icon),
+                              title: Text(
+                                '${FriendlyDateFormatter().format(item.createdOn)} - ${item.title}',
+                              ),
+                              subtitle: Text(item.body, maxLines: 5),
+                              trailing: Icon(Icons.more_vert),
+                              onTap: () {},
+                              isThreeLine: true,
+                            ),
+                          ),
+                          Divider(),
+                        ],
                       );
                     },
-                    background: Container(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      alignment: Alignment.center,
-                      child: Icon(Icons.done),
-                    ),
-                    child: ListTile(
-                      leading: Icon(item.notificationType.icon),
-                      title: Text(
-                        '${FriendlyDateFormatter().format(item.createdOn)} - ${item.title}',
-                      ),
-                      subtitle: Text(item.body),
-                      trailing: Icon(Icons.more_vert),
-                      onTap: () {},
-                    ),
-                  );
-                },
-              ),
+                  ),
+                ),
+              ],
             ),
-      ),
+          ),
     );
+    // Paginated list end
+  }
+
+  @override
+  void dispose() {
+    _pagingController.dispose();
+    super.dispose();
   }
 }

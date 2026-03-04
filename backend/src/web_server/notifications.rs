@@ -34,10 +34,11 @@ pub async fn read_without_flagging(Path(id): Path<i64>) -> Result<Json<Notificat
 pub async fn list(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<Vec<Notification>>, StatusCode> {
+    let is_new: Option<bool> = utils::parse_parameter_bool(&params, "is_new");
     let page_offset: Option<i64> = utils::parse_parameter_int(&params, "page_offset");
     let page_limit: Option<i64> = utils::parse_parameter_int(&params, "page_limit");
 
-    match db::notifications::list(page_offset, page_limit) {
+    match db::notifications::list(is_new, page_offset, page_limit) {
         Ok(value) => Ok(Json(value)),
         Err(err) => {
             error!("Error listing notifications: {}", err);

@@ -9,13 +9,13 @@ enum NotificationType {
   IconData get icon {
     switch (this) {
       case newDeviceFound:
-        return Icons.devices;
+        return Icons.radar;
       case deviceOnlineAfterTime:
         return Icons.timer;
       case deviceChanged:
         return Icons.change_circle;
       case other:
-        return Icons.priority_high;
+        return Icons.notification_important;
     }
   }
 

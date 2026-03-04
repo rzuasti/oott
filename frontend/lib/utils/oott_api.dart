@@ -66,13 +66,17 @@ class BackendAPI {
   late String _apiKey;
   late Dio _dio;
 
-  Future<List<Notification>> listNotifications(int offset) async {
+  Future<List<Notification>> listNotifications(bool? isNew, int offset) async {
     print('About to call /notifications');
 
     Response response;
     response = await _dio.get(
       '/notifications',
-      queryParameters: {'page_offset': offset, 'page_limit': _pageSize},
+      queryParameters: {
+        'is_new': isNew ?? '',
+        'page_offset': offset,
+        'page_limit': _pageSize,
+      },
     );
 
     print('Received: ' + response.data.toString());

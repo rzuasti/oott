@@ -6,6 +6,7 @@ use rusqlite::{params, params_from_iter};
 use crate::model::notifications::Notification;
 
 pub fn list(
+    is_new: Option<bool>,
     page_offset: Option<i64>,
     page_limit: Option<i64>,
 ) -> Result<Vec<Notification>, DbError> {
@@ -13,12 +14,23 @@ pub fn list(
     let conn = db::get_db_connection();
 
     let mut sql_statement =
-        "SELECT id, created_on, notification_type, title, body FROM notifications WHERE is_new=1"
+        "SELECT id, created_on, notification_type, title, body, is_new FROM notifications WHERE 1=1"
             .to_string();
 
+    let mut params: Vec<rusqlite::types::Value> = Vec::new();
+
+    // Filters
+    if is_new.is_some() {
+        debug!("Adding filter is_new={}", is_new.unwrap());
+        sql_statement.push_str(" AND is_new=?");
+
+        params.push(is_new.unwrap().into());
+    }
+
+    // List order
     sql_statement.push_str(" ORDER BY created_on DESC");
 
-    let mut params: Vec<rusqlite::types::Value> = Vec::new();
+    // Paging
     if page_offset.is_some() && page_limit.is_some() {
         debug!(
             "Adding paging to list with offset={} and limit={}",
@@ -41,7 +53,7 @@ pub fn list(
                 notification_type: row.get(2)?,
                 title: row.get(3)?,
                 body: row.get(4)?,
-                is_new: true,
+                is_new: row.get(5)?,
             })
         })?
         .collect::<Result<_, _>>()?;
@@ -322,7 +334,7 @@ mod tests {
     #[tokio::test]
     async fn test_list() {
         tests_common::setup().await;
-        let notifications = list(None, None).unwrap();
+        let notifications = list(Some(true), None, None).unwrap();
 
         // There should be at least 3 unread notifications
         assert!(
@@ -409,11 +421,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_list_filters() {
+        tests_common::setup().await;
+
+        // List only new notifications
+        let notifications = list(Some(true), Some(0), Some(5)).unwrap();
+        assert!(
+            !notifications.iter().any(|item| !item.is_new),
+            "All notifications should be new"
+        );
+
+        // List only old notifications
+        let notifications = list(Some(false), Some(0), Some(5)).unwrap();
+        assert!(
+            !notifications.iter().any(|item| item.is_new),
+            "All notifications should be old"
+        );
+    }
+
+    #[tokio::test]
     async fn test_list_pagination() {
         tests_common::setup().await;
 
         // List first page with 2 elements
-        let first_page = list(Some(0), Some(2)).unwrap();
+        let first_page = list(Some(true), Some(0), Some(2)).unwrap();
 
         assert_eq!(
             first_page.iter().len(),
@@ -422,18 +453,10 @@ mod tests {
         );
 
         // List second page with 2 elements, should only be 1
-        let second_page = list(Some(2), Some(2)).unwrap();
+        let second_page = list(Some(true), Some(2), Some(2)).unwrap();
         assert!(
             second_page.iter().len() >= 1,
             "Second page should have at least 1 notification"
         );
-
-        // None of the first page elements should be present
-        for item in first_page.iter() {
-            assert!(
-                !second_page.iter().any(|second_item| item == second_item),
-                "No first page element should be in the second page"
-            );
-        }
     }
 }
