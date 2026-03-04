@@ -1,12 +1,13 @@
-import 'dart:io';
-
 import 'package:encrypter/encrypter/xor.dart';
 import 'package:flutter/material.dart';
+
 import '../utils/oott_api.dart';
 import '../utils/pref_utils.dart';
 import '../utils/ui_snackbars.dart';
 
 class Settings extends StatefulWidget {
+  const Settings({super.key});
+
   @override
   _SettingsState createState() => _SettingsState();
 }

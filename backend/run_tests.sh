@@ -1,3 +1,3 @@
 #!/bin/sh
-rm -f oott.db
-cargo test -- --show-output
+sudo rm -f oott.db
+sudo cargo test -- --show-output

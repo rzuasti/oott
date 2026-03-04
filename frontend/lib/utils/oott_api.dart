@@ -7,6 +7,7 @@ import '../model/notification.dart';
 
 class BackendAPI {
   static final BackendAPI _instance = BackendAPI._internal();
+  static const _pageSize = 5;
 
   static BackendAPI get instance => _instance;
 
@@ -65,11 +66,14 @@ class BackendAPI {
   late String _apiKey;
   late Dio _dio;
 
-  Future<List<Notification>> listNotifications() async {
+  Future<List<Notification>> listNotifications(int offset) async {
     print('About to call /notifications');
 
     Response response;
-    response = await _dio.get('/notifications');
+    response = await _dio.get(
+      '/notifications',
+      queryParameters: {'page_offset': offset, 'page_limit': _pageSize},
+    );
 
     print('Received: ' + response.data.toString());
 

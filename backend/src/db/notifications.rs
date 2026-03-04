@@ -1,20 +1,40 @@
 use crate::db;
 use crate::db::error::DbError;
 use log::{debug, error};
-use rusqlite::params;
+use rusqlite::{params, params_from_iter};
 
 use crate::model::notifications::Notification;
 
-pub fn list() -> Result<Vec<Notification>, DbError> {
+pub fn list(
+    page_offset: Option<i64>,
+    page_limit: Option<i64>,
+) -> Result<Vec<Notification>, DbError> {
     debug!("Listing notifications");
     let conn = db::get_db_connection();
 
-    let mut stmt = conn.prepare(
-        "SELECT id, created_on, notification_type, title, body FROM notifications WHERE is_new=1",
-    )?;
+    let mut sql_statement =
+        "SELECT id, created_on, notification_type, title, body FROM notifications WHERE is_new=1"
+            .to_string();
+
+    sql_statement.push_str(" ORDER BY created_on DESC");
+
+    let mut params: Vec<rusqlite::types::Value> = Vec::new();
+    if page_offset.is_some() && page_limit.is_some() {
+        debug!(
+            "Adding paging to list with offset={} and limit={}",
+            page_offset.unwrap(),
+            page_limit.unwrap()
+        );
+        sql_statement.push_str(" LIMIT ? OFFSET ?");
+
+        params.push(page_limit.unwrap().into());
+        params.push(page_offset.unwrap().into());
+    };
+
+    let mut stmt = conn.prepare(sql_statement.as_str())?;
 
     let notifications: Vec<Notification> = stmt
-        .query_map([], |row| {
+        .query_map(params_from_iter(params.iter()), |row| {
             Ok(Notification {
                 id: row.get(0)?,
                 created_on: row.get(1)?,
@@ -302,7 +322,7 @@ mod tests {
     #[tokio::test]
     async fn test_list() {
         tests_common::setup().await;
-        let notifications = list().unwrap();
+        let notifications = list(None, None).unwrap();
 
         // There should be at least 3 unread notifications
         assert!(
@@ -386,5 +406,34 @@ mod tests {
             "Notification 5 body incorrect: {}",
             notification5.body
         );
+    }
+
+    #[tokio::test]
+    async fn test_list_pagination() {
+        tests_common::setup().await;
+
+        // List first page with 2 elements
+        let first_page = list(Some(0), Some(2)).unwrap();
+
+        assert_eq!(
+            first_page.iter().len(),
+            2,
+            "First page should have 2 notifications"
+        );
+
+        // List second page with 2 elements, should only be 1
+        let second_page = list(Some(2), Some(2)).unwrap();
+        assert!(
+            second_page.iter().len() >= 1,
+            "Second page should have at least 1 notification"
+        );
+
+        // None of the first page elements should be present
+        for item in first_page.iter() {
+            assert!(
+                !second_page.iter().any(|second_item| item == second_item),
+                "No first page element should be in the second page"
+            );
+        }
     }
 }

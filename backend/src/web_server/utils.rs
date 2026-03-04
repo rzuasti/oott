@@ -16,6 +16,19 @@ pub fn parse_parameter_bool(params: &HashMap<String, String>, name: &str) -> Opt
     }
 }
 
+pub fn parse_parameter_int(params: &HashMap<String, String>, name: &str) -> Option<i64> {
+    if params.contains_key(name) {
+        let param_value = params.get(name).unwrap().as_str();
+        debug!("Found parameter {name} with value {}", param_value);
+        match param_value.parse::<i64>() {
+            Ok(value) => Some(value),
+            Err(_) => None,
+        }
+    } else {
+        None
+    }
+}
+
 pub fn parse_parameter_string(params: &HashMap<String, String>, name: &str) -> Option<String> {
     if params.contains_key(name) {
         let param_value = params.get(name).unwrap().as_str();
