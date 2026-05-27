@@ -32,6 +32,34 @@ class _NotificationListState extends State<NotificationList> {
     },
   );
 
+  Future<bool> _markAsRead(
+    BuildContext context,
+    oott_model.Notification item,
+  ) async {
+    if (!item.isNew) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Notification was already marked as read'),
+          behavior: SnackBarBehavior.floating,
+          showCloseIcon: true,
+        ),
+      );
+      return false;
+    }
+    await BackendAPI.instance.markNotificationAsRead(item.id);
+    _pagingController.value = _pagingController.value.filterItems(
+      (n) => n.id != item.id,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Event marked as read'),
+        behavior: SnackBarBehavior.floating,
+        showCloseIcon: true,
+      ),
+    );
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -87,19 +115,8 @@ class _NotificationListState extends State<NotificationList> {
                         children: [
                           Dismissible(
                             key: UniqueKey(),
-                            onDismissed: (direction) {
-                              setState(() {
-                                // _events!.removeAt(index);
-                              });
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Event marked as read'),
-                                  behavior: SnackBarBehavior.floating,
-                                  showCloseIcon: true,
-                                ),
-                              );
-                            },
+                            confirmDismiss: (direction) =>
+                                _markAsRead(context, item),
                             background: Container(
                               color: Theme.of(
                                 context,
@@ -114,7 +131,21 @@ class _NotificationListState extends State<NotificationList> {
                                 '${FriendlyDateFormatter().format(item.createdOn)} - ${item.title}',
                               ),
                               subtitle: Text(item.body, maxLines: 5),
-                              trailing: Icon(Icons.more_vert),
+                              trailing: PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert),
+                                onSelected: (value) async {
+                                  if (value == 'mark_read') {
+                                    await _markAsRead(context, item);
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  if (item.isNew)
+                                    const PopupMenuItem(
+                                      value: 'mark_read',
+                                      child: Text('Mark as read'),
+                                    ),
+                                ],
+                              ),
                               onTap: () {},
                               isThreeLine: true,
                             ),

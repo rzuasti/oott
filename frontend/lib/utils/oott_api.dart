@@ -66,6 +66,11 @@ class BackendAPI {
   late String _apiKey;
   late Dio _dio;
 
+  Future<void> markNotificationAsRead(int id) async {
+    print('About to call /notifications/$id');
+    await _dio.get('/notifications/$id');
+  }
+
   Future<List<Notification>> listNotifications(bool? isNew, int offset) async {
     print('About to call /notifications');
 

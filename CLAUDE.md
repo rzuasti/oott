@@ -19,9 +19,9 @@ For Flutter/Dart code:
 
 ## Project commands
 
-- `` - Run the backend
-- `` - Run the front-end for the web
-- `` - Run the backend tests
+- `sudo cargo run` from the `backend/` folder - Run the backend (you need sudo to enable the process to attach itself to the network channel)
+- `flutter run -d web-server --web-port 3333` from the `frontend/` folder - Run the front-end for the web
+- `run_tests.sh` - Run the backend tests
 
 ## Architecture
 
@@ -40,5 +40,10 @@ For Flutter/Dart code:
 - It uses the [Material 3](https://m3.material.io/develop/flutter) framework for Flutter
 - The application needs to be responsive and adapt to a web experience in the desktop, tablets and phones
 - The application is also available in iOS and Android as a native experience (via de App Store and Play store) 
+- Backend API access is implemented in the `utils/oott_api.dart` component
  
 ## Important notes
+- NEVER add or commit .env files or files with secrets (passwords, API keys or similar information)
+- Code must be as simple as possible, human readable and modularized
+- ALWAYS write unit tests for new or modified backend components
+- ALWAYS run all tests after making a new change and do not continue until all tests pass
