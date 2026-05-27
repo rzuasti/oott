@@ -122,7 +122,7 @@ class _DeviceHeader extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       children: [
-        Icon(device.deviceType.icon, size: 48),
+        Icon(device.deviceType.icon, size: 48, color: theme.colorScheme.onSurface),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
