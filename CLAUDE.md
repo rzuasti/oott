@@ -22,6 +22,8 @@ For Flutter/Dart code:
 - `sudo cargo run` from the `backend/` folder - Run the backend (you need sudo to enable the process to attach itself to the network channel)
 - `flutter run -d web-server --web-port 3333` from the `frontend/` folder - Run the front-end for the web
 - `run_tests.sh` - Run the backend tests
+- `cargo clippy` - Run the clippy linter for Rust code
+- `dart analyze` - Run the Dart linter
 
 ## Architecture
 
@@ -47,3 +49,5 @@ For Flutter/Dart code:
 - Code must be as simple as possible, human readable and modularized
 - ALWAYS write unit tests for new or modified backend components
 - ALWAYS run all tests after making a new change and do not continue until all tests pass
+- When adding a new API endpoint, ALWAYS wire it to the OpenAPI generation
+- When adding a significant chunk of new code (either Rust or Dart), run the corresponding linter

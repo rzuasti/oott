@@ -51,6 +51,7 @@
           androidSdk
           jdk17
           claude-code
+          clippy # Rust linter
         ];
 
         # fish > all
