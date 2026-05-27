@@ -50,6 +50,7 @@
           android-tools
           androidSdk
           jdk17
+          claude-code
         ];
 
         # fish > all
