@@ -6,11 +6,30 @@ use axum::{Json, extract::Query, http::StatusCode};
 use chrono::{DateTime, Utc};
 use log::{debug, error};
 use serde::Deserialize;
+use utoipa::ToSchema;
 
 use crate::{db, model::devices::Device};
 
 use crate::web_server::utils;
 
+#[utoipa::path(
+    get,
+    path = "/api/devices",
+    tag = "devices",
+    params(
+        ("is_registered" = Option<bool>, Query, description = "Filter by registration status"),
+        ("last_seen_from" = Option<String>, Query, description = "Filter devices seen after this datetime (RFC3339)"),
+        ("last_seen_to" = Option<String>, Query, description = "Filter devices seen before this datetime (RFC3339)"),
+        ("owner" = Option<String>, Query, description = "Filter by owner"),
+        ("device_type" = Option<String>, Query, description = "Filter by device type"),
+        ("vendor" = Option<String>, Query, description = "Filter by vendor"),
+    ),
+    responses(
+        (status = 200, description = "List of devices", body = Vec<Device>),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn list(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<Vec<Device>>, StatusCode> {
@@ -38,6 +57,19 @@ pub async fn list(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/devices/{mac_address}",
+    tag = "devices",
+    params(
+        ("mac_address" = String, Path, description = "MAC address of the device"),
+    ),
+    responses(
+        (status = 200, description = "Device found", body = Device),
+        (status = 404, description = "Device not found"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn read(Path(mac_address): Path<String>) -> Result<Json<Device>, StatusCode> {
     match db::devices::read(mac_address) {
         Some(value) => Ok(Json(value)),
@@ -45,6 +77,19 @@ pub async fn read(Path(mac_address): Path<String>) -> Result<Json<Device>, Statu
     }
 }
 
+#[utoipa::path(
+    put,
+    path = "/api/devices",
+    tag = "devices",
+    request_body = RegisterDevicePayload,
+    responses(
+        (status = 201, description = "Device registered"),
+        (status = 404, description = "Device not found"),
+        (status = 409, description = "Device already registered"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn register(Json(payload): Json<RegisterDevicePayload>) -> impl IntoResponse {
     debug!(
         "Device registration received: mac_address={}, owner={}, device_type={}",
@@ -84,6 +129,21 @@ pub async fn register(Json(payload): Json<RegisterDevicePayload>) -> impl IntoRe
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/devices/{mac_address}",
+    tag = "devices",
+    params(
+        ("mac_address" = String, Path, description = "MAC address of the device"),
+    ),
+    responses(
+        (status = 200, description = "Device unregistered"),
+        (status = 404, description = "Device not found"),
+        (status = 409, description = "Device is not registered"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn unregister(Path(mac_address): Path<String>) -> impl IntoResponse {
     let mut device = match db::devices::read(mac_address) {
         Some(value) => value,
@@ -119,7 +179,7 @@ pub async fn unregister(Path(mac_address): Path<String>) -> impl IntoResponse {
 }
 
 // Payload structs
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct RegisterDevicePayload {
     mac_address: String,
     owner: String,

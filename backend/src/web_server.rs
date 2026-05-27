@@ -1,6 +1,9 @@
 use std::error::Error;
 
+use crate::model::devices::Device;
+use crate::model::notifications::{Notification, NotificationType};
 use crate::settings::get_settings;
+use crate::web_server::devices::RegisterDevicePayload;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::middleware::Next;
@@ -12,10 +15,63 @@ use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use axum::Json;
+use utoipa::OpenApi;
+use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
+use utoipa::Modify;
+use utoipa_swagger_ui::SwaggerUi;
 
 pub mod devices;
 pub mod notifications;
 pub mod utils;
+
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "OOTT API",
+        version = "0.1.0",
+        description = "Network monitoring and alert system API"
+    ),
+    paths(
+        test_api,
+        devices::list,
+        devices::read,
+        devices::register,
+        devices::unregister,
+        notifications::list,
+        notifications::read,
+        notifications::read_without_flagging,
+        notifications::mark_as_new,
+        notifications::mark_all_as_old,
+    ),
+    components(schemas(
+        Device,
+        Notification,
+        NotificationType,
+        RegisterDevicePayload,
+    )),
+    modifiers(&SecurityAddon),
+    tags(
+        (name = "devices", description = "Device management"),
+        (name = "notifications", description = "Notification management"),
+    )
+)]
+struct ApiDoc;
+
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let components = openapi.components.get_or_insert_with(Default::default);
+        components.add_security_scheme(
+            "bearer_auth",
+            SecurityScheme::Http(
+                HttpBuilder::new()
+                    .scheme(HttpAuthScheme::Bearer)
+                    .build(),
+            ),
+        );
+    }
+}
 
 pub async fn serve() -> Result<(), Box<dyn Error>> {
     info!("Starting web server");
@@ -52,7 +108,8 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
             "/",
             get(|| async { "Go to /web for the UI or to /api for the better UI." }),
         )
-        .nest_service("/web", static_files);
+        .nest_service("/web", static_files)
+        .merge(SwaggerUi::new("/api/docs").url("/api/docs/openapi.json", ApiDoc::openapi()));
 
     let web_server_host_and_port = format!(
         "{}:{}",
@@ -70,6 +127,14 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/test",
+    responses(
+        (status = 200, description = "API is reachable", body = String),
+    ),
+    security(("bearer_auth" = []))
+)]
 async fn test_api() -> Result<Json<String>, StatusCode> {
     Ok(Json("OOTT_API_OK".to_string()))
 }

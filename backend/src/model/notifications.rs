@@ -3,11 +3,13 @@ use chrono::{DateTime, Utc};
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt, str::FromStr};
+use utoipa::ToSchema;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, ToSchema)]
 pub struct Notification {
     pub id: i64,
     #[serde(with = "date_serializer")]
+    #[schema(value_type = String, format = DateTime)]
     pub created_on: DateTime<Utc>,
     pub notification_type: NotificationType,
     pub title: String,
@@ -50,7 +52,7 @@ impl PartialEq for Notification {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub enum NotificationType {
     NewDeviceFound,
     DeviceOnlineAfterTime,

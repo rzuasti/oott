@@ -10,6 +10,20 @@ use log::error;
 
 use crate::{db, model::notifications::Notification, web_server::utils};
 
+#[utoipa::path(
+    get,
+    path = "/api/notifications/{id}",
+    tag = "notifications",
+    params(
+        ("id" = i64, Path, description = "Notification ID"),
+    ),
+    responses(
+        (status = 200, description = "Notification found and marked as read", body = Notification),
+        (status = 404, description = "Notification not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn read(Path(id): Path<i64>) -> Result<Json<Notification>, StatusCode> {
     match db::notifications::mark_as_old(id) {
         Ok(_) => {}
@@ -25,6 +39,19 @@ pub async fn read(Path(id): Path<i64>) -> Result<Json<Notification>, StatusCode>
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/notifications/{id}/read_without_flagging",
+    tag = "notifications",
+    params(
+        ("id" = i64, Path, description = "Notification ID"),
+    ),
+    responses(
+        (status = 200, description = "Notification found without marking as read", body = Notification),
+        (status = 404, description = "Notification not found"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn read_without_flagging(Path(id): Path<i64>) -> Result<Json<Notification>, StatusCode> {
     match db::notifications::read(id) {
         Some(value) => Ok(Json(value)),
@@ -32,6 +59,19 @@ pub async fn read_without_flagging(Path(id): Path<i64>) -> Result<Json<Notificat
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/notifications/{id}/mark_as_new",
+    tag = "notifications",
+    params(
+        ("id" = i64, Path, description = "Notification ID"),
+    ),
+    responses(
+        (status = 200, description = "Notification marked as new"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn mark_as_new(Path(id): Path<i64>) -> impl IntoResponse {
     match db::notifications::mark_as_new(id) {
         Ok(_) => (StatusCode::OK, "Notification marked as new"),
@@ -45,6 +85,16 @@ pub async fn mark_as_new(Path(id): Path<i64>) -> impl IntoResponse {
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/notifications/mark_all_as_old",
+    tag = "notifications",
+    responses(
+        (status = 200, description = "All notifications marked as old"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn mark_all_as_old() -> impl IntoResponse {
     match db::notifications::mark_all_as_old() {
         Ok(_) => (StatusCode::OK, "All notifications marked as old"),
@@ -58,6 +108,21 @@ pub async fn mark_all_as_old() -> impl IntoResponse {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/notifications",
+    tag = "notifications",
+    params(
+        ("is_new" = Option<bool>, Query, description = "Filter by new/read status"),
+        ("page_offset" = Option<i64>, Query, description = "Pagination offset"),
+        ("page_limit" = Option<i64>, Query, description = "Maximum number of results to return"),
+    ),
+    responses(
+        (status = 200, description = "List of notifications", body = Vec<Notification>),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn list(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<Vec<Notification>>, StatusCode> {

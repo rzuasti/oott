@@ -2,13 +2,15 @@ use crate::utils::date_serializer;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use utoipa::ToSchema;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, ToSchema)]
 pub struct Device {
     pub mac_address: String,
     pub ipv4_address: String,
     pub vendor: String,
     #[serde(with = "date_serializer")]
+    #[schema(value_type = String, format = DateTime)]
     pub last_seen: DateTime<Utc>,
     pub is_registered: bool,
     pub owner: String,
