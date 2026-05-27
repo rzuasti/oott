@@ -144,13 +144,17 @@ class _DeviceListState extends State<DeviceList> {
                             title: Row(
                               children: [
                                 Text(device.ipv4Address),
-                                if (!device.isRegistered) ...[
-                                  const SizedBox(width: 8),
+                                const SizedBox(width: 8),
+                                if (device.isRegistered)
+                                  const StatusBadge(
+                                    label: 'Registered',
+                                    color: BadgeColor.success,
+                                  )
+                                else
                                   const StatusBadge(
                                     label: 'Not registered',
                                     color: BadgeColor.secondary,
                                   ),
-                                ],
                               ],
                             ),
                             subtitle: Text(
