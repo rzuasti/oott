@@ -14,7 +14,7 @@ pub fn list(
     let conn = db::get_db_connection();
 
     let mut sql_statement =
-        "SELECT id, created_on, notification_type, title, body, is_new FROM notifications WHERE 1=1"
+        "SELECT id, created_on, notification_type, title, body, is_new, mac_address FROM notifications WHERE 1=1"
             .to_string();
 
     let mut params: Vec<rusqlite::types::Value> = Vec::new();
@@ -53,6 +53,7 @@ pub fn list(
                 title: row.get(3)?,
                 body: row.get(4)?,
                 is_new: row.get(5)?,
+                mac_address: row.get(6)?,
             })
         })?
         .collect::<Result<_, _>>()?;
@@ -64,8 +65,8 @@ pub fn insert(notification: Notification) -> Result<i64, DbError> {
     let conn = db::get_db_connection();
 
     match conn.execute(
-            "INSERT INTO notifications (created_on, notification_type, title, body, is_new) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![notification.created_on, notification.notification_type, notification.title, notification.body, notification.is_new]) {
+            "INSERT INTO notifications (created_on, notification_type, title, body, is_new, mac_address) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![notification.created_on, notification.notification_type, notification.title, notification.body, notification.is_new, notification.mac_address]) {
                 Ok(_) => {
                     debug!("Notification inserted into database: {}", notification);
                     Ok(conn.last_insert_rowid())
@@ -126,7 +127,7 @@ pub fn read(id: i64) -> Option<Notification> {
     let conn = db::get_db_connection();
 
     let result: Result<Notification, rusqlite::Error> = conn.query_one(
-        "SELECT id, created_on, notification_type, title, body, is_new FROM notifications WHERE id=?1",
+        "SELECT id, created_on, notification_type, title, body, is_new, mac_address FROM notifications WHERE id=?1",
         params![id],
         |row| {
             Ok(Notification {
@@ -136,6 +137,7 @@ pub fn read(id: i64) -> Option<Notification> {
                 title: row.get(3)?,
                 body: row.get(4)?,
                 is_new: row.get(5)?,
+                mac_address: row.get(6)?,
             })
         },
     );
@@ -176,6 +178,7 @@ mod tests {
             "New notification title".to_string(),
             "New notification body".to_string(),
             true,
+            None,
         ))
         .unwrap();
 
@@ -206,6 +209,7 @@ mod tests {
             "New notification title".to_string(),
             "New notification body".to_string(),
             false,
+            None,
         ))
         .unwrap();
 
@@ -232,6 +236,7 @@ mod tests {
             "New notification 1".to_string(),
             "Body 1".to_string(),
             true,
+            None,
         ))
         .unwrap();
 
@@ -241,6 +246,7 @@ mod tests {
             "New notification 2".to_string(),
             "Body 2".to_string(),
             true,
+            None,
         ))
         .unwrap();
 
@@ -275,6 +281,7 @@ mod tests {
             "New notification title".to_string(),
             "New notification body".to_string(),
             true,
+            None,
         ))
         .unwrap();
 
@@ -306,6 +313,28 @@ mod tests {
             inserted_notification.body, "New notification body",
             "Wrong body (should be 'New notification body')"
         );
+        assert_eq!(
+            inserted_notification.mac_address, None,
+            "mac_address should be None"
+        );
+
+        // Insert and validate notification with mac_address
+        let mac = "aa:aa:aa:aa:aa:aa".to_string();
+        let inserted_id = insert(Notification::new(
+            Utc::now(),
+            NotificationType::NewDeviceFound,
+            "Device found".to_string(),
+            "Body".to_string(),
+            true,
+            Some(mac.clone()),
+        ))
+        .unwrap();
+        let inserted_notification = read(inserted_id).unwrap();
+        assert_eq!(
+            inserted_notification.mac_address,
+            Some(mac),
+            "mac_address should round-trip through insert/read"
+        );
 
         // Insert and validate notification without title nor body
         let created_on = Utc::now();
@@ -315,6 +344,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             false,
+            None,
         ))
         .unwrap();
 
@@ -398,6 +428,7 @@ mod tests {
             "New notification title".to_string(),
             "New notification body".to_string(),
             true,
+            None,
         ))
         .unwrap();
 

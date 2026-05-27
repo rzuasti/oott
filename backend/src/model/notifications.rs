@@ -15,6 +15,7 @@ pub struct Notification {
     pub title: String,
     pub body: String,
     pub is_new: bool,
+    pub mac_address: Option<String>,
 }
 
 impl Notification {
@@ -24,6 +25,7 @@ impl Notification {
         title: String,
         body: String,
         is_new: bool,
+        mac_address: Option<String>,
     ) -> Self {
         Self {
             id: -1,
@@ -32,6 +34,7 @@ impl Notification {
             title,
             body,
             is_new,
+            mac_address,
         }
     }
 }
@@ -40,8 +43,8 @@ impl fmt::Display for Notification {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "id={}, created_on={}, notification_type={}, is_new={}\ntitle={}\nbody={}",
-            self.id, self.created_on, self.notification_type, self.is_new, self.title, self.body
+            "id={}, created_on={}, notification_type={}, is_new={}, mac_address={:?}\ntitle={}\nbody={}",
+            self.id, self.created_on, self.notification_type, self.is_new, self.mac_address, self.title, self.body
         )
     }
 }

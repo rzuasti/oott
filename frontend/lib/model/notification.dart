@@ -7,6 +7,7 @@ class Notification {
   bool isNew;
   NotificationType notificationType;
   DateTime createdOn;
+  String? macAddress;
 
   Notification({
     required this.id,
@@ -15,6 +16,7 @@ class Notification {
     required this.notificationType,
     required this.createdOn,
     this.isNew = true,
+    this.macAddress,
   });
 
   Notification.fromJson(Map<String, dynamic> json)
@@ -25,7 +27,8 @@ class Notification {
       ),
       title = json['title'] as String,
       body = json['body'] as String,
-      isNew = json['is_new'] as bool;
+      isNew = json['is_new'] as bool,
+      macAddress = json['mac_address'] as String?;
 
   Notification copyWith({bool? isNew}) => Notification(
     id: id,
@@ -34,6 +37,7 @@ class Notification {
     notificationType: notificationType,
     createdOn: createdOn,
     isNew: isNew ?? this.isNew,
+    macAddress: macAddress,
   );
 
   Map<String, dynamic> toJson() => {
@@ -43,5 +47,6 @@ class Notification {
     'title': title,
     'body': body,
     'is_new': isNew,
+    'mac_address': macAddress,
   };
 }

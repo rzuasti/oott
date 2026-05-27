@@ -43,6 +43,7 @@ pub fn trigger_new_device(device: Device) -> Result<(), Box<dyn Error>> {
             device.mac_address, device.ipv4_address, device.vendor
         ),
         true,
+        Some(device.mac_address.clone()),
     );
 
     send_notification(notification)?;
@@ -75,6 +76,7 @@ pub fn trigger_existing_device(
                 )))
             ),
             true,
+            Some(new_device.mac_address.clone()),
         );
 
         send_notification(notification)?;
@@ -97,6 +99,7 @@ pub fn trigger_existing_device(
                 new_device.vendor,
             ),
             true,
+            Some(new_device.mac_address.clone()),
         );
 
         send_notification(notification)?;
@@ -113,6 +116,7 @@ pub fn trigger_existing_device(
                 new_device.ipv4_address,
             ),
             true,
+            Some(new_device.mac_address.clone()),
         );
 
         send_notification(notification)?;
@@ -129,6 +133,7 @@ pub fn trigger_existing_device(
                 new_device.vendor,
             ),
             true,
+            Some(new_device.mac_address.clone()),
         );
 
         send_notification(notification)?;

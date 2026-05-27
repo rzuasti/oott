@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../model/device.dart';
 import '../utils/friendly_date_formatter.dart';
@@ -277,6 +278,8 @@ class _DeviceListState extends State<DeviceList> {
                               ? null
                               : theme.colorScheme.secondaryContainer,
                           child: ListTile(
+                            onTap: () =>
+                                context.push('/devices/${device.macAddress}'),
                             leading: Tooltip(
                               message:
                                   device.deviceType.isEmpty ||
@@ -309,13 +312,21 @@ class _DeviceListState extends State<DeviceList> {
                                 PopupMenuButton<String>(
                                   icon: const Icon(Icons.more_vert),
                                   onSelected: (value) async {
-                                    if (value == 'forget') {
+                                    if (value == 'details') {
+                                      context.push(
+                                        '/devices/${device.macAddress}',
+                                      );
+                                    } else if (value == 'forget') {
                                       await _confirmForget(device);
                                     } else if (value == 'register') {
                                       await _showRegisterDialog(device);
                                     }
                                   },
                                   itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'details',
+                                      child: Text('View details'),
+                                    ),
                                     if (device.isRegistered)
                                       const PopupMenuItem(
                                         value: 'forget',

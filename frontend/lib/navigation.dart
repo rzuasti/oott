@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/settings/settings.dart';
 import 'package:go_router/go_router.dart';
+import 'devices/device_detail.dart';
 import 'devices/device_list.dart';
 import 'notifications/notification_list.dart';
 import 'utils/pref_utils.dart';
@@ -26,6 +27,16 @@ final GoRouter router = GoRouter(
           name: 'devices',
           builder: (context, state) => const DeviceList(),
           redirect: (context, state) => _redirectToSettings(),
+          routes: [
+            GoRoute(
+              path: ':macAddress',
+              name: 'deviceDetail',
+              builder: (context, state) {
+                final mac = state.pathParameters['macAddress']!;
+                return DeviceDetail(macAddress: mac);
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: '/settings',

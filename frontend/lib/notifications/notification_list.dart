@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
 import '../model/notification.dart' as oott_model;
@@ -207,13 +208,20 @@ class _NotificationListState extends State<NotificationList> {
                           trailing: PopupMenuButton<String>(
                             icon: const Icon(Icons.more_vert),
                             onSelected: (value) async {
-                              if (value == 'mark_read') {
+                              if (value == 'view_device') {
+                                context.push('/devices/${item.macAddress}');
+                              } else if (value == 'mark_read') {
                                 await _markAsRead(context, item);
                               } else if (value == 'mark_new') {
                                 await _markAsNew(context, item);
                               }
                             },
                             itemBuilder: (context) => [
+                              if (item.macAddress != null)
+                                const PopupMenuItem(
+                                  value: 'view_device',
+                                  child: Text('View device'),
+                                ),
                               if (item.isNew)
                                 const PopupMenuItem(
                                   value: 'mark_read',
@@ -226,7 +234,10 @@ class _NotificationListState extends State<NotificationList> {
                                 ),
                             ],
                           ),
-                          onTap: () {},
+                          onTap: item.macAddress != null
+                              ? () =>
+                                    context.push('/devices/${item.macAddress}')
+                              : null,
                           isThreeLine: true,
                         ),
                       ),

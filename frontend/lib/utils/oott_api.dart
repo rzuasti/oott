@@ -83,6 +83,13 @@ class BackendAPI {
     await _dio.post('/notifications/mark_all_as_old');
   }
 
+  Future<Device> getDevice(String macAddress) async {
+    debugPrint('About to call GET /devices/$macAddress');
+    final response = await _dio.get('/devices/$macAddress');
+    debugPrint('Received: ${response.data}');
+    return Device.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<List<Device>> listDevices({bool? isRegistered}) async {
     debugPrint('About to call /devices');
 
@@ -104,11 +111,14 @@ class BackendAPI {
     String deviceType,
   ) async {
     debugPrint('About to call PUT /devices');
-    await _dio.put('/devices', data: {
-      'mac_address': macAddress,
-      'owner': owner,
-      'device_type': deviceType,
-    });
+    await _dio.put(
+      '/devices',
+      data: {
+        'mac_address': macAddress,
+        'owner': owner,
+        'device_type': deviceType,
+      },
+    );
   }
 
   Future<void> forgetDevice(String macAddress) async {
