@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../model/device.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
+import '../utils/ui_snackbars.dart';
 import '../widgets/status_badge.dart';
 
 const _deviceTypes = [
@@ -69,8 +70,7 @@ class _DeviceListState extends State<DeviceList> {
     }
   }
 
-  Future<void> _confirmForget(BuildContext context, Device device) async {
-    final messenger = ScaffoldMessenger.of(context);
+  Future<void> _confirmForget(Device device) async {
     final colorScheme = Theme.of(context).colorScheme;
 
     final confirmed = await showDialog<bool>(
@@ -99,28 +99,15 @@ class _DeviceListState extends State<DeviceList> {
     try {
       await BackendAPI.instance.forgetDevice(device.macAddress);
       if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Device forgotten'),
-          behavior: SnackBarBehavior.floating,
-          showCloseIcon: true,
-        ),
-      );
+      UISnackbars.showSuccess(context, 'Device forgotten');
       _loadDevices();
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed to forget device: $e'),
-          behavior: SnackBarBehavior.floating,
-          showCloseIcon: true,
-        ),
-      );
+      UISnackbars.showError(context, 'Failed to forget device: $e');
     }
   }
 
-  Future<void> _showRegisterDialog(BuildContext context, Device device) async {
-    final messenger = ScaffoldMessenger.of(context);
+  Future<void> _showRegisterDialog(Device device) async {
     final formKey = GlobalKey<FormState>();
     String owner = '';
     String deviceType = _deviceTypes.contains(device.deviceType)
@@ -189,23 +176,11 @@ class _DeviceListState extends State<DeviceList> {
         deviceType,
       );
       if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Device registered'),
-          behavior: SnackBarBehavior.floating,
-          showCloseIcon: true,
-        ),
-      );
+      UISnackbars.showSuccess(context, 'Device registered');
       _loadDevices();
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed to register device: $e'),
-          behavior: SnackBarBehavior.floating,
-          showCloseIcon: true,
-        ),
-      );
+      UISnackbars.showError(context, 'Failed to register device: $e');
     }
   }
 
@@ -335,12 +310,9 @@ class _DeviceListState extends State<DeviceList> {
                                   icon: const Icon(Icons.more_vert),
                                   onSelected: (value) async {
                                     if (value == 'forget') {
-                                      await _confirmForget(context, device);
+                                      await _confirmForget(device);
                                     } else if (value == 'register') {
-                                      await _showRegisterDialog(
-                                        context,
-                                        device,
-                                      );
+                                      await _showRegisterDialog(device);
                                     }
                                   },
                                   itemBuilder: (context) => [

@@ -81,6 +81,10 @@ final ThemeData gruvboxDarkTheme = ThemeData(
     const AppColorExtension(
       success: GruvboxColors.brightGreen,
       onSuccess: GruvboxColors.bgHard,
+      warning: GruvboxColors.brightYellow,
+      onWarning: GruvboxColors.bgHard,
+      info: GruvboxColors.brightBlue,
+      onInfo: GruvboxColors.bgHard,
     ),
   ],
 );

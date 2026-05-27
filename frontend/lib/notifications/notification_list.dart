@@ -6,6 +6,7 @@ import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import '../model/notification.dart' as oott_model;
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
+import '../utils/ui_snackbars.dart';
 
 class NotificationList extends StatefulWidget {
   const NotificationList({super.key});
@@ -48,13 +49,7 @@ class _NotificationListState extends State<NotificationList> {
     await BackendAPI.instance.markAllNotificationsAsRead();
     _pagingController.refresh();
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('All notifications marked as read'),
-          behavior: SnackBarBehavior.floating,
-          showCloseIcon: true,
-        ),
-      );
+      UISnackbars.showSuccess(context, 'All notifications marked as read');
     }
   }
 
@@ -63,24 +58,15 @@ class _NotificationListState extends State<NotificationList> {
     oott_model.Notification item,
   ) async {
     if (!item.isNew) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Notification was already marked as read'),
-          behavior: SnackBarBehavior.floating,
-          showCloseIcon: true,
-        ),
+      UISnackbars.showWarning(
+        context,
+        'Notification was already marked as read',
       );
       return false;
     }
     await BackendAPI.instance.markNotificationAsRead(item.id);
     if (!context.mounted) return false;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Event marked as read'),
-        behavior: SnackBarBehavior.floating,
-        showCloseIcon: true,
-      ),
-    );
+    UISnackbars.showSuccess(context, 'Event marked as read');
     if (_filterChoice != 3) {
       _pagingController.value = _pagingController.value.filterItems(
         (n) => n.id != item.id,
@@ -98,24 +84,15 @@ class _NotificationListState extends State<NotificationList> {
     oott_model.Notification item,
   ) async {
     if (item.isNew) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Notification was already marked as unread'),
-          behavior: SnackBarBehavior.floating,
-          showCloseIcon: true,
-        ),
+      UISnackbars.showWarning(
+        context,
+        'Notification was already marked as unread',
       );
       return false;
     }
     await BackendAPI.instance.markNotificationAsNew(item.id);
     if (!context.mounted) return false;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Event marked as unread'),
-        behavior: SnackBarBehavior.floating,
-        showCloseIcon: true,
-      ),
-    );
+    UISnackbars.showSuccess(context, 'Event marked as unread');
     if (_filterChoice != 3) {
       _pagingController.value = _pagingController.value.filterItems(
         (n) => n.id != item.id,
@@ -183,92 +160,86 @@ class _NotificationListState extends State<NotificationList> {
                 ),
               ),
             ),
-                PagedSliverList<int, oott_model.Notification>(
-                  state: state,
-                  fetchNextPage: fetchNextPage,
-                  builderDelegate: PagedChildBuilderDelegate(
-                    itemBuilder: (context, item, index) {
-                      return Column(
-                        children: [
-                          Dismissible(
-                            key: UniqueKey(),
-                            confirmDismiss: (direction) =>
-                                direction == DismissDirection.startToEnd
-                                ? _markAsNew(context, item)
-                                : _markAsRead(context, item),
-                            background: Container(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.tertiaryContainer,
-                              alignment: Alignment.centerLeft,
-                              padding: const EdgeInsets.only(left: 16),
-                              child: Icon(Icons.mark_email_unread),
-                            ),
-                            secondaryBackground: Container(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.primaryContainer,
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 16),
-                              child: Icon(Icons.done),
-                            ),
-                            child: ListTile(
-                              tileColor: item.isNew
-                                  ? Theme.of(
-                                      context,
-                                    ).colorScheme.secondaryContainer
-                                  : null,
-                              leading: Icon(
-                                item.notificationType.icon,
-                                color: item.isNew
-                                    ? Theme.of(context).colorScheme.primary
-                                    : null,
-                              ),
-                              title: Text(
-                                '${FriendlyDateFormatter().format(item.createdOn)} - ${item.title}',
-                                style: item.isNew
-                                    ? const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      )
-                                    : null,
-                              ),
-                              subtitle: Text(item.body, maxLines: 5),
-                              trailing: PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert),
-                                onSelected: (value) async {
-                                  if (value == 'mark_read') {
-                                    await _markAsRead(context, item);
-                                  } else if (value == 'mark_new') {
-                                    await _markAsNew(context, item);
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  if (item.isNew)
-                                    const PopupMenuItem(
-                                      value: 'mark_read',
-                                      child: Text('Mark as read'),
-                                    ),
-                                  if (!item.isNew)
-                                    const PopupMenuItem(
-                                      value: 'mark_new',
-                                      child: Text('Mark as unread'),
-                                    ),
-                                ],
-                              ),
-                              onTap: () {},
-                              isThreeLine: true,
-                            ),
+            PagedSliverList<int, oott_model.Notification>(
+              state: state,
+              fetchNextPage: fetchNextPage,
+              builderDelegate: PagedChildBuilderDelegate(
+                itemBuilder: (context, item, index) {
+                  return Column(
+                    children: [
+                      Dismissible(
+                        key: UniqueKey(),
+                        confirmDismiss: (direction) =>
+                            direction == DismissDirection.startToEnd
+                            ? _markAsNew(context, item)
+                            : _markAsRead(context, item),
+                        background: Container(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.tertiaryContainer,
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.only(left: 16),
+                          child: Icon(Icons.mark_email_unread),
+                        ),
+                        secondaryBackground: Container(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 16),
+                          child: Icon(Icons.done),
+                        ),
+                        child: ListTile(
+                          tileColor: item.isNew
+                              ? Theme.of(context).colorScheme.secondaryContainer
+                              : null,
+                          leading: Icon(
+                            item.notificationType.icon,
+                            color: item.isNew
+                                ? Theme.of(context).colorScheme.primary
+                                : null,
                           ),
-                          Divider(),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
+                          title: Text(
+                            '${FriendlyDateFormatter().format(item.createdOn)} - ${item.title}',
+                            style: item.isNew
+                                ? const TextStyle(fontWeight: FontWeight.bold)
+                                : null,
+                          ),
+                          subtitle: Text(item.body, maxLines: 5),
+                          trailing: PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert),
+                            onSelected: (value) async {
+                              if (value == 'mark_read') {
+                                await _markAsRead(context, item);
+                              } else if (value == 'mark_new') {
+                                await _markAsNew(context, item);
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              if (item.isNew)
+                                const PopupMenuItem(
+                                  value: 'mark_read',
+                                  child: Text('Mark as read'),
+                                ),
+                              if (!item.isNew)
+                                const PopupMenuItem(
+                                  value: 'mark_new',
+                                  child: Text('Mark as unread'),
+                                ),
+                            ],
+                          ),
+                          onTap: () {},
+                          isThreeLine: true,
+                        ),
+                      ),
+                      Divider(),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-      );
+          ],
+        ),
+      ),
+    );
     // Paginated list end
   }
 

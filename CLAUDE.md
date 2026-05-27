@@ -51,3 +51,4 @@ For Flutter/Dart code:
 - ALWAYS run all tests after making a new change and do not continue until all tests pass
 - When adding a new API endpoint, ALWAYS wire it to the OpenAPI generation
 - When adding a significant chunk of new code (either Rust or Dart), run the corresponding linter
+- In the frontend, use the UISnackbars component to display messages to the user that do not require action on their part.

@@ -84,6 +84,10 @@ final ThemeData catppuccinMochaDarkTheme = ThemeData(
     const AppColorExtension(
       success: CatppuccinMochaColors.green,
       onSuccess: CatppuccinMochaColors.crust,
+      warning: CatppuccinMochaColors.peach,
+      onWarning: CatppuccinMochaColors.crust,
+      info: CatppuccinMochaColors.blue,
+      onInfo: CatppuccinMochaColors.crust,
     ),
   ],
 );
