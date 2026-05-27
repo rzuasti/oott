@@ -33,6 +33,10 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .route("/api/devices/{mac_address}", delete(devices::unregister))
         .route("/api/devices/{mac_address}", get(devices::read))
         .route("/api/notifications", get(notifications::list))
+        .route(
+            "/api/notifications/mark_all_as_old",
+            post(notifications::mark_all_as_old),
+        )
         .route("/api/notifications/{id}", get(notifications::read))
         .route(
             "/api/notifications/{id}/read_without_flagging",

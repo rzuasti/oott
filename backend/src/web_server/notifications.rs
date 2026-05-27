@@ -45,6 +45,19 @@ pub async fn mark_as_new(Path(id): Path<i64>) -> impl IntoResponse {
     }
 }
 
+pub async fn mark_all_as_old() -> impl IntoResponse {
+    match db::notifications::mark_all_as_old() {
+        Ok(_) => (StatusCode::OK, "All notifications marked as old"),
+        Err(err) => {
+            error!("Error marking all notifications as old: {}", err);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error updating notifications in the server, check your logs",
+            )
+        }
+    }
+}
+
 pub async fn list(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<Vec<Notification>>, StatusCode> {

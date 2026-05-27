@@ -108,6 +108,21 @@ pub fn mark_as_new(id: i64) -> Result<(), DbError> {
     }
 }
 
+pub fn mark_all_as_old() -> Result<(), DbError> {
+    let conn = db::get_db_connection();
+
+    match conn.execute("UPDATE notifications SET is_new=0 WHERE is_new=1", []) {
+        Ok(_) => {
+            debug!("All notifications flagged as old");
+            Ok(())
+        }
+        Err(error) => {
+            error!("Error marking all notifications as old: {error}");
+            Err(DbError::from(error))
+        }
+    }
+}
+
 pub fn read(id: i64) -> Option<Notification> {
     let conn = db::get_db_connection();
 
@@ -205,6 +220,48 @@ mod tests {
             notification.is_new,
             "Notification id={inserted_id} should have is_new=1."
         );
+    }
+
+    #[tokio::test]
+    async fn test_mark_all_as_old() {
+        tests_common::setup().await;
+
+        // Insert two new notifications
+        let id1 = insert(Notification::new(
+            Utc::now(),
+            NotificationType::Other,
+            "New notification 1".to_string(),
+            "Body 1".to_string(),
+            true,
+        ))
+        .unwrap();
+
+        let id2 = insert(Notification::new(
+            Utc::now(),
+            NotificationType::Other,
+            "New notification 2".to_string(),
+            "Body 2".to_string(),
+            true,
+        ))
+        .unwrap();
+
+        // Mark all as old
+        mark_all_as_old().unwrap();
+
+        // Both should now have is_new=false
+        assert!(
+            !read(id1).unwrap().is_new,
+            "Notification id={id1} should have is_new=0 after mark_all_as_old"
+        );
+        assert!(
+            !read(id2).unwrap().is_new,
+            "Notification id={id2} should have is_new=0 after mark_all_as_old"
+        );
+
+        // Restore seeded test notifications so other tests are not affected
+        mark_as_new(1).unwrap();
+        mark_as_new(3).unwrap();
+        mark_as_new(5).unwrap();
     }
 
     #[tokio::test]
