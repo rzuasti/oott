@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:encrypter/encrypter/xor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:frontend/utils/pref_utils.dart';
+import '../model/device.dart';
 import '../model/notification.dart';
 
 class BackendAPI {
@@ -80,6 +81,21 @@ class BackendAPI {
   Future<void> markAllNotificationsAsRead() async {
     debugPrint('About to call /notifications/mark_all_as_old');
     await _dio.post('/notifications/mark_all_as_old');
+  }
+
+  Future<List<Device>> listDevices({bool? isRegistered}) async {
+    debugPrint('About to call /devices');
+
+    final params = <String, dynamic>{};
+    if (isRegistered != null) params['is_registered'] = isRegistered;
+
+    final response = await _dio.get('/devices', queryParameters: params);
+
+    debugPrint('Received: ${response.data}');
+
+    return (response.data as List)
+        .map((item) => Device.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<Notification>> listNotifications(bool? isNew, int offset) async {

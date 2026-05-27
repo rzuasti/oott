@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/settings/settings.dart';
 import 'package:go_router/go_router.dart';
+import 'devices/device_list.dart';
 import 'notifications/notification_list.dart';
 import 'utils/pref_utils.dart';
 
@@ -23,7 +24,7 @@ final GoRouter router = GoRouter(
         GoRoute(
           path: '/devices',
           name: 'devices',
-          builder: (context, state) => const Placeholder(),
+          builder: (context, state) => const DeviceList(),
           redirect: (context, state) => _redirectToSettings(),
         ),
         GoRoute(
