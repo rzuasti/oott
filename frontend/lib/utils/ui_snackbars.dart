@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 class UISnackbars {
   static void showError(BuildContext context, String message) {
@@ -16,15 +17,16 @@ class UISnackbars {
   }
 
   static void showSuccess(BuildContext context, String message) {
+    final appColors = Theme.of(context).extension<AppColorExtension>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           message,
-          style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+          style: TextStyle(color: appColors.onSuccess),
         ),
         behavior: SnackBarBehavior.floating,
         showCloseIcon: true,
-        backgroundColor: Colors.lightGreen,
+        backgroundColor: appColors.success,
       ),
     );
   }

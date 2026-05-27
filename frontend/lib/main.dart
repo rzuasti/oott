@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/theme/catppuccin_mocha_theme.dart';
 import 'package:frontend/utils/pref_utils.dart';
 import 'package:provider/provider.dart';
 import 'navigation.dart';
+import 'theme/gruvbox_theme.dart';
 
 void main() async {
-  PrefUtil.init();
+  WidgetsFlutterBinding.ensureInitialized();
+  await PrefUtil.init();
   runApp(const MainApp());
 }
 
@@ -15,20 +18,36 @@ final class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (context) => AppState(),
-      child: MaterialApp.router(
-        title: 'OOTT',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Color.fromARGB(255, 214, 93, 14),
-            brightness: Brightness.dark,
-          ),
+      child: Consumer<AppState>(
+        builder: (context, appState, _) => MaterialApp.router(
+          title: 'OOTT',
+          theme: appState.theme,
+          routerConfig: router,
         ),
-        routerConfig: router,
       ),
     );
   }
 }
 
+final _themes = {
+  'catppuccin_mocha': catppuccinMochaDarkTheme,
+  'gruvbox_dark': gruvboxDarkTheme,
+};
+
 class AppState extends ChangeNotifier {
-  // Global app state goes here
+  AppState() {
+    final saved = PrefUtil.getValue('theme', 'catppuccin_mocha') as String;
+    _themeKey = _themes.containsKey(saved) ? saved : 'catppuccin_mocha';
+  }
+
+  late String _themeKey;
+  String get themeKey => _themeKey;
+  ThemeData get theme => _themes[_themeKey]!;
+
+  void setTheme(String key) {
+    if (!_themes.containsKey(key) || key == _themeKey) return;
+    _themeKey = key;
+    PrefUtil.setValue('theme', key);
+    notifyListeners();
+  }
 }

@@ -1,6 +1,9 @@
 import 'package:encrypter/encrypter/xor.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../main.dart';
+import '../theme/app_colors.dart';
 import '../utils/oott_api.dart';
 import '../utils/pref_utils.dart';
 import '../utils/ui_snackbars.dart';
@@ -19,6 +22,8 @@ class _SettingsState extends State<Settings> {
   final _apiKeyController = TextEditingController();
   bool _apiKeyVisible = false;
   bool _testOk = false;
+  bool _connectionModified = false;
+  late String _selectedTheme;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -40,6 +45,7 @@ class _SettingsState extends State<Settings> {
     _apiKeyController.text = XOR().xorDecode(
       PrefUtil.getValue("api_key", "") as String,
     );
+    _selectedTheme = context.read<AppState>().themeKey;
     _isLoading = false;
     setState(() {});
   }
@@ -66,6 +72,7 @@ class _SettingsState extends State<Settings> {
                     onChanged: (text) {
                       setState(() {
                         _testOk = false;
+                        _connectionModified = true;
                       });
                     },
                     validator: (value) {
@@ -87,6 +94,7 @@ class _SettingsState extends State<Settings> {
                     onChanged: (text) {
                       setState(() {
                         _testOk = false;
+                        _connectionModified = true;
                       });
                     },
 
@@ -115,6 +123,32 @@ class _SettingsState extends State<Settings> {
                     ),
                   ),
                   SizedBox(height: 16),
+                  // Theme selector
+                  DropdownButtonFormField<String>(
+                    value: _selectedTheme,
+                    decoration: const InputDecoration(
+                      border: UnderlineInputBorder(),
+                      labelText: 'Theme',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'catppuccin_mocha',
+                        child: Text('Catppuccin Mocha'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'gruvbox_dark',
+                        child: Text('Gruvbox Dark'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _selectedTheme = value;
+                        });
+                      }
+                    },
+                  ),
+                  SizedBox(height: 16),
                   // Button row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -130,6 +164,8 @@ class _SettingsState extends State<Settings> {
 
                             setState(() {
                               _testOk = testResult == null;
+                              if (testResult == null)
+                                _connectionModified = false;
                             });
 
                             if (testResult == null) {
@@ -145,10 +181,14 @@ class _SettingsState extends State<Settings> {
                             : Icon(Icons.play_arrow),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _testOk
-                              ? Colors.lightGreen
+                              ? Theme.of(
+                                  context,
+                                ).extension<AppColorExtension>()!.success
                               : Theme.of(context).colorScheme.secondary,
                           foregroundColor: _testOk
-                              ? Theme.of(context).colorScheme.onPrimary
+                              ? Theme.of(
+                                  context,
+                                ).extension<AppColorExtension>()!.onSuccess
                               : Theme.of(context).colorScheme.onSecondary,
                         ),
                       ),
@@ -156,7 +196,8 @@ class _SettingsState extends State<Settings> {
 
                       // Save button
                       ElevatedButton.icon(
-                        onPressed: ((!_testOk) || _isSaving)
+                        onPressed:
+                            ((_connectionModified && !_testOk) || _isSaving)
                             ? null
                             : () async {
                                 if (_formKey.currentState!.validate()) {
@@ -164,6 +205,9 @@ class _SettingsState extends State<Settings> {
                                     _isSaving = true;
                                   });
                                   _saveData();
+                                  context.read<AppState>().setTheme(
+                                    _selectedTheme,
+                                  );
 
                                   setState(() {
                                     _isSaving = false;
