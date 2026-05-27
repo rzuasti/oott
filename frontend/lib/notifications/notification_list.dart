@@ -9,7 +9,7 @@ class NotificationList extends StatefulWidget {
   const NotificationList({super.key});
 
   @override
-  _NotificationListState createState() => _NotificationListState();
+  State<NotificationList> createState() => _NotificationListState();
 }
 
 class _NotificationListState extends State<NotificationList> {
@@ -61,6 +61,7 @@ class _NotificationListState extends State<NotificationList> {
       return false;
     }
     await BackendAPI.instance.markNotificationAsRead(item.id);
+    if (!context.mounted) return false;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Event marked as read'),
@@ -95,6 +96,7 @@ class _NotificationListState extends State<NotificationList> {
       return false;
     }
     await BackendAPI.instance.markNotificationAsNew(item.id);
+    if (!context.mounted) return false;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Event marked as unread'),

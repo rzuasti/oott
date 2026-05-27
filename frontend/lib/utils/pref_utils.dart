@@ -11,27 +11,24 @@ class PrefUtil {
   }
 
   static void setValue(String key, Object value) {
-    switch (value.runtimeType) {
-      case String:
-        preferences.setString(key, value as String);
-        break;
-      case bool:
-        preferences.setBool(key, value as bool);
-        break;
-      case int:
-        preferences.setInt(key, value as int);
-        break;
+    switch (value) {
+      case String s:
+        preferences.setString(key, s);
+      case bool b:
+        preferences.setBool(key, b);
+      case int i:
+        preferences.setInt(key, i);
       default:
     }
   }
 
   static Object getValue(String key, Object defaultValue) {
-    switch (defaultValue.runtimeType) {
-      case String:
+    switch (defaultValue) {
+      case String _:
         return preferences.getString(key) ?? defaultValue;
-      case bool:
+      case bool _:
         return preferences.getBool(key) ?? defaultValue;
-      case int:
+      case int _:
         return preferences.getInt(key) ?? defaultValue;
       default:
         return defaultValue;

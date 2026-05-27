@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:encrypter/encrypter/xor.dart';
+import 'package:flutter/foundation.dart';
 import 'package:frontend/utils/pref_utils.dart';
 import '../model/notification.dart';
 
@@ -16,8 +17,8 @@ class BackendAPI {
         PrefUtil.getValue("base_url", "http://localhost:3000/api") as String;
     _apiKey = XOR().xorDecode(PrefUtil.getValue("api_key", "") as String);
 
-    print('Base URL: $_baseUrl');
-    print('API KEY $_apiKey');
+    debugPrint('Base URL: $_baseUrl');
+    debugPrint('API KEY: $_apiKey');
 
     _dio = Dio(
       BaseOptions(
@@ -32,7 +33,7 @@ class BackendAPI {
 
   // Returns null if the test was successful, and a String with a message about the issue if not
   static Future<String?> test(String baseUrl, String apiKey) async {
-    print('About to test API with baseUrl=$baseUrl and apiKey=$apiKey');
+    debugPrint('About to test API with baseUrl=$baseUrl and apiKey=$apiKey');
     Dio dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
@@ -67,22 +68,22 @@ class BackendAPI {
   late Dio _dio;
 
   Future<void> markNotificationAsRead(int id) async {
-    print('About to call /notifications/$id');
+    debugPrint('About to call /notifications/$id');
     await _dio.get('/notifications/$id');
   }
 
   Future<void> markNotificationAsNew(int id) async {
-    print('About to call /notifications/$id/mark_as_new');
+    debugPrint('About to call /notifications/$id/mark_as_new');
     await _dio.post('/notifications/$id/mark_as_new');
   }
 
   Future<void> markAllNotificationsAsRead() async {
-    print('About to call /notifications/mark_all_as_old');
+    debugPrint('About to call /notifications/mark_all_as_old');
     await _dio.post('/notifications/mark_all_as_old');
   }
 
   Future<List<Notification>> listNotifications(bool? isNew, int offset) async {
-    print('About to call /notifications');
+    debugPrint('About to call /notifications');
 
     Response response;
     response = await _dio.get(
@@ -94,16 +95,16 @@ class BackendAPI {
       },
     );
 
-    print('Received: ' + response.data.toString());
+    debugPrint('Received: ${response.data}');
 
     List<dynamic> list = response.data;
-    print('List contains ' + list.length.toString() + ' items');
+    debugPrint('List contains ${list.length} items');
 
     List<Notification> events = List<Notification>.from(
       list.map((item) => Notification.fromJson(item)),
     );
 
-    print('Parsed ' + events.length.toString() + ' events');
+    debugPrint('Parsed ${events.length} events');
 
     return events;
   }

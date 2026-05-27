@@ -12,7 +12,7 @@ class Settings extends StatefulWidget {
   const Settings({super.key});
 
   @override
-  _SettingsState createState() => _SettingsState();
+  State<Settings> createState() => _SettingsState();
 }
 
 class _SettingsState extends State<Settings> {
@@ -125,7 +125,7 @@ class _SettingsState extends State<Settings> {
                   SizedBox(height: 16),
                   // Theme selector
                   DropdownButtonFormField<String>(
-                    value: _selectedTheme,
+                    initialValue: _selectedTheme,
                     decoration: const InputDecoration(
                       border: UnderlineInputBorder(),
                       labelText: 'Theme',
@@ -162,10 +162,12 @@ class _SettingsState extends State<Settings> {
                               _apiKeyController.text,
                             );
 
+                            if (!context.mounted) return;
                             setState(() {
                               _testOk = testResult == null;
-                              if (testResult == null)
+                              if (testResult == null) {
                                 _connectionModified = false;
+                              }
                             });
 
                             if (testResult == null) {

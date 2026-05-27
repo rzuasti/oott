@@ -15,10 +15,12 @@ class FriendlyDateFormatter {
     );
 
     if (timeSince.inMinutes < 60) return '${timeSince.inMinutes} minutes ago';
-    if (dateTimeWithoutTime == today)
+    if (dateTimeWithoutTime == today) {
       return 'Today at ${DateFormat.Hm().format(dateTime)}';
-    if (dateTimeWithoutTime == yesterday)
+    }
+    if (dateTimeWithoutTime == yesterday) {
       return 'Yesterday at ${DateFormat.Hm().format(dateTime)}';
+    }
 
     return DateFormat.yMMMMd().add_Hm().format(dateTime);
   }
