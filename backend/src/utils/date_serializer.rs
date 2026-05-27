@@ -9,7 +9,7 @@ pub fn serialize<S: Serializer>(
     datetime: &DateTime<Utc>,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    time_to_json(datetime.clone()).serialize(serializer)
+    time_to_json(*datetime).serialize(serializer)
 }
 
 pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<DateTime<Utc>, D::Error> {

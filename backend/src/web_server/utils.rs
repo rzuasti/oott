@@ -7,10 +7,7 @@ pub fn parse_parameter_bool(params: &HashMap<String, String>, name: &str) -> Opt
     if params.contains_key(name) {
         let param_value = params.get(name).unwrap().as_str();
         debug!("Found parameter {name} with value {}", param_value);
-        match param_value.parse::<bool>() {
-            Ok(value) => Some(value),
-            Err(_) => None,
-        }
+        param_value.parse::<bool>().ok()
     } else {
         None
     }
@@ -20,10 +17,7 @@ pub fn parse_parameter_int(params: &HashMap<String, String>, name: &str) -> Opti
     if params.contains_key(name) {
         let param_value = params.get(name).unwrap().as_str();
         debug!("Found parameter {name} with value {}", param_value);
-        match param_value.parse::<i64>() {
-            Ok(value) => Some(value),
-            Err(_) => None,
-        }
+        param_value.parse::<i64>().ok()
     } else {
         None
     }

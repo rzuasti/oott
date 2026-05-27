@@ -27,11 +27,11 @@ impl Notification {
     ) -> Self {
         Self {
             id: -1,
-            created_on: created_on,
-            notification_type: notification_type,
-            title: title,
-            body: body,
-            is_new: is_new,
+            created_on,
+            notification_type,
+            title,
+            body,
+            is_new,
         }
     }
 }

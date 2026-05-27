@@ -51,7 +51,7 @@ pub async fn send_packet(
             ethernet_packet.set_payload(arp_packet.packet_mut());
 
             tx.send_to(
-                &ethernet_packet.to_immutable().packet(),
+                ethernet_packet.to_immutable().packet(),
                 Some(interface.clone()),
             );
         }

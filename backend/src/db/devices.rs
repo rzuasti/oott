@@ -21,54 +21,51 @@ pub fn list_devices(
     // Prepare SQL and parameters
     let mut sql_statement = "SELECT mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type FROM devices WHERE 1=1 ".to_string();
     let mut params: Vec<rusqlite::types::Value> = Vec::new();
-    if is_registered.is_some() {
-        debug!("Adding filter is_registered={}", is_registered.unwrap());
+    if let Some(is_registered) = is_registered {
+        debug!("Adding filter is_registered={}", is_registered);
         sql_statement.push_str("AND is_registered=? ");
-
-        params.push(is_registered.unwrap().into());
+        params.push(is_registered.into());
     };
-    if last_seen_from.is_some() {
+    if let Some(last_seen_from) = last_seen_from {
         debug!(
             "Adding filter last_seen>={}",
-            last_seen_from.unwrap().format("%Y-%m-%d %H:%M:%S")
+            last_seen_from.format("%Y-%m-%d %H:%M:%S")
         );
         sql_statement.push_str("AND last_seen>=? ");
         params.push(
             last_seen_from
-                .unwrap()
                 .format("%Y-%m-%d %H:%M:%S")
                 .to_string()
                 .into(),
         );
     };
-    if last_seen_to.is_some() {
+    if let Some(last_seen_to) = last_seen_to {
         debug!(
             "Adding filter last_seen<={}",
-            last_seen_to.unwrap().format("%Y-%m-%d %H:%M:%S")
+            last_seen_to.format("%Y-%m-%d %H:%M:%S")
         );
         sql_statement.push_str("AND last_seen<=? ");
         params.push(
             last_seen_to
-                .unwrap()
                 .format("%Y-%m-%d %H:%M:%S")
                 .to_string()
                 .into(),
         );
     };
-    if owner.is_some() {
-        debug!("Adding filter owner={}", owner.clone().unwrap());
+    if let Some(owner) = owner {
+        debug!("Adding filter owner={}", owner);
         sql_statement.push_str("AND owner=? ");
-        params.push(owner.unwrap().into());
+        params.push(owner.into());
     };
-    if device_type.is_some() {
-        debug!("Adding filter device_type={}", device_type.clone().unwrap());
+    if let Some(device_type) = device_type {
+        debug!("Adding filter device_type={}", device_type);
         sql_statement.push_str("AND device_type=? ");
-        params.push(device_type.unwrap().into());
+        params.push(device_type.into());
     }
-    if vendor.is_some() {
-        debug!("Adding filter vendor={}", vendor.clone().unwrap());
+    if let Some(vendor) = vendor {
+        debug!("Adding filter vendor={}", vendor);
         sql_statement.push_str("AND vendor=? ");
-        params.push(vendor.unwrap().into());
+        params.push(vendor.into());
     }
 
     let mut stmt = conn.prepare(sql_statement.as_str())?;

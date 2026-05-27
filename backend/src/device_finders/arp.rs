@@ -21,8 +21,7 @@ pub async fn find(interface: String) -> Result<Vec<Device>, Box<dyn std::error::
     let network_interface: NetworkInterface = match datalink::interfaces()
         .iter()
         .filter(|el| el.is_up())
-        .filter(|el| el.name == interface)
-        .next()
+        .find(|el| el.name == interface)
     {
         Some(value) => value.clone(),
         None => {

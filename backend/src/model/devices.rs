@@ -25,10 +25,10 @@ impl Device {
         last_seen: DateTime<Utc>,
     ) -> Self {
         Self {
-            mac_address: mac_address,
-            ipv4_address: ipv4_address,
-            vendor: vendor,
-            last_seen: last_seen,
+            mac_address,
+            ipv4_address,
+            vendor,
+            last_seen,
             is_registered: false,
             owner: "".to_string(),
             device_type: "".to_string(),

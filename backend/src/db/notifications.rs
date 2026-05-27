@@ -20,27 +20,26 @@ pub fn list(
     let mut params: Vec<rusqlite::types::Value> = Vec::new();
 
     // Filters
-    if is_new.is_some() {
-        debug!("Adding filter is_new={}", is_new.unwrap());
+    if let Some(is_new) = is_new {
+        debug!("Adding filter is_new={}", is_new);
         sql_statement.push_str(" AND is_new=?");
-
-        params.push(is_new.unwrap().into());
+        params.push(is_new.into());
     }
 
     // List order
     sql_statement.push_str(" ORDER BY created_on DESC");
 
     // Paging
-    if page_offset.is_some() && page_limit.is_some() {
+    if let (Some(page_offset), Some(page_limit)) = (page_offset, page_limit) {
         debug!(
             "Adding paging to list with offset={} and limit={}",
-            page_offset.unwrap(),
-            page_limit.unwrap()
+            page_offset,
+            page_limit
         );
         sql_statement.push_str(" LIMIT ? OFFSET ?");
 
-        params.push(page_limit.unwrap().into());
-        params.push(page_offset.unwrap().into());
+        params.push(page_limit.into());
+        params.push(page_offset.into());
     };
 
     let mut stmt = conn.prepare(sql_statement.as_str())?;
