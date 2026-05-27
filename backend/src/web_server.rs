@@ -80,6 +80,12 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
     // Allow all origins and headers for API
     let cors_layer = CorsLayer::new()
         .allow_origin(Any)
+        .allow_methods([
+            http::Method::GET,
+            http::Method::POST,
+            http::Method::PUT,
+            http::Method::DELETE,
+        ])
         .allow_headers([http::header::AUTHORIZATION, http::header::CONTENT_TYPE]);
 
     let router = Router::new()

@@ -10,8 +10,11 @@
 
 ## Frontend
 
-- [ ] List recorded devices
-- [ ] Forget a device
+- [x] List recorded devices
+- [x] Register a device
+- [x] Forget a device
+- [ ] Extract the snack bar confirmations as a utility widget so it can be reused
+- [ ] In the devices list add filters by owner and device type
 - [ ] View detailed log of device activity (based on event log in the backend)
 - [ ] Scan process monitor and summary page
   - [ ] Is the scan process running

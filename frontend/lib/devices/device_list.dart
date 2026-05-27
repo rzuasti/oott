@@ -5,6 +5,17 @@ import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../widgets/status_badge.dart';
 
+const _deviceTypes = [
+  'phone',
+  'laptop',
+  'tablet',
+  'server',
+  'router',
+  'tv',
+  'printer',
+  'unknown',
+];
+
 enum _DeviceFilter { newDevices, registered, all }
 
 class DeviceList extends StatefulWidget {
@@ -58,6 +69,146 @@ class _DeviceListState extends State<DeviceList> {
     }
   }
 
+  Future<void> _confirmForget(BuildContext context, Device device) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Forget Device'),
+        content: Text(
+          'This device will be unregistered and will no longer be linked to '
+          '${device.owner}. Are you sure?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Forget', style: TextStyle(color: colorScheme.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await BackendAPI.instance.forgetDevice(device.macAddress);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Device forgotten'),
+          behavior: SnackBarBehavior.floating,
+          showCloseIcon: true,
+        ),
+      );
+      _loadDevices();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Failed to forget device: $e'),
+          behavior: SnackBarBehavior.floating,
+          showCloseIcon: true,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showRegisterDialog(BuildContext context, Device device) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final formKey = GlobalKey<FormState>();
+    String owner = '';
+    String deviceType = _deviceTypes.contains(device.deviceType)
+        ? device.deviceType
+        : 'unknown';
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Register Device'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'Owner'),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Owner is required'
+                      : null,
+                  onSaved: (value) => owner = value?.trim() ?? '',
+                ),
+                const SizedBox(height: 16),
+                InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Device Type'),
+                  child: DropdownButton<String>(
+                    value: deviceType,
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    items: _deviceTypes
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
+                    onChanged: (value) =>
+                        setDialogState(() => deviceType = value ?? deviceType),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  formKey.currentState?.save();
+                  Navigator.of(context).pop(true);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (saved != true || !mounted) return;
+
+    try {
+      await BackendAPI.instance.registerDevice(
+        device.macAddress,
+        owner,
+        deviceType,
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Device registered'),
+          behavior: SnackBarBehavior.floating,
+          showCloseIcon: true,
+        ),
+      );
+      _loadDevices();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Failed to register device: $e'),
+          behavior: SnackBarBehavior.floating,
+          showCloseIcon: true,
+        ),
+      );
+    }
+  }
+
   IconData _deviceIcon(String deviceType) {
     switch (deviceType.toLowerCase()) {
       case 'phone':
@@ -82,7 +233,7 @@ class _DeviceListState extends State<DeviceList> {
   String _emptyMessage() {
     switch (_filter) {
       case _DeviceFilter.newDevices:
-        return 'No new devices';
+        return 'No unregistered devices';
       case _DeviceFilter.registered:
         return 'No registered devices';
       case _DeviceFilter.all:
@@ -106,7 +257,7 @@ class _DeviceListState extends State<DeviceList> {
               spacing: 8.0,
               children: [
                 ChoiceChip(
-                  label: const Text('New'),
+                  label: const Text('Not registered'),
                   selected: _filter == _DeviceFilter.newDevices,
                   onSelected: (bool selected) {
                     setState(() => _filter = _DeviceFilter.newDevices);
@@ -146,35 +297,68 @@ class _DeviceListState extends State<DeviceList> {
                       itemCount: _devices.length,
                       itemBuilder: (context, index) {
                         final device = _devices[index];
-                        return Stack(
-                          children: [
-                            Card(
-                              color: device.isRegistered
-                                  ? null
-                                  : theme.colorScheme.secondaryContainer,
-                              child: ListTile(
-                                leading: Icon(_deviceIcon(device.deviceType)),
-                                title: Text(device.ipv4Address),
-                                subtitle: Text(
-                                  '${device.vendor} · ${device.macAddress}\n'
-                                  'Last seen: ${formatter.format(device.lastSeen)}',
-                                ),
-                                isThreeLine: true,
-                                trailing: device.isRegistered
-                                    ? Text(device.owner)
-                                    : null,
-                              ),
+                        return Card(
+                          color: device.isRegistered
+                              ? null
+                              : theme.colorScheme.secondaryContainer,
+                          child: ListTile(
+                            leading: Tooltip(
+                              message:
+                                  device.deviceType.isEmpty ||
+                                      device.deviceType == 'unknown'
+                                  ? 'Device type unknown'
+                                  : device.deviceType,
+                              child: Icon(_deviceIcon(device.deviceType)),
                             ),
-                            if (!device.isRegistered)
-                              Positioned(
-                                top: 16,
-                                right: 16,
-                                child: const StatusBadge(
-                                  label: 'New',
-                                  color: BadgeColor.secondary,
+                            title: Row(
+                              children: [
+                                Text(device.ipv4Address),
+                                if (!device.isRegistered) ...[
+                                  const SizedBox(width: 8),
+                                  const StatusBadge(
+                                    label: 'Not registered',
+                                    color: BadgeColor.secondary,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            subtitle: Text(
+                              '${device.vendor} · ${device.macAddress}\n'
+                              'Last seen: ${formatter.format(device.lastSeen)}',
+                            ),
+                            isThreeLine: true,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (device.isRegistered) Text(device.owner),
+                                PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_vert),
+                                  onSelected: (value) async {
+                                    if (value == 'forget') {
+                                      await _confirmForget(context, device);
+                                    } else if (value == 'register') {
+                                      await _showRegisterDialog(
+                                        context,
+                                        device,
+                                      );
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    if (device.isRegistered)
+                                      const PopupMenuItem(
+                                        value: 'forget',
+                                        child: Text('Forget'),
+                                      ),
+                                    if (!device.isRegistered)
+                                      const PopupMenuItem(
+                                        value: 'register',
+                                        child: Text('Register'),
+                                      ),
+                                  ],
                                 ),
-                              ),
-                          ],
+                              ],
+                            ),
+                          ),
                         );
                       },
                     ),

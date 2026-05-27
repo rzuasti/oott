@@ -164,7 +164,6 @@ pub async fn unregister(Path(mac_address): Path<String>) -> impl IntoResponse {
 
     device.is_registered = false;
     device.owner = "".to_string();
-    device.device_type = "".to_string();
 
     match db::devices::update(device) {
         Ok(_) => (axum::http::StatusCode::OK, "Device un-registered"),

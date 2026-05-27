@@ -98,6 +98,24 @@ class BackendAPI {
         .toList();
   }
 
+  Future<void> registerDevice(
+    String macAddress,
+    String owner,
+    String deviceType,
+  ) async {
+    debugPrint('About to call PUT /devices');
+    await _dio.put('/devices', data: {
+      'mac_address': macAddress,
+      'owner': owner,
+      'device_type': deviceType,
+    });
+  }
+
+  Future<void> forgetDevice(String macAddress) async {
+    debugPrint('About to call DELETE /devices/$macAddress');
+    await _dio.delete('/devices/$macAddress');
+  }
+
   Future<List<Notification>> listNotifications(bool? isNew, int offset) async {
     debugPrint('About to call /notifications');
 
