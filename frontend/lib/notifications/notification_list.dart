@@ -60,6 +60,9 @@ class _NotificationListState extends State<NotificationList> {
       );
       return true;
     }
+    _pagingController.mapItems(
+      (n) => n.id == item.id ? n.copyWith(isNew: false) : n,
+    );
     return false;
   }
 
@@ -91,6 +94,9 @@ class _NotificationListState extends State<NotificationList> {
       );
       return true;
     }
+    _pagingController.mapItems(
+      (n) => n.id == item.id ? n.copyWith(isNew: true) : n,
+    );
     return false;
   }
 
@@ -170,9 +176,24 @@ class _NotificationListState extends State<NotificationList> {
                               child: Icon(Icons.done),
                             ),
                             child: ListTile(
-                              leading: Icon(item.notificationType.icon),
+                              tileColor: item.isNew
+                                  ? Theme.of(
+                                      context,
+                                    ).colorScheme.secondaryContainer
+                                  : null,
+                              leading: Icon(
+                                item.notificationType.icon,
+                                color: item.isNew
+                                    ? Theme.of(context).colorScheme.primary
+                                    : null,
+                              ),
                               title: Text(
                                 '${FriendlyDateFormatter().format(item.createdOn)} - ${item.title}',
+                                style: item.isNew
+                                    ? const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      )
+                                    : null,
                               ),
                               subtitle: Text(item.body, maxLines: 5),
                               trailing: PopupMenuButton<String>(

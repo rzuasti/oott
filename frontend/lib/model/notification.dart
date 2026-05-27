@@ -27,6 +27,15 @@ class Notification {
       body = json['body'] as String,
       isNew = json['is_new'] as bool;
 
+  Notification copyWith({bool? isNew}) => Notification(
+    id: id,
+    title: title,
+    body: body,
+    notificationType: notificationType,
+    createdOn: createdOn,
+    isNew: isNew ?? this.isNew,
+  );
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'created_on': createdOn.toUtc().toIso8601String(),
