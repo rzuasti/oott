@@ -5,6 +5,7 @@ import 'package:encrypter/encrypter/xor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:frontend/utils/pref_utils.dart';
 import '../model/device.dart';
+import '../model/device_type.dart';
 import '../model/notification.dart';
 
 class BackendAPI {
@@ -90,11 +91,20 @@ class BackendAPI {
     return Device.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<List<Device>> listDevices({bool? isRegistered}) async {
+  Future<List<Device>> listDevices({
+    bool? isRegistered,
+    String? owner,
+    DeviceType? deviceType,
+  }) async {
     debugPrint('About to call /devices');
 
     final params = <String, dynamic>{};
     if (isRegistered != null) params['is_registered'] = isRegistered;
+    if (owner != null && owner.isNotEmpty) params['owner'] = owner;
+    if (deviceType != null) {
+      params['device_type'] =
+          deviceType == DeviceType.unknown ? '' : deviceType.name;
+    }
 
     final response = await _dio.get('/devices', queryParameters: params);
 

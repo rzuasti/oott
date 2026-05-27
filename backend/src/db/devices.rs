@@ -54,8 +54,8 @@ pub fn list_devices(
     };
     if let Some(owner) = owner {
         debug!("Adding filter owner={}", owner);
-        sql_statement.push_str("AND owner=? ");
-        params.push(owner.into());
+        sql_statement.push_str("AND owner LIKE ? ");
+        params.push(format!("%{}%", owner).into());
     };
     if let Some(device_type) = device_type {
         debug!("Adding filter device_type={}", device_type);
@@ -239,6 +239,27 @@ mod tests {
             Utc.with_ymd_and_hms(2026, 2, 3, 13, 14, 15).unwrap(),
             "John".to_string(),
             "Vendor 2".to_string(),
+        );
+
+        // Filter by owner substring - "oh" matches "John" but not "Sarah"
+        let devices: Vec<Device> =
+            list_devices(None, None, None, Some("oh".to_string()), None, None).unwrap();
+
+        assert!(
+            devices.len() >= 1,
+            "There should be at least one device matching owner 'oh'"
+        );
+        assert!(
+            devices
+                .iter()
+                .any(|item| item.mac_address == "bb:bb:bb:bb:bb:bb"),
+            "Device bb:bb:bb:bb:bb:bb (John) should be present"
+        );
+        assert!(
+            !devices
+                .iter()
+                .any(|item| item.mac_address == "cc:cc:cc:cc:cc:cc"),
+            "Device cc:cc:cc:cc:cc:cc (Sarah) should not be present"
         );
 
         // List devices seen in a time period - 2026-02-03 13:14:15

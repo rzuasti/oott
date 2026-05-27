@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -22,16 +24,27 @@ class _DeviceListState extends State<DeviceList> {
   List<Device> _devices = [];
   bool _isLoading = true;
   String? _error;
+  final TextEditingController _ownerController = TextEditingController();
+  DeviceType? _typeFilter;
+  Timer? _ownerDebounce;
 
   @override
   void initState() {
     super.initState();
+    _ownerController.addListener(_onOwnerChanged);
     _loadDevices();
   }
 
   @override
   void dispose() {
+    _ownerDebounce?.cancel();
+    _ownerController.dispose();
     super.dispose();
+  }
+
+  void _onOwnerChanged() {
+    _ownerDebounce?.cancel();
+    _ownerDebounce = Timer(const Duration(milliseconds: 500), _loadDevices);
   }
 
   Future<void> _loadDevices() async {
@@ -46,6 +59,8 @@ class _DeviceListState extends State<DeviceList> {
 
       final devices = await BackendAPI.instance.listDevices(
         isRegistered: isRegistered,
+        owner: _ownerController.text.isEmpty ? null : _ownerController.text,
+        deviceType: _typeFilter,
       );
       if (!mounted) return;
       setState(() {
@@ -81,36 +96,95 @@ class _DeviceListState extends State<DeviceList> {
       appBar: AppBar(title: const Text('Devices')),
       body: Column(
         children: [
-          Container(
-            height: 50,
-            alignment: Alignment.centerRight,
-            child: Wrap(
-              spacing: 8.0,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ChoiceChip(
-                  label: const Text('Not registered'),
-                  selected: _filter == _DeviceFilter.newDevices,
-                  onSelected: (bool selected) {
-                    setState(() => _filter = _DeviceFilter.newDevices);
-                    _loadDevices();
-                  },
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Wrap(
+                    spacing: 8.0,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Not registered'),
+                        selected: _filter == _DeviceFilter.newDevices,
+                        onSelected: (bool selected) {
+                          setState(() => _filter = _DeviceFilter.newDevices);
+                          _loadDevices();
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('Registered'),
+                        selected: _filter == _DeviceFilter.registered,
+                        onSelected: (bool selected) {
+                          setState(() => _filter = _DeviceFilter.registered);
+                          _loadDevices();
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('All'),
+                        selected: _filter == _DeviceFilter.all,
+                        onSelected: (bool selected) {
+                          setState(() => _filter = _DeviceFilter.all);
+                          _loadDevices();
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                ChoiceChip(
-                  label: const Text('Registered'),
-                  selected: _filter == _DeviceFilter.registered,
-                  onSelected: (bool selected) {
-                    setState(() => _filter = _DeviceFilter.registered);
-                    _loadDevices();
-                  },
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: _ownerController,
+                        decoration: const InputDecoration(
+                          labelText: 'Owner',
+                          prefixIcon: Icon(Icons.person_outline),
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<DeviceType?>(
+                        initialValue: _typeFilter,
+                        decoration: const InputDecoration(
+                          labelText: 'Type',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('All'),
+                          ),
+                          ...DeviceType.values.map(
+                            (t) => DropdownMenuItem(
+                              value: t,
+                              child: Row(
+                                children: [
+                                  Icon(t.icon, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text(t.label),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _typeFilter = value);
+                          _loadDevices();
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                ChoiceChip(
-                  label: const Text('All'),
-                  selected: _filter == _DeviceFilter.all,
-                  onSelected: (bool selected) {
-                    setState(() => _filter = _DeviceFilter.all);
-                    _loadDevices();
-                  },
-                ),
+                const SizedBox(height: 4),
               ],
             ),
           ),
