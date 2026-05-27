@@ -32,6 +32,20 @@ class _NotificationListState extends State<NotificationList> {
     },
   );
 
+  Future<void> _markAllAsRead(BuildContext context) async {
+    await BackendAPI.instance.markAllNotificationsAsRead();
+    _pagingController.refresh();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All notifications marked as read'),
+          behavior: SnackBarBehavior.floating,
+          showCloseIcon: true,
+        ),
+      );
+    }
+  }
+
   Future<bool> _markAsRead(
     BuildContext context,
     oott_model.Notification item,
@@ -102,50 +116,59 @@ class _NotificationListState extends State<NotificationList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
-      body:
-          // Paginated list start
-          PagingListener(
-            controller: _pagingController,
-            builder: (context, state, fetchNextPage) => CustomScrollView(
-              slivers: [
-                // Filters go here
-                SliverToBoxAdapter(
-                  child: Container(
-                    height: 50,
-                    alignment: Alignment.centerRight,
-                    child: Wrap(
-                      spacing: 8.0,
-                      children: [
-                        ChoiceChip(
-                          label: Text('New'),
-                          selected: _filterChoice == 1,
-                          onSelected: (bool selected) {
-                            _filterChoice = 1;
-                            _pagingController.refresh();
-                          },
-                        ),
-                        ChoiceChip(
-                          label: Text('Old'),
-                          selected: _filterChoice == 2,
-                          onSelected: (bool selected) {
-                            _filterChoice = 2;
-                            _pagingController.refresh();
-                          },
-                        ),
-                        ChoiceChip(
-                          label: Text('All'),
-                          selected: _filterChoice == 3,
-                          onSelected: (bool selected) {
-                            _filterChoice = 3;
-                            _pagingController.refresh();
-                          },
-                        ),
-                      ],
+    // Paginated list start
+    return PagingListener(
+      controller: _pagingController,
+      builder: (context, state, fetchNextPage) => Scaffold(
+        appBar: AppBar(
+          title: const Text('Notifications'),
+          actions: [
+            if (_filterChoice == 1 && (state.items?.isNotEmpty ?? false))
+              IconButton(
+                onPressed: () => _markAllAsRead(context),
+                icon: const Icon(Icons.done_all),
+                tooltip: 'Mark all as read',
+              ),
+          ],
+        ),
+        body: CustomScrollView(
+          slivers: [
+            // Filters go here
+            SliverToBoxAdapter(
+              child: Container(
+                height: 50,
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 8.0,
+                  children: [
+                    ChoiceChip(
+                      label: Text('New'),
+                      selected: _filterChoice == 1,
+                      onSelected: (bool selected) {
+                        _filterChoice = 1;
+                        _pagingController.refresh();
+                      },
                     ),
-                  ),
+                    ChoiceChip(
+                      label: Text('Old'),
+                      selected: _filterChoice == 2,
+                      onSelected: (bool selected) {
+                        _filterChoice = 2;
+                        _pagingController.refresh();
+                      },
+                    ),
+                    ChoiceChip(
+                      label: Text('All'),
+                      selected: _filterChoice == 3,
+                      onSelected: (bool selected) {
+                        _filterChoice = 3;
+                        _pagingController.refresh();
+                      },
+                    ),
+                  ],
                 ),
+              ),
+            ),
                 PagedSliverList<int, oott_model.Notification>(
                   state: state,
                   fetchNextPage: fetchNextPage,
@@ -231,7 +254,7 @@ class _NotificationListState extends State<NotificationList> {
               ],
             ),
           ),
-    );
+      );
     // Paginated list end
   }
 
