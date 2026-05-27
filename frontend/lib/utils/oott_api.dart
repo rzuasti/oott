@@ -71,6 +71,11 @@ class BackendAPI {
     await _dio.get('/notifications/$id');
   }
 
+  Future<void> markNotificationAsNew(int id) async {
+    print('About to call /notifications/$id/mark_as_new');
+    await _dio.post('/notifications/$id/mark_as_new');
+  }
+
   Future<List<Notification>> listNotifications(bool? isNew, int offset) async {
     print('About to call /notifications');
 

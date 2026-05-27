@@ -47,9 +47,6 @@ class _NotificationListState extends State<NotificationList> {
       return false;
     }
     await BackendAPI.instance.markNotificationAsRead(item.id);
-    _pagingController.value = _pagingController.value.filterItems(
-      (n) => n.id != item.id,
-    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Event marked as read'),
@@ -57,7 +54,44 @@ class _NotificationListState extends State<NotificationList> {
         showCloseIcon: true,
       ),
     );
-    return true;
+    if (_filterChoice != 3) {
+      _pagingController.value = _pagingController.value.filterItems(
+        (n) => n.id != item.id,
+      );
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> _markAsNew(
+    BuildContext context,
+    oott_model.Notification item,
+  ) async {
+    if (item.isNew) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Notification was already marked as unread'),
+          behavior: SnackBarBehavior.floating,
+          showCloseIcon: true,
+        ),
+      );
+      return false;
+    }
+    await BackendAPI.instance.markNotificationAsNew(item.id);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Event marked as unread'),
+        behavior: SnackBarBehavior.floating,
+        showCloseIcon: true,
+      ),
+    );
+    if (_filterChoice != 3) {
+      _pagingController.value = _pagingController.value.filterItems(
+        (n) => n.id != item.id,
+      );
+      return true;
+    }
+    return false;
   }
 
   @override
@@ -116,16 +150,26 @@ class _NotificationListState extends State<NotificationList> {
                           Dismissible(
                             key: UniqueKey(),
                             confirmDismiss: (direction) =>
-                                _markAsRead(context, item),
+                                direction == DismissDirection.startToEnd
+                                ? _markAsNew(context, item)
+                                : _markAsRead(context, item),
                             background: Container(
                               color: Theme.of(
                                 context,
+                              ).colorScheme.tertiaryContainer,
+                              alignment: Alignment.centerLeft,
+                              padding: const EdgeInsets.only(left: 16),
+                              child: Icon(Icons.mark_email_unread),
+                            ),
+                            secondaryBackground: Container(
+                              color: Theme.of(
+                                context,
                               ).colorScheme.primaryContainer,
-                              alignment: Alignment.center,
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 16),
                               child: Icon(Icons.done),
                             ),
                             child: ListTile(
-                              // tileColor: item.isNew ? Colors.amber : null,
                               leading: Icon(item.notificationType.icon),
                               title: Text(
                                 '${FriendlyDateFormatter().format(item.createdOn)} - ${item.title}',
@@ -136,6 +180,8 @@ class _NotificationListState extends State<NotificationList> {
                                 onSelected: (value) async {
                                   if (value == 'mark_read') {
                                     await _markAsRead(context, item);
+                                  } else if (value == 'mark_new') {
+                                    await _markAsNew(context, item);
                                   }
                                 },
                                 itemBuilder: (context) => [
@@ -143,6 +189,11 @@ class _NotificationListState extends State<NotificationList> {
                                     const PopupMenuItem(
                                       value: 'mark_read',
                                       child: Text('Mark as read'),
+                                    ),
+                                  if (!item.isNew)
+                                    const PopupMenuItem(
+                                      value: 'mark_new',
+                                      child: Text('Mark as unread'),
                                     ),
                                 ],
                               ),
