@@ -14,6 +14,7 @@ class FriendlyDateFormatter {
       dateTime.day,
     );
 
+    if (timeSince.inMinutes <= 2) return 'Just now';
     if (timeSince.inMinutes < 60) return '${timeSince.inMinutes} minutes ago';
     if (dateTimeWithoutTime == today) {
       return 'Today at ${DateFormat.Hm().format(dateTime)}';

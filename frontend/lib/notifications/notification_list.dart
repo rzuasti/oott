@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
@@ -14,6 +16,16 @@ class NotificationList extends StatefulWidget {
 
 class _NotificationListState extends State<NotificationList> {
   int _filterChoice = 1; // 1 => Only new, 2=> Only old, 3=> All
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _pagingController.refresh(),
+    );
+  }
 
   late final _pagingController = PagingController<int, oott_model.Notification>(
     getNextPageKey: (state) => state.lastPageIsEmpty
@@ -262,6 +274,7 @@ class _NotificationListState extends State<NotificationList> {
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _pagingController.dispose();
     super.dispose();
   }
