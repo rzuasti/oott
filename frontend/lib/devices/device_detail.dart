@@ -2,21 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../model/device.dart';
+import '../model/device_type.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../utils/ui_snackbars.dart';
 import '../widgets/status_badge.dart';
-
-const _deviceTypes = [
-  'phone',
-  'laptop',
-  'tablet',
-  'server',
-  'router',
-  'tv',
-  'printer',
-  'unknown',
-];
 
 class DeviceDetail extends StatefulWidget {
   final String macAddress;
@@ -99,9 +89,7 @@ class _DeviceDetailState extends State<DeviceDetail> {
   Future<void> _showRegisterDialog(Device device) async {
     final formKey = GlobalKey<FormState>();
     String owner = '';
-    String deviceType = _deviceTypes.contains(device.deviceType)
-        ? device.deviceType
-        : 'unknown';
+    DeviceType deviceType = device.deviceType;
 
     final saved = await showDialog<bool>(
       context: context,
@@ -123,12 +111,15 @@ class _DeviceDetailState extends State<DeviceDetail> {
                 const SizedBox(height: 16),
                 InputDecorator(
                   decoration: const InputDecoration(labelText: 'Device Type'),
-                  child: DropdownButton<String>(
+                  child: DropdownButton<DeviceType>(
                     value: deviceType,
                     isExpanded: true,
                     underline: const SizedBox(),
-                    items: _deviceTypes
-                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                    items: DeviceType.values
+                        .map(
+                          (t) =>
+                              DropdownMenuItem(value: t, child: Text(t.label)),
+                        )
                         .toList(),
                     onChanged: (value) =>
                         setDialogState(() => deviceType = value ?? deviceType),
@@ -162,7 +153,7 @@ class _DeviceDetailState extends State<DeviceDetail> {
       await BackendAPI.instance.registerDevice(
         device.macAddress,
         owner,
-        deviceType,
+        deviceType.name,
       );
       if (!mounted) return;
       UISnackbars.showSuccess(context, 'Device registered');
@@ -170,27 +161,6 @@ class _DeviceDetailState extends State<DeviceDetail> {
     } catch (e) {
       if (!mounted) return;
       UISnackbars.showError(context, 'Failed to register device: $e');
-    }
-  }
-
-  IconData _deviceIcon(String deviceType) {
-    switch (deviceType.toLowerCase()) {
-      case 'phone':
-        return Icons.phone_android;
-      case 'laptop':
-        return Icons.laptop;
-      case 'tablet':
-        return Icons.tablet_android;
-      case 'server':
-        return Icons.dns;
-      case 'router':
-        return Icons.router;
-      case 'tv':
-        return Icons.tv;
-      case 'printer':
-        return Icons.print;
-      default:
-        return Icons.device_unknown;
     }
   }
 
@@ -248,10 +218,7 @@ class _DeviceDetailState extends State<DeviceDetail> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _DeviceHeader(
-                    device: device,
-                    deviceIcon: _deviceIcon(device.deviceType),
-                  ),
+                  _DeviceHeader(device: device),
                   const SizedBox(height: 24),
                   _DeviceInfoCard(device: device),
                 ],
@@ -263,16 +230,15 @@ class _DeviceDetailState extends State<DeviceDetail> {
 
 class _DeviceHeader extends StatelessWidget {
   final Device device;
-  final IconData deviceIcon;
 
-  const _DeviceHeader({required this.device, required this.deviceIcon});
+  const _DeviceHeader({required this.device});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Row(
       children: [
-        Icon(deviceIcon, size: 48),
+        Icon(device.deviceType.icon, size: 48),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -321,12 +287,7 @@ class _DeviceInfoCard extends StatelessWidget {
             value: formatter.format(device.lastSeen),
           ),
           const Divider(height: 1),
-          _InfoRow(
-            label: 'Device Type',
-            value: device.deviceType.isEmpty || device.deviceType == 'unknown'
-                ? 'Unknown'
-                : device.deviceType,
-          ),
+          _InfoRow(label: 'Device Type', value: device.deviceType.label),
           const Divider(height: 1),
           _InfoRow(
             label: 'Owner',

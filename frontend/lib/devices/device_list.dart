@@ -2,21 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../model/device.dart';
+import '../model/device_type.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../utils/ui_snackbars.dart';
 import '../widgets/status_badge.dart';
-
-const _deviceTypes = [
-  'phone',
-  'laptop',
-  'tablet',
-  'server',
-  'router',
-  'tv',
-  'printer',
-  'unknown',
-];
 
 enum _DeviceFilter { newDevices, registered, all }
 
@@ -111,9 +101,7 @@ class _DeviceListState extends State<DeviceList> {
   Future<void> _showRegisterDialog(Device device) async {
     final formKey = GlobalKey<FormState>();
     String owner = '';
-    String deviceType = _deviceTypes.contains(device.deviceType)
-        ? device.deviceType
-        : 'unknown';
+    DeviceType deviceType = device.deviceType;
 
     final saved = await showDialog<bool>(
       context: context,
@@ -135,12 +123,15 @@ class _DeviceListState extends State<DeviceList> {
                 const SizedBox(height: 16),
                 InputDecorator(
                   decoration: const InputDecoration(labelText: 'Device Type'),
-                  child: DropdownButton<String>(
+                  child: DropdownButton<DeviceType>(
                     value: deviceType,
                     isExpanded: true,
                     underline: const SizedBox(),
-                    items: _deviceTypes
-                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                    items: DeviceType.values
+                        .map(
+                          (t) =>
+                              DropdownMenuItem(value: t, child: Text(t.label)),
+                        )
                         .toList(),
                     onChanged: (value) =>
                         setDialogState(() => deviceType = value ?? deviceType),
@@ -174,7 +165,7 @@ class _DeviceListState extends State<DeviceList> {
       await BackendAPI.instance.registerDevice(
         device.macAddress,
         owner,
-        deviceType,
+        deviceType.name,
       );
       if (!mounted) return;
       UISnackbars.showSuccess(context, 'Device registered');
@@ -182,27 +173,6 @@ class _DeviceListState extends State<DeviceList> {
     } catch (e) {
       if (!mounted) return;
       UISnackbars.showError(context, 'Failed to register device: $e');
-    }
-  }
-
-  IconData _deviceIcon(String deviceType) {
-    switch (deviceType.toLowerCase()) {
-      case 'phone':
-        return Icons.phone_android;
-      case 'laptop':
-        return Icons.laptop;
-      case 'tablet':
-        return Icons.tablet_android;
-      case 'server':
-        return Icons.dns;
-      case 'router':
-        return Icons.router;
-      case 'tv':
-        return Icons.tv;
-      case 'printer':
-        return Icons.print;
-      default:
-        return Icons.device_unknown;
     }
   }
 
@@ -281,12 +251,10 @@ class _DeviceListState extends State<DeviceList> {
                             onTap: () =>
                                 context.push('/devices/${device.macAddress}'),
                             leading: Tooltip(
-                              message:
-                                  device.deviceType.isEmpty ||
-                                      device.deviceType == 'unknown'
+                              message: device.deviceType == DeviceType.unknown
                                   ? 'Device type unknown'
-                                  : device.deviceType,
-                              child: Icon(_deviceIcon(device.deviceType)),
+                                  : device.deviceType.label,
+                              child: Icon(device.deviceType.icon),
                             ),
                             title: Row(
                               children: [

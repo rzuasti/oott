@@ -1,3 +1,5 @@
+import 'device_type.dart';
+
 class Device {
   final String macAddress;
   final String ipv4Address;
@@ -5,7 +7,7 @@ class Device {
   final DateTime lastSeen;
   final bool isRegistered;
   final String owner;
-  final String deviceType;
+  final DeviceType deviceType;
 
   Device({
     required this.macAddress,
@@ -24,5 +26,5 @@ class Device {
       lastSeen = DateTime.parse(json['last_seen'] as String),
       isRegistered = json['is_registered'] as bool,
       owner = json['owner'] as String,
-      deviceType = json['device_type'] as String;
+      deviceType = DeviceType.fromString(json['device_type'] as String);
 }
