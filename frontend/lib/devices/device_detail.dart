@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../model/device.dart';
-import '../model/device_type.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
-import '../utils/ui_snackbars.dart';
 import '../widgets/status_badge.dart';
+import 'device_actions.dart';
 
 class DeviceDetail extends StatefulWidget {
   final String macAddress;
@@ -49,121 +48,6 @@ class _DeviceDetailState extends State<DeviceDetail> {
     }
   }
 
-  Future<void> _confirmForget(Device device) async {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Forget Device'),
-        content: Text(
-          'This device will be unregistered and will no longer be linked to '
-          '${device.owner}. Are you sure?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Forget', style: TextStyle(color: colorScheme.error)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    try {
-      await BackendAPI.instance.forgetDevice(device.macAddress);
-      if (!mounted) return;
-      UISnackbars.showSuccess(context, 'Device forgotten');
-      _loadDevice();
-    } catch (e) {
-      if (!mounted) return;
-      UISnackbars.showError(context, 'Failed to forget device: $e');
-    }
-  }
-
-  Future<void> _showRegisterDialog(Device device) async {
-    final formKey = GlobalKey<FormState>();
-    String owner = '';
-    DeviceType deviceType = device.deviceType;
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Register Device'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Owner'),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Owner is required'
-                      : null,
-                  onSaved: (value) => owner = value?.trim() ?? '',
-                ),
-                const SizedBox(height: 16),
-                InputDecorator(
-                  decoration: const InputDecoration(labelText: 'Device Type'),
-                  child: DropdownButton<DeviceType>(
-                    value: deviceType,
-                    isExpanded: true,
-                    underline: const SizedBox(),
-                    items: DeviceType.values
-                        .map(
-                          (t) =>
-                              DropdownMenuItem(value: t, child: Text(t.label)),
-                        )
-                        .toList(),
-                    onChanged: (value) =>
-                        setDialogState(() => deviceType = value ?? deviceType),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  formKey.currentState?.save();
-                  Navigator.of(context).pop(true);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (saved != true || !mounted) return;
-
-    try {
-      await BackendAPI.instance.registerDevice(
-        device.macAddress,
-        owner,
-        deviceType.name,
-      );
-      if (!mounted) return;
-      UISnackbars.showSuccess(context, 'Device registered');
-      _loadDevice();
-    } catch (e) {
-      if (!mounted) return;
-      UISnackbars.showError(context, 'Failed to register device: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final device = _device;
@@ -178,9 +62,9 @@ class _DeviceDetailState extends State<DeviceDetail> {
               icon: const Icon(Icons.more_vert),
               onSelected: (value) async {
                 if (value == 'forget') {
-                  await _confirmForget(device);
+                  await confirmForgetDevice(context, device, _loadDevice);
                 } else if (value == 'register') {
-                  await _showRegisterDialog(device);
+                  await showRegisterDeviceDialog(context, device, _loadDevice);
                 }
               },
               itemBuilder: (context) => [
