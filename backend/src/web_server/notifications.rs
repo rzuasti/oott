@@ -4,6 +4,7 @@ use axum::{
     Json,
     extract::{Path, Query},
     http::StatusCode,
+    response::IntoResponse,
 };
 use log::error;
 
@@ -28,6 +29,19 @@ pub async fn read_without_flagging(Path(id): Path<i64>) -> Result<Json<Notificat
     match db::notifications::read(id) {
         Some(value) => Ok(Json(value)),
         None => Err(StatusCode::NOT_FOUND),
+    }
+}
+
+pub async fn mark_as_new(Path(id): Path<i64>) -> impl IntoResponse {
+    match db::notifications::mark_as_new(id) {
+        Ok(_) => (StatusCode::OK, "Notification marked as new"),
+        Err(err) => {
+            error!("Error marking notification (id={id}) as new: {}", err);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error updating notification in the server, check your logs",
+            )
+        }
     }
 }
 

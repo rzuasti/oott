@@ -93,6 +93,21 @@ pub fn mark_as_old(id: i64) -> Result<(), DbError> {
     }
 }
 
+pub fn mark_as_new(id: i64) -> Result<(), DbError> {
+    let conn = db::get_db_connection();
+
+    match conn.execute("UPDATE notifications SET is_new=1 WHERE id=?1", params![id]) {
+        Ok(_) => {
+            debug!("Notification id={} flagged as new", id);
+            Ok(())
+        }
+        Err(error) => {
+            error!("Error marking notification ({id}) as new: {error}");
+            Err(DbError::from(error))
+        }
+    }
+}
+
 pub fn read(id: i64) -> Option<Notification> {
     let conn = db::get_db_connection();
 
@@ -159,6 +174,36 @@ mod tests {
         assert!(
             !notification.is_new,
             "Notification id={inserted_id} should have is_new=0."
+        );
+    }
+
+    #[tokio::test]
+    async fn test_mark_as_new() {
+        tests_common::setup().await;
+
+        // Mark non-existant notification (should be fine)
+        mark_as_new(9999999).unwrap();
+
+        // Create notification with is_new=false
+        let created_on = Utc::now();
+        let inserted_id = insert(Notification::new(
+            created_on,
+            NotificationType::DeviceOnlineAfterTime,
+            "New notification title".to_string(),
+            "New notification body".to_string(),
+            false,
+        ))
+        .unwrap();
+
+        // Mark it as new
+        mark_as_new(inserted_id).unwrap();
+
+        // Read it and validate
+        let notification = read(inserted_id).unwrap();
+
+        assert!(
+            notification.is_new,
+            "Notification id={inserted_id} should have is_new=1."
         );
     }
 

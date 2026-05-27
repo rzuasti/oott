@@ -5,7 +5,7 @@ use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
-use axum::routing::{delete, get, put};
+use axum::routing::{delete, get, post, put};
 use axum::{Router, http};
 use log::{debug, error, info};
 use tower::ServiceBuilder;
@@ -37,6 +37,10 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .route(
             "/api/notifications/{id}/read_without_flagging",
             get(notifications::read_without_flagging),
+        )
+        .route(
+            "/api/notifications/{id}/mark_as_new",
+            post(notifications::mark_as_new),
         )
         .route_layer(axum::middleware::from_fn(auth))
         .layer(ServiceBuilder::new().layer(cors_layer))
