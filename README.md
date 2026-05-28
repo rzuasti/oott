@@ -1,5 +1,7 @@
 # OOTT
-Easy to setup and use network device discovery and alert system 
+Easy to setup and use network device discovery and alert system
+
+Licensed under AGPL v3. See [LICENSE](LICENSE).
 
 * [What is it?](#what-is-it)
 * [Installation & configuration](#installation-configuration)
