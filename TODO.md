@@ -26,15 +26,15 @@
 - [x] Style app title like favicon (font Barlow Condensed in a pill format with "primary" background)
 - [x] Update the device type management to consider the following list: phone, laptop, tablet, server, tv, printer, network_appliance (router, switch, firewall, etc.), home_security (camera, doorbell, etc.), home_appliance (fridge, dish washer, washer, dryer, etc.), watch, pc, gaming_console, unknown (use when a vendor cannot be clearly identified with any of the device types or a device is of a vendor not in the vendors json file)
 - [x] Change the unkown device icon (maybe just a question mark)
-- [ ] Scan process monitor and summary page
-  - [ ] Is the scan process running
-  - [ ] Last run (when, how long did it take, how many devices did it found)
-  - [ ] When is the next run
+- [x] Scan process monitor and summary page
+  - [x] Is the scan process running
+  - [x] Last run (when, how long did it take, how many devices did it found)
+  - [x] When is the next run
 - [ ] Rework notifications page into a homepage for the app
   - [ ] Notifications list
   - [ ] Summary of devices recorded (how many in total, how many seen in the last day, how many not seen for a week)
   - [ ] Scanning process summary (is it running, when will it run again)
-- [ ] About page
+- [x] About page
 
 ## Improve engine
 

@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'devices/device_detail.dart';
 import 'devices/device_list.dart';
-import 'notifications/notification_list.dart';
+import 'home/home_screen.dart';
 import 'status/status_screen.dart';
 import 'utils/pref_utils.dart';
 
@@ -22,7 +22,7 @@ final GoRouter router = GoRouter(
         GoRoute(
           path: '/notifications',
           name: 'notifications',
-          builder: (context, state) => NotificationList(),
+          builder: (context, state) => const HomeScreen(),
           redirect: (context, state) => _redirectToSettings(),
         ),
         GoRoute(
@@ -103,9 +103,9 @@ class MainShell extends StatelessWidget {
                   extended: constraints.maxWidth >= 600,
                   destinations: [
                     NavigationRailDestination(
-                      icon: Icon(Icons.notifications_outlined),
-                      selectedIcon: Icon(Icons.notifications),
-                      label: Text('Notifications'),
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home),
+                      label: Text('Home'),
                     ),
                     NavigationRailDestination(
                       icon: Icon(Icons.devices_other_outlined),

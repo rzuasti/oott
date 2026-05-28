@@ -4,6 +4,15 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use utoipa::ToSchema;
 
+#[derive(Serialize, ToSchema)]
+pub struct DeviceSummary {
+    pub total_registered: i64,
+    pub seen_last_day_registered: i64,
+    pub seen_last_day_unregistered: i64,
+    pub seen_last_week_registered: i64,
+    pub seen_last_week_unregistered: i64,
+}
+
 #[derive(Clone, Serialize, Deserialize, ToSchema)]
 pub struct Device {
     pub mac_address: String,

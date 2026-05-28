@@ -8,7 +8,7 @@ use log::{debug, error};
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-use crate::{db, model::devices::Device};
+use crate::{db, model::devices::{Device, DeviceSummary}};
 
 use crate::web_server::utils;
 
@@ -173,6 +173,26 @@ pub async fn unregister(Path(mac_address): Path<String>) -> impl IntoResponse {
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 "Error updating device in the server, check your logs",
             )
+        }
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/devices/summary",
+    tag = "devices",
+    responses(
+        (status = 200, description = "Device summary counts", body = DeviceSummary),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn summary() -> Result<Json<DeviceSummary>, StatusCode> {
+    match db::devices::get_summary() {
+        Ok(value) => Ok(Json(value)),
+        Err(err) => {
+            error!("Error getting device summary: {}", err);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 }

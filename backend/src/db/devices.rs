@@ -1,10 +1,10 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use log::{debug, error};
 use rusqlite::{params, params_from_iter};
 
 use crate::{
     db::{self, error::DbError},
-    model::devices::Device,
+    model::devices::{Device, DeviceSummary},
 };
 
 pub fn list_devices(
@@ -120,6 +120,47 @@ pub fn insert(device: Device) -> Result<(), DbError> {
                 Err(DbError::from(error))
             },
     }
+}
+
+pub fn get_summary() -> Result<DeviceSummary, DbError> {
+    debug!("Getting device summary");
+    let conn = db::get_db_connection();
+    let one_day_ago = (Utc::now() - Duration::days(1)).to_rfc3339();
+    let one_week_ago = (Utc::now() - Duration::weeks(1)).to_rfc3339();
+
+    let total_registered: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM devices WHERE is_registered = 1",
+        [],
+        |row| row.get(0),
+    )?;
+    let seen_last_day_registered: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM devices WHERE last_seen >= ?1 AND is_registered = 1",
+        params![one_day_ago],
+        |row| row.get(0),
+    )?;
+    let seen_last_day_unregistered: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM devices WHERE last_seen >= ?1 AND is_registered = 0",
+        params![one_day_ago],
+        |row| row.get(0),
+    )?;
+    let seen_last_week_registered: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM devices WHERE last_seen >= ?1 AND is_registered = 1",
+        params![one_week_ago],
+        |row| row.get(0),
+    )?;
+    let seen_last_week_unregistered: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM devices WHERE last_seen >= ?1 AND is_registered = 0",
+        params![one_week_ago],
+        |row| row.get(0),
+    )?;
+
+    Ok(DeviceSummary {
+        total_registered,
+        seen_last_day_registered,
+        seen_last_day_unregistered,
+        seen_last_week_registered,
+        seen_last_week_unregistered,
+    })
 }
 
 pub fn update(device: Device) -> Result<(), DbError> {
@@ -429,6 +470,59 @@ mod tests {
             Utc.with_ymd_and_hms(2026, 2, 17, 20, 11, 00).unwrap(),
             "Sarah".to_string(),
             "Vendor 3".to_string(),
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_summary() {
+        tests_common::setup().await;
+
+        // Insert a registered device seen now
+        insert(Device {
+            mac_address: "su:mm:ar:y1:01:01".to_string(),
+            ipv4_address: "192.168.50.1".to_string(),
+            vendor: "Test".to_string(),
+            last_seen: Utc::now(),
+            is_registered: true,
+            owner: "Test".to_string(),
+            device_type: "Server".to_string(),
+        })
+        .unwrap();
+
+        // Insert an unregistered device seen now
+        insert(Device {
+            mac_address: "su:mm:ar:y1:02:02".to_string(),
+            ipv4_address: "192.168.50.2".to_string(),
+            vendor: "Test".to_string(),
+            last_seen: Utc::now(),
+            is_registered: false,
+            owner: "".to_string(),
+            device_type: "".to_string(),
+        })
+        .unwrap();
+
+        let summary = get_summary().unwrap();
+
+        // bb and cc from seed data are registered, plus our new one
+        assert!(
+            summary.total_registered >= 3,
+            "Should have at least 3 registered devices"
+        );
+        assert!(
+            summary.seen_last_day_registered >= 1,
+            "Should have at least 1 registered device seen in last day"
+        );
+        assert!(
+            summary.seen_last_day_unregistered >= 1,
+            "Should have at least 1 unregistered device seen in last day"
+        );
+        assert!(
+            summary.seen_last_week_registered >= 1,
+            "Should have at least 1 registered device seen in last week"
+        );
+        assert!(
+            summary.seen_last_week_unregistered >= 1,
+            "Should have at least 1 unregistered device seen in last week"
         );
     }
 

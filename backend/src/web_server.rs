@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use crate::model::device_events::{DeviceEvent, DeviceEventType};
-use crate::model::devices::Device;
+use crate::model::devices::{Device, DeviceSummary};
 use crate::model::notifications::{Notification, NotificationType};
 use crate::settings::get_settings;
 use crate::web_server::arp_scanner::ArpScannerStatusResponse;
@@ -38,6 +38,7 @@ pub mod utils;
     paths(
         test_api,
         devices::list,
+        devices::summary,
         devices::read,
         devices::register,
         devices::unregister,
@@ -51,6 +52,7 @@ pub mod utils;
     ),
     components(schemas(
         Device,
+        DeviceSummary,
         Notification,
         NotificationType,
         RegisterDevicePayload,
@@ -103,6 +105,7 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .route("/api/test", get(test_api))
         .route("/api/devices", get(devices::list))
         .route("/api/devices", put(devices::register))
+        .route("/api/devices/summary", get(devices::summary))
         .route("/api/devices/{mac_address}", delete(devices::unregister))
         .route("/api/devices/{mac_address}", get(devices::read))
         .route("/api/devices/{mac_address}/events", get(device_events::list))

@@ -7,6 +7,7 @@ import 'package:frontend/utils/pref_utils.dart';
 import '../model/arp_scanner_status.dart';
 import '../model/device.dart';
 import '../model/device_event.dart';
+import '../model/device_summary.dart';
 import '../model/device_type.dart';
 import '../model/notification.dart';
 
@@ -155,6 +156,13 @@ class BackendAPI {
     return (response.data as List)
         .map((item) => DeviceEvent.fromJson(item as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<DeviceSummary> getDeviceSummary() async {
+    debugPrint('About to call GET /devices/summary');
+    final response = await _dio.get('/devices/summary');
+    debugPrint('Received: ${response.data}');
+    return DeviceSummary.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<ArpScannerStatus> getArpScannerStatus() async {
