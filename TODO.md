@@ -30,10 +30,10 @@
   - [x] Is the scan process running
   - [x] Last run (when, how long did it take, how many devices did it found)
   - [x] When is the next run
-- [ ] Rework notifications page into a homepage for the app
-  - [ ] Notifications list
-  - [ ] Summary of devices recorded (how many in total, how many seen in the last day, how many not seen for a week)
-  - [ ] Scanning process summary (is it running, when will it run again)
+- [x] Rework notifications page into a homepage for the app
+  - [x] Notifications list
+  - [x] Summary of devices recorded (how many in total, how many seen in the last day, how many not seen for a week)
+  - [x] Scanning process summary (is it running, when will it run again)
 - [x] About page
 
 ## Improve engine
