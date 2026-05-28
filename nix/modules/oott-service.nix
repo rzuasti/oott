@@ -66,6 +66,11 @@ in {
       description = "User key goes here, this is the account wide code for pushover.";
       default = "";
     };
+    retention.window = mkOption {
+      type = types.str;
+      description = "How long to retain device events and notifications. Records older than this are purged daily. Accepts duration strings (e.g. 90d, 1y, 6m).";
+      default = "365d";
+    };
   };
 
   # Service implementation

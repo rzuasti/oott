@@ -6,6 +6,7 @@ Easy to setup and use network device discovery and alert system
   * [Install OOTT using Docker](#install-oott-using-docker)
   * [Install OOTT using NixOS flakes](#install-oott-using-nixos-flakes)
   * [Configuration options](#configuration-options)
+* [Storage considerations](#storage-considerations)
 
 ## What is it?
 OOTT provides a service that runs behind the scenes and monitors your local network. It's most relevant features are:
@@ -113,6 +114,7 @@ Finally, in your `configuration.nix` (or in an import file) enable and configure
     notifications.notify_when_not_seen_for = "1w";
     notifications.pushover.token = "YOUR API TOKEN GOES HERE";
     notifications.pushover.user_key = "YOUR USER TOKEN GOES HERE";
+    retention.window = "365d";
   };
 }
 ```
@@ -137,3 +139,59 @@ If you are using Docker I recommend writing the config using TOML, [here](https:
 |`notifications.notify_when_not_seen_for`|`1w`|Send a notification if a device comes back online after not being seen for this timeframe (you can use hours, weeks, etc.)|
 |`notifications.pushover.token`||Your pushover token goes here, just copy&paste from their website after creating the app|
 |`notifications.pushover.user_key`||User key goes here, this is the account wide code for pushover|
+|`retention.window`|`365d`|How long to retain device events and notifications. Records older than this are purged daily. Accepts duration strings (e.g. `90d`, `1y`, `6m`). Defaults to one year.|
+
+# Storage considerations
+OOTT stores a timestamped event in the database for every device detected on every scan. Storage therefore scales with three factors: number of active devices, scan frequency, and the retention window.
+
+## Estimates by network size
+
+The figures below assume a 1-minute scan duration (`arp_scan_duration = 1m`) with a 1-minute wait between scans (`wait_between_scans = 1m`), giving 720 scans per day, and a 365-day retention window. Assume all devices are continuously online (worst case).
+
+| Network size | Active devices | Storage / year |
+|---|---|---|
+| Home network | 20–50 | ~1–2 GB |
+| Homelab | 50–100 | ~2–4 GB |
+| Small office | 100–200 | ~4–7 GB |
+| Medium office | 200–500 | ~7–18 GB |
+
+The rough formula behind these numbers is:
+
+```
+storage ≈ devices × scans_per_day × 145 bytes × retention_days
+```
+
+where `145 bytes` covers the database row and its index entry, and `scans_per_day = 86400 / (scan_duration_seconds + wait_between_scans_seconds)`.
+
+## Tuning scan timings and retention to control storage
+
+Storage is directly proportional to scan frequency and retention window. The two main levers are:
+
+**Scan interval** — `timings.wait_between_scans` is the most effective knob. Increasing it reduces scans per day linearly:
+
+| `wait_between_scans` | Scans/day (with 1m scan) | Storage vs. 1m+1m |
+|---|---|---|
+| `1m` | 720 | 1× (baseline) |
+| `4m` | 288 | 0.4× |
+| `15m` | 90 | 0.12× |
+| `30m` | 48 | 0.07× |
+
+A 15-minute wait (the default) cuts storage to about one eighth of the worst-case figures above — the medium office drops from up to 18 GB to roughly 2 GB per year.
+
+**Retention window** — `retention.window` sets how far back history is kept. Halving the window halves the storage. Useful reference points:
+
+| `retention.window` | Use case |
+|---|---|
+| `30d` | Minimal footprint, recent activity only |
+| `90d` | A quarter's worth of history |
+| `180d` | Six months — good middle ground |
+| `365d` | One year (default) |
+
+**Recommended starting points by network type:**
+
+| Network | `wait_between_scans` | `retention.window` | Approx. storage |
+|---|---|---|---|
+| Home | `15m` | `365d` | ~100–250 MB |
+| Homelab | `5m` | `180d` | ~350–700 MB |
+| Small office | `5m` | `90d` | ~175–350 MB |
+| Medium office | `15m` | `90d` | ~175–450 MB |
