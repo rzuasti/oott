@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:encrypter/encrypter/xor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:frontend/utils/pref_utils.dart';
+import '../model/arp_scanner_status.dart';
 import '../model/device.dart';
 import '../model/device_event.dart';
 import '../model/device_type.dart';
@@ -154,6 +155,13 @@ class BackendAPI {
     return (response.data as List)
         .map((item) => DeviceEvent.fromJson(item as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<ArpScannerStatus> getArpScannerStatus() async {
+    debugPrint('About to call GET /arp_scanner/status');
+    final response = await _dio.get('/arp_scanner/status');
+    debugPrint('Received: ${response.data}');
+    return ArpScannerStatus.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<List<Notification>> listNotifications(bool? isNew, int offset) async {

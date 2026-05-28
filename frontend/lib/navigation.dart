@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'devices/device_detail.dart';
 import 'devices/device_list.dart';
 import 'notifications/notification_list.dart';
+import 'status/status_screen.dart';
 import 'utils/pref_utils.dart';
 
 // Routes definitions
@@ -39,6 +40,12 @@ final GoRouter router = GoRouter(
               },
             ),
           ],
+        ),
+        GoRoute(
+          path: '/status',
+          name: 'status',
+          builder: (context, state) => const StatusScreen(),
+          redirect: (context, state) => _redirectToSettings(),
         ),
         GoRoute(
           path: '/settings',
@@ -106,6 +113,11 @@ class MainShell extends StatelessWidget {
                       label: Text('Devices'),
                     ),
                     NavigationRailDestination(
+                      icon: Icon(Icons.monitor_heart_outlined),
+                      selectedIcon: Icon(Icons.monitor_heart),
+                      label: Text('Status'),
+                    ),
+                    NavigationRailDestination(
                       icon: Icon(Icons.settings_outlined),
                       selectedIcon: Icon(Icons.settings),
                       label: Text('Settings'),
@@ -146,8 +158,9 @@ int _calculateSelectedIndex(BuildContext context) {
   final location = GoRouterState.of(context).uri.path;
   if (location.startsWith('/notifications')) return 0;
   if (location.startsWith('/devices')) return 1;
-  if (location.startsWith('/settings')) return 2;
-  if (location.startsWith('/about')) return 3;
+  if (location.startsWith('/status')) return 2;
+  if (location.startsWith('/settings')) return 3;
+  if (location.startsWith('/about')) return 4;
   return 0;
 }
 
@@ -160,9 +173,12 @@ void _onDestinationSelected(int index, BuildContext context) {
       context.go('/devices');
       break;
     case 2:
-      context.go('/settings');
+      context.go('/status');
       break;
     case 3:
+      context.go('/settings');
+      break;
+    case 4:
       context.go('/about');
       break;
   }
