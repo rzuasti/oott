@@ -299,20 +299,20 @@ _KEYWORD_RULES_RAW = [
     ("watch",           r"\b(smartwatch|fitness tracker|wearable)\b"),
     ("home_appliance",  r"\b(refrigerator|dishwasher|home appliance|oven|microwave)\b"),
     ("home_appliance",  r"\b(washer|dryer)\b(?!.*hair)"),   # exclude hair dryer edge cases
-    ("home_security",   r"\b(cctv|ip.?camera|surveillance camera|doorbell camera|ptz camera|security camera)\b"),
+    ("home_security",   r"\b(cctv|ip.?camera|surveillance camera|doorbell camera|ptz camera|security camera|surveillance)\b"),
     ("printer",         r"\b(printer|scanner|copier|plotter|label print|receipt print)\b"),
-    ("tv",              r"\b(smart tv|television|set.?top.?box|iptv|streaming device|media player)\b"),
-    ("server",          r"\b(rack server|blade server|data center)\b"),
+    ("tv",              r"\b(smart tv|television|set.?top.?box|iptv|streaming device|media player|streaming)\b"),
+    ("server",          r"\b(rack server|blade server|data center|storage|nas)\b"),
     ("tablet",          r"\b(tablet|e.?reader|kindle)\b"),
     ("gaming_console",  r"\b(gaming console|game console)\b"),
-    ("phone",           r"\b(smartphone|mobile phone|mobile handset|cell phone)\b"),
+    ("phone",           r"\b(smartphone|mobile phone|mobile handset|cell phone|handset|cellular)\b"),
     ("laptop",          r"\b(laptop|notebook computer)\b"),
     ("pc",              r"\b(desktop computer|personal computer)\b"),
     ("network_appliance",
      r"\b(wireless access point|wifi access point|wlan controller|network switch|"
      r"ethernet switch|managed switch|wifi router|wireless router|network router|"
      r"firewall|vpn concentrator|broadband router|cable modem|dsl modem|"
-     r"fiber gateway|optical network terminal)\b"),
+     r"fiber gateway|optical network terminal|broadband|wifi|wlan|modem)\b"),
 ]
 
 _BRAND_RULES = [
