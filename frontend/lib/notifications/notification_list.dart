@@ -169,9 +169,11 @@ class _NotificationListState extends State<NotificationList> {
               fetchNextPage: fetchNextPage,
               builderDelegate: PagedChildBuilderDelegate(
                 itemBuilder: (context, item, index) {
-                  return Column(
-                    children: [
-                      Dismissible(
+                  return Card(
+                    color: item.isNew
+                        ? Theme.of(context).colorScheme.secondaryContainer
+                        : null,
+                    child: Dismissible(
                         key: UniqueKey(),
                         confirmDismiss: (direction) =>
                             direction == DismissDirection.startToEnd
@@ -192,9 +194,6 @@ class _NotificationListState extends State<NotificationList> {
                           child: Icon(Icons.done),
                         ),
                         child: ListTile(
-                          tileColor: item.isNew
-                              ? Theme.of(context).colorScheme.secondaryContainer
-                              : null,
                           leading: Icon(
                             item.notificationType.icon,
                             color: item.isNew
@@ -244,8 +243,6 @@ class _NotificationListState extends State<NotificationList> {
                           isThreeLine: true,
                         ),
                       ),
-                      Divider(),
-                    ],
                   );
                 },
               ),
