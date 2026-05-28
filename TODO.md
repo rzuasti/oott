@@ -23,7 +23,7 @@
 - [x] View detailed log of device activity (based on event log in the backend)
 - [x] Use date filter from backend API for device events list
 - [x] Use favicon in web frontend
-- [ ] Style app title like favicon (font Barlow Condensed in a pill format with "primary" background)
+- [x] Style app title like favicon (font Barlow Condensed in a pill format with "primary" background)
 - [ ] Change the unkown device icon (maybe just a question mark)
 - [ ] Scan process monitor and summary page
   - [ ] Is the scan process running
