@@ -124,10 +124,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.titleMedium,
-    );
+    return Text(title, style: Theme.of(context).textTheme.titleMedium);
   }
 }
 
@@ -141,7 +138,11 @@ class _DeviceHeader extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       children: [
-        Icon(device.deviceType.icon, size: 48, color: theme.colorScheme.onSurface),
+        Icon(
+          device.deviceType.icon,
+          size: 48,
+          color: theme.colorScheme.onSurface,
+        ),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -172,30 +173,22 @@ class _DeviceInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formatter = FriendlyDateFormatter();
+    final rows = <(String, String)>[
+      ('MAC Address', device.macAddress),
+      ('IP Address', device.ipv4Address),
+      ('Vendor', device.vendor.isEmpty ? '—' : device.vendor),
+      ('Last Seen', formatter.format(device.lastSeen)),
+      ('Device Type', device.deviceType.label),
+      ('Owner', device.owner.isEmpty ? '—' : device.owner),
+    ];
 
     return Card(
       child: Column(
         children: [
-          _InfoRow(label: 'MAC Address', value: device.macAddress),
-          const Divider(height: 1),
-          _InfoRow(label: 'IP Address', value: device.ipv4Address),
-          const Divider(height: 1),
-          _InfoRow(
-            label: 'Vendor',
-            value: device.vendor.isEmpty ? '—' : device.vendor,
-          ),
-          const Divider(height: 1),
-          _InfoRow(
-            label: 'Last Seen',
-            value: formatter.format(device.lastSeen),
-          ),
-          const Divider(height: 1),
-          _InfoRow(label: 'Device Type', value: device.deviceType.label),
-          const Divider(height: 1),
-          _InfoRow(
-            label: 'Owner',
-            value: device.owner.isEmpty ? '—' : device.owner,
-          ),
+          for (var i = 0; i < rows.length; i++) ...[
+            _InfoRow(label: rows[i].$1, value: rows[i].$2),
+            if (i < rows.length - 1) const Divider(height: 1),
+          ],
         ],
       ),
     );

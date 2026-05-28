@@ -10,7 +10,15 @@ import '../utils/oott_api.dart';
 import '../widgets/status_badge.dart';
 import 'device_actions.dart';
 
-enum _DeviceFilter { newDevices, registered, all }
+enum _DeviceFilter {
+  newDevices('Not registered'),
+  registered('Registered'),
+  all('All');
+
+  const _DeviceFilter(this.label);
+
+  final String label;
+}
 
 class DeviceList extends StatefulWidget {
   const DeviceList({super.key});
@@ -76,16 +84,11 @@ class _DeviceListState extends State<DeviceList> {
     }
   }
 
-  String _emptyMessage() {
-    switch (_filter) {
-      case _DeviceFilter.newDevices:
-        return 'No unregistered devices';
-      case _DeviceFilter.registered:
-        return 'No registered devices';
-      case _DeviceFilter.all:
-        return 'No devices found';
-    }
-  }
+  String _emptyMessage() => switch (_filter) {
+    _DeviceFilter.newDevices => 'No unregistered devices',
+    _DeviceFilter.registered => 'No registered devices',
+    _DeviceFilter.all => 'No devices found',
+  };
 
   bool get _hasActiveDetailFilters =>
       _ownerController.text.isNotEmpty || _typeFilter != null;
@@ -94,78 +97,27 @@ class _DeviceListState extends State<DeviceList> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 24,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Filters', style: Theme.of(sheetContext).textTheme.titleMedium),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _ownerController,
-                decoration: const InputDecoration(
-                  labelText: 'Owner',
-                  prefixIcon: Icon(Icons.person_outline),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<DeviceType?>(
-                initialValue: _typeFilter,
-                decoration: const InputDecoration(
-                  labelText: 'Type',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('All types')),
-                  ...DeviceType.values.map(
-                    (t) => DropdownMenuItem(
-                      value: t,
-                      child: Row(
-                        children: [
-                          Icon(t.icon, size: 16),
-                          const SizedBox(width: 4),
-                          Text(t.label),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() => _typeFilter = value);
-                  _loadDevices();
-                },
-              ),
-              const SizedBox(height: 16),
-              if (_hasActiveDetailFilters)
-                OutlinedButton(
-                  onPressed: () {
-                    setState(() {
-                      _ownerController.clear();
-                      _typeFilter = null;
-                    });
-                    _loadDevices();
-                    Navigator.of(sheetContext).pop();
-                  },
-                  child: const Text('Clear filters'),
-                ),
-            ],
-          ),
-        );
-      },
+      builder: (_) => _DeviceFilterSheet(
+        ownerController: _ownerController,
+        typeFilter: _typeFilter,
+        hasActiveFilters: _hasActiveDetailFilters,
+        onTypeChanged: (value) {
+          setState(() => _typeFilter = value);
+          _loadDevices();
+        },
+        onClear: () {
+          setState(() {
+            _ownerController.clear();
+            _typeFilter = null;
+          });
+          _loadDevices();
+        },
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final formatter = FriendlyDateFormatter();
 
     return Scaffold(
@@ -190,32 +142,18 @@ class _DeviceListState extends State<DeviceList> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Wrap(
                 spacing: 8.0,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Not registered'),
-                    selected: _filter == _DeviceFilter.newDevices,
-                    onSelected: (bool selected) {
-                      setState(() => _filter = _DeviceFilter.newDevices);
-                      _loadDevices();
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('Registered'),
-                    selected: _filter == _DeviceFilter.registered,
-                    onSelected: (bool selected) {
-                      setState(() => _filter = _DeviceFilter.registered);
-                      _loadDevices();
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('All'),
-                    selected: _filter == _DeviceFilter.all,
-                    onSelected: (bool selected) {
-                      setState(() => _filter = _DeviceFilter.all);
-                      _loadDevices();
-                    },
-                  ),
-                ],
+                children: _DeviceFilter.values
+                    .map(
+                      (f) => ChoiceChip(
+                        label: Text(f.label),
+                        selected: _filter == f,
+                        onSelected: (_) {
+                          setState(() => _filter = f);
+                          _loadDevices();
+                        },
+                      ),
+                    )
+                    .toList(),
               ),
             ),
           ),
@@ -232,83 +170,168 @@ class _DeviceListState extends State<DeviceList> {
               child: ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
                 itemCount: _devices.length,
-                itemBuilder: (context, index) {
-                        final device = _devices[index];
-                        return Card(
-                          color: device.isRegistered
-                              ? null
-                              : theme.colorScheme.secondaryContainer,
-                          child: ListTile(
-                            onTap: () =>
-                                context.push('/devices/${device.macAddress}'),
-                            leading: Tooltip(
-                              message: device.deviceType == DeviceType.unknown
-                                  ? 'Device type unknown'
-                                  : device.deviceType.label,
-                              child: Icon(device.deviceType.icon),
-                            ),
-                            title: Row(
-                              children: [
-                                Text(device.ipv4Address),
-                                const SizedBox(width: 8),
-                                if (device.isRegistered)
-                                  const StatusBadge(
-                                    label: 'Registered',
-                                    color: BadgeColor.success,
-                                  )
-                                else
-                                  const StatusBadge(
-                                    label: 'Not registered',
-                                    color: BadgeColor.secondary,
-                                  ),
-                              ],
-                            ),
-                            subtitle: Text(
-                              '${device.vendor} · ${device.macAddress}\n'
-                              'Last seen: ${formatter.format(device.lastSeen)}',
-                            ),
-                            isThreeLine: true,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (device.isRegistered) Text(device.owner),
-                                PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert),
-                                  onSelected: (value) async {
-                                    if (value == 'details') {
-                                      context.push(
-                                        '/devices/${device.macAddress}',
-                                      );
-                                    } else if (value == 'forget') {
-                                      await confirmForgetDevice(context, device, _loadDevices);
-                                    } else if (value == 'register') {
-                                      await showRegisterDeviceDialog(context, device, _loadDevices);
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    const PopupMenuItem(
-                                      value: 'details',
-                                      child: Text('View details'),
-                                    ),
-                                    if (device.isRegistered)
-                                      const PopupMenuItem(
-                                        value: 'forget',
-                                        child: Text('Forget'),
-                                      ),
-                                    if (!device.isRegistered)
-                                      const PopupMenuItem(
-                                        value: 'register',
-                                        child: Text('Register'),
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                itemBuilder: (context, index) => _DeviceCard(
+                  device: _devices[index],
+                  formatter: formatter,
+                  onRefresh: _loadDevices,
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _DeviceFilterSheet extends StatelessWidget {
+  final TextEditingController ownerController;
+  final DeviceType? typeFilter;
+  final bool hasActiveFilters;
+  final ValueChanged<DeviceType?> onTypeChanged;
+  final VoidCallback onClear;
+
+  const _DeviceFilterSheet({
+    required this.ownerController,
+    required this.typeFilter,
+    required this.hasActiveFilters,
+    required this.onTypeChanged,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Filters', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 16),
+          TextField(
+            controller: ownerController,
+            decoration: const InputDecoration(
+              labelText: 'Owner',
+              prefixIcon: Icon(Icons.person_outline),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<DeviceType?>(
+            initialValue: typeFilter,
+            decoration: const InputDecoration(
+              labelText: 'Type',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('All types')),
+              ...DeviceType.values.map(
+                (t) => DropdownMenuItem(
+                  value: t,
+                  child: Row(
+                    children: [
+                      Icon(t.icon, size: 16),
+                      const SizedBox(width: 4),
+                      Text(t.label),
+                    ],
                   ),
+                ),
+              ),
+            ],
+            onChanged: onTypeChanged,
+          ),
+          const SizedBox(height: 16),
+          if (hasActiveFilters)
+            OutlinedButton(
+              onPressed: () {
+                onClear();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Clear filters'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeviceCard extends StatelessWidget {
+  final Device device;
+  final FriendlyDateFormatter formatter;
+  final VoidCallback onRefresh;
+
+  const _DeviceCard({
+    required this.device,
+    required this.formatter,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: device.isRegistered ? null : theme.colorScheme.secondaryContainer,
+      child: ListTile(
+        onTap: () => context.push('/devices/${device.macAddress}'),
+        leading: Tooltip(
+          message: device.deviceType == DeviceType.unknown
+              ? 'Device type unknown'
+              : device.deviceType.label,
+          child: Icon(device.deviceType.icon),
+        ),
+        title: Row(
+          children: [
+            Text(device.ipv4Address),
+            const SizedBox(width: 8),
+            if (device.isRegistered)
+              const StatusBadge(label: 'Registered', color: BadgeColor.success)
+            else
+              const StatusBadge(
+                label: 'Not registered',
+                color: BadgeColor.secondary,
+              ),
+          ],
+        ),
+        subtitle: Text(
+          '${device.vendor} · ${device.macAddress}\n'
+          'Last seen: ${formatter.format(device.lastSeen)}',
+        ),
+        isThreeLine: true,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (device.isRegistered) Text(device.owner),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (value) async {
+                if (value == 'details') {
+                  context.push('/devices/${device.macAddress}');
+                } else if (value == 'forget') {
+                  await confirmForgetDevice(context, device, onRefresh);
+                } else if (value == 'register') {
+                  await showRegisterDeviceDialog(context, device, onRefresh);
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'details',
+                  child: Text('View details'),
+                ),
+                if (device.isRegistered)
+                  const PopupMenuItem(value: 'forget', child: Text('Forget')),
+                if (!device.isRegistered)
+                  const PopupMenuItem(
+                    value: 'register',
+                    child: Text('Register'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

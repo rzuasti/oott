@@ -73,21 +73,25 @@ Future<void> showRegisterDeviceDialog(
                 onSaved: (value) => owner = value?.trim() ?? '',
               ),
               const SizedBox(height: 16),
-              InputDecorator(
+              DropdownButtonFormField<DeviceType>(
+                initialValue: deviceType,
                 decoration: const InputDecoration(labelText: 'Device Type'),
-                child: DropdownButton<DeviceType>(
-                  value: deviceType,
-                  isExpanded: true,
-                  underline: const SizedBox(),
-                  items: DeviceType.values
-                      .map(
-                        (t) =>
-                            DropdownMenuItem(value: t, child: Text(t.label)),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setDialogState(() => deviceType = value ?? deviceType),
-                ),
+                items: DeviceType.values
+                    .map(
+                      (t) => DropdownMenuItem(
+                        value: t,
+                        child: Row(
+                          children: [
+                            Icon(t.icon, size: 16),
+                            const SizedBox(width: 4),
+                            Text(t.label),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setDialogState(() => deviceType = value ?? deviceType),
               ),
             ],
           ),

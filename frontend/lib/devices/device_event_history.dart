@@ -129,12 +129,9 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SegmentedButton<_TimeRange>(
-            segments:
-                _TimeRange.values
-                    .map(
-                      (r) => ButtonSegment(value: r, label: Text(r.label)),
-                    )
-                    .toList(),
+            segments: _TimeRange.values
+                .map((r) => ButtonSegment(value: r, label: Text(r.label)))
+                .toList(),
             selected: {_selectedRange},
             onSelectionChanged: (selection) {
               setState(() => _selectedRange = selection.first);
@@ -187,18 +184,17 @@ class _EventChart extends StatelessWidget {
     final minX = (cutoffMs / intervalMs).floor() * intervalMs;
     final maxX = (nowMs / intervalMs).ceil() * intervalMs;
 
-    final spots =
-        events.map((e) {
-          final isNew = e.eventType == 'NewDevice';
-          return ScatterSpot(
-            e.createdOn.millisecondsSinceEpoch.toDouble(),
-            1.0,
-            dotPainter: FlDotCirclePainter(
-              radius: isNew ? 9.0 : 6.0,
-              color: theme.colorScheme.tertiary,
-            ),
-          );
-        }).toList();
+    final spots = events.map((e) {
+      final isNew = e.eventType == 'NewDevice';
+      return ScatterSpot(
+        e.createdOn.millisecondsSinceEpoch.toDouble(),
+        1.0,
+        dotPainter: FlDotCirclePainter(
+          radius: isNew ? 9.0 : 6.0,
+          color: theme.colorScheme.tertiary,
+        ),
+      );
+    }).toList();
 
     return ScatterChart(
       ScatterChartData(
@@ -259,8 +255,9 @@ class _EventChart extends StatelessWidget {
               final event = events[idx];
               final dt = event.createdOn.toLocal();
               final dateStr = DateFormat('MMM d, yyyy HH:mm').format(dt);
-              final typeLabel =
-                  event.eventType == 'NewDevice' ? 'First seen' : 'Device seen';
+              final typeLabel = event.eventType == 'NewDevice'
+                  ? 'First seen'
+                  : 'Device seen';
 
               final diffs = <TextSpan>[];
               if (event.ipv4Address != device.ipv4Address) {
@@ -276,10 +273,12 @@ class _EventChart extends StatelessWidget {
                 );
               }
               if (event.vendor != device.vendor) {
-                final eventVendor =
-                    event.vendor.isEmpty ? '(unknown)' : event.vendor;
-                final currentVendor =
-                    device.vendor.isEmpty ? '(unknown)' : device.vendor;
+                final eventVendor = event.vendor.isEmpty
+                    ? '(unknown)'
+                    : event.vendor;
+                final currentVendor = device.vendor.isEmpty
+                    ? '(unknown)'
+                    : device.vendor;
                 diffs.add(
                   TextSpan(
                     text: '\nVendor: $eventVendor → $currentVendor',

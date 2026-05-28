@@ -16,8 +16,6 @@ class Settings extends StatefulWidget {
 }
 
 class _SettingsState extends State<Settings> {
-  bool _isLoading = true;
-  bool _isSaving = false;
   final _baseUrlController = TextEditingController();
   final _apiKeyController = TextEditingController();
   bool _apiKeyVisible = false;
@@ -30,7 +28,11 @@ class _SettingsState extends State<Settings> {
   @override
   void initState() {
     super.initState();
-    _getData();
+    _baseUrlController.text = PrefUtil.getValue('base_url', '') as String;
+    _apiKeyController.text = XOR().xorDecode(
+      PrefUtil.getValue('api_key', '') as String,
+    );
+    _selectedTheme = context.read<AppState>().themeKey;
   }
 
   @override
@@ -40,203 +42,138 @@ class _SettingsState extends State<Settings> {
     super.dispose();
   }
 
-  void _getData() async {
-    _baseUrlController.text = PrefUtil.getValue("base_url", "") as String;
-    _apiKeyController.text = XOR().xorDecode(
-      PrefUtil.getValue("api_key", "") as String,
-    );
-    _selectedTheme = context.read<AppState>().themeKey;
-    _isLoading = false;
-    setState(() {});
+  void _onConnectionChanged(String _) {
+    setState(() {
+      _testOk = false;
+      _connectionModified = true;
+    });
   }
 
-  void _saveData() {
-    PrefUtil.setValue("base_url", _baseUrlController.text);
-    PrefUtil.setValue("api_key", XOR().xorEncode(_apiKeyController.text));
+  Future<void> _testConnection() async {
+    if (!_formKey.currentState!.validate()) return;
+    final result = await BackendAPI.test(
+      _baseUrlController.text,
+      _apiKeyController.text,
+    );
+    if (!mounted) return;
+    setState(() {
+      _testOk = result == null;
+      if (result == null) _connectionModified = false;
+    });
+    if (result == null) {
+      UISnackbars.showSuccess(context, 'It works!');
+    } else {
+      UISnackbars.showError(context, result);
+    }
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+    PrefUtil.setValue('base_url', _baseUrlController.text);
+    PrefUtil.setValue('api_key', XOR().xorEncode(_apiKeyController.text));
+    context.read<AppState>().setTheme(_selectedTheme);
+    UISnackbars.showSuccess(context, 'Settings saved successfully');
   }
 
   @override
   Widget build(BuildContext context) {
+    final appColors = Theme.of(context).extension<AppColorExtension>()!;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: Column(
-                children: <Widget>[
-                  SizedBox(height: 16),
-                  // Base URL
-                  TextFormField(
-                    controller: _baseUrlController,
-                    onChanged: (text) {
-                      setState(() {
-                        _testOk = false;
-                        _connectionModified = true;
-                      });
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "The URL cannot be empty";
-                      }
-                      return null;
-                    },
-                    decoration: const InputDecoration(
-                      border: UnderlineInputBorder(),
-                      labelText: 'Base URL of your OOTT server\'s API',
-                      hintText: "For example http://192.168.0.1:3000/api",
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  // API Key
-                  TextFormField(
-                    controller: _apiKeyController,
-                    onChanged: (text) {
-                      setState(() {
-                        _testOk = false;
-                        _connectionModified = true;
-                      });
-                    },
-
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "The API key cannot be empty";
-                      }
-                      return null;
-                    },
-                    obscureText: !_apiKeyVisible,
-                    decoration: InputDecoration(
-                      border: UnderlineInputBorder(),
-                      labelText: 'API key',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _apiKeyVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _apiKeyVisible = !_apiKeyVisible;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  // Theme selector
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedTheme,
-                    decoration: const InputDecoration(
-                      border: UnderlineInputBorder(),
-                      labelText: 'Theme',
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'catppuccin_mocha',
-                        child: Text('Catppuccin Mocha'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'gruvbox_dark',
-                        child: Text('Gruvbox Dark'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedTheme = value;
-                        });
-                      }
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  // Button row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      // Test button
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          if (_formKey.currentState!.validate()) {
-                            String? testResult = await BackendAPI.test(
-                              _baseUrlController.text,
-                              _apiKeyController.text,
-                            );
-
-                            if (!context.mounted) return;
-                            setState(() {
-                              _testOk = testResult == null;
-                              if (testResult == null) {
-                                _connectionModified = false;
-                              }
-                            });
-
-                            if (testResult == null) {
-                              UISnackbars.showSuccess(context, 'It works!');
-                            } else {
-                              UISnackbars.showError(context, testResult);
-                            }
-                          }
-                        },
-                        label: Text('Test'),
-                        icon: _testOk
-                            ? Icon(Icons.check)
-                            : Icon(Icons.play_arrow),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _testOk
-                              ? Theme.of(
-                                  context,
-                                ).extension<AppColorExtension>()!.success
-                              : Theme.of(context).colorScheme.secondary,
-                          foregroundColor: _testOk
-                              ? Theme.of(
-                                  context,
-                                ).extension<AppColorExtension>()!.onSuccess
-                              : Theme.of(context).colorScheme.onSecondary,
-                        ),
-                      ),
-                      SizedBox(width: 8),
-
-                      // Save button
-                      ElevatedButton.icon(
-                        onPressed:
-                            ((_connectionModified && !_testOk) || _isSaving)
-                            ? null
-                            : () async {
-                                if (_formKey.currentState!.validate()) {
-                                  setState(() {
-                                    _isSaving = true;
-                                  });
-                                  _saveData();
-                                  context.read<AppState>().setTheme(
-                                    _selectedTheme,
-                                  );
-
-                                  setState(() {
-                                    _isSaving = false;
-                                  });
-                                  UISnackbars.showSuccess(
-                                    context,
-                                    'Settings saved successfully',
-                                  );
-                                }
-                              },
-                        label: Text(_isSaving ? 'Saving...' : 'Save'),
-
-                        icon: _isSaving ? null : Icon(Icons.save),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.primary,
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _baseUrlController,
+              onChanged: _onConnectionChanged,
+              validator: (value) => value == null || value.isEmpty
+                  ? 'The URL cannot be empty'
+                  : null,
+              decoration: const InputDecoration(
+                border: UnderlineInputBorder(),
+                labelText: "Base URL of your OOTT server's API",
+                hintText: 'For example http://192.168.0.1:3000/api',
               ),
             ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _apiKeyController,
+              onChanged: _onConnectionChanged,
+              validator: (value) => value == null || value.isEmpty
+                  ? 'The API key cannot be empty'
+                  : null,
+              obscureText: !_apiKeyVisible,
+              decoration: InputDecoration(
+                border: const UnderlineInputBorder(),
+                labelText: 'API key',
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _apiKeyVisible ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () =>
+                      setState(() => _apiKeyVisible = !_apiKeyVisible),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedTheme,
+              decoration: const InputDecoration(
+                border: UnderlineInputBorder(),
+                labelText: 'Theme',
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'catppuccin_mocha',
+                  child: Text('Catppuccin Mocha'),
+                ),
+                DropdownMenuItem(
+                  value: 'gruvbox_dark',
+                  child: Text('Gruvbox Dark'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _selectedTheme = value);
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    _testConnection();
+                  },
+                  label: const Text('Test'),
+                  icon: Icon(_testOk ? Icons.check : Icons.play_arrow),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _testOk
+                        ? appColors.success
+                        : colorScheme.secondary,
+                    foregroundColor: _testOk
+                        ? appColors.onSuccess
+                        : colorScheme.onSecondary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: (_connectionModified && !_testOk) ? null : _save,
+                  label: const Text('Save'),
+                  icon: const Icon(Icons.save),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
