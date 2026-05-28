@@ -6,6 +6,7 @@ import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../widgets/status_badge.dart';
 import 'device_actions.dart';
+import 'device_event_history.dart';
 
 class DeviceDetail extends StatefulWidget {
   final String macAddress;
@@ -105,9 +106,27 @@ class _DeviceDetailState extends State<DeviceDetail> {
                   _DeviceHeader(device: device),
                   const SizedBox(height: 24),
                   _DeviceInfoCard(device: device),
+                  const SizedBox(height: 24),
+                  _SectionHeader(title: 'Event History'),
+                  const SizedBox(height: 12),
+                  DeviceEventHistory(device: device),
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleMedium,
     );
   }
 }

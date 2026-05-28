@@ -5,6 +5,7 @@ import 'package:encrypter/encrypter/xor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:frontend/utils/pref_utils.dart';
 import '../model/device.dart';
+import '../model/device_event.dart';
 import '../model/device_type.dart';
 import '../model/notification.dart';
 
@@ -134,6 +135,15 @@ class BackendAPI {
   Future<void> forgetDevice(String macAddress) async {
     debugPrint('About to call DELETE /devices/$macAddress');
     await _dio.delete('/devices/$macAddress');
+  }
+
+  Future<List<DeviceEvent>> getDeviceEvents(String macAddress) async {
+    debugPrint('About to call GET /devices/$macAddress/events');
+    final response = await _dio.get('/devices/$macAddress/events');
+    debugPrint('Received: ${response.data}');
+    return (response.data as List)
+        .map((item) => DeviceEvent.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<Notification>> listNotifications(bool? isNew, int offset) async {
