@@ -104,7 +104,7 @@ class BackendAPI {
     if (owner != null && owner.isNotEmpty) params['owner'] = owner;
     if (deviceType != null) {
       params['device_type'] =
-          deviceType == DeviceType.unknown ? '' : deviceType.name;
+          deviceType == DeviceType.unknown ? '' : deviceType.apiName;
     }
 
     final response = await _dio.get('/devices', queryParameters: params);

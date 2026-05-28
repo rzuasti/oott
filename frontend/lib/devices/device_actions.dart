@@ -121,7 +121,7 @@ Future<void> showRegisterDeviceDialog(
     await BackendAPI.instance.registerDevice(
       device.macAddress,
       owner,
-      deviceType.name,
+      deviceType.apiName,
     );
     if (!context.mounted) return;
     UISnackbars.showSuccess(context, 'Device registered');
