@@ -32,6 +32,7 @@ pub fn insert(event: DeviceEvent) -> Result<i64, DbError> {
 
 pub fn list(
     mac_address: Option<String>,
+    created_from: Option<DateTime<Utc>>,
     page_offset: Option<i64>,
     page_limit: Option<i64>,
 ) -> Result<Vec<DeviceEvent>, DbError> {
@@ -48,6 +49,12 @@ pub fn list(
         debug!("Adding filter mac_address={}", mac);
         sql_statement.push_str(" AND mac_address=?");
         params.push(mac.into());
+    }
+
+    if let Some(from) = created_from {
+        debug!("Adding filter created_on >= {}", from);
+        sql_statement.push_str(" AND created_on >= ?");
+        params.push(from.to_rfc3339().into());
     }
 
     sql_statement.push_str(" ORDER BY created_on DESC, id DESC");
@@ -178,7 +185,7 @@ mod tests {
     async fn test_list() {
         tests_common::setup().await;
 
-        let events = list(None, None, None).unwrap();
+        let events = list(None, None, None, None).unwrap();
         assert!(
             events.len() >= 3,
             "There should be at least 3 device events from seed data"
@@ -201,7 +208,7 @@ mod tests {
     async fn test_list_filter_by_mac_address() {
         tests_common::setup().await;
 
-        let events = list(Some("aa:aa:aa:aa:aa:aa".to_string()), None, None).unwrap();
+        let events = list(Some("aa:aa:aa:aa:aa:aa".to_string()), None, None, None).unwrap();
         assert!(
             events.len() >= 2,
             "There should be at least 2 events for aa:aa:aa:aa:aa:aa"
@@ -213,7 +220,7 @@ mod tests {
             );
         }
 
-        let events = list(Some("zz:zz:zz:zz:zz:zz".to_string()), None, None).unwrap();
+        let events = list(Some("zz:zz:zz:zz:zz:zz".to_string()), None, None, None).unwrap();
         assert!(events.is_empty(), "Unknown MAC should return empty list");
     }
 
@@ -286,10 +293,10 @@ mod tests {
         ))
         .unwrap();
 
-        let first_page = list(Some(mac.clone()), Some(0), Some(2)).unwrap();
+        let first_page = list(Some(mac.clone()), None, Some(0), Some(2)).unwrap();
         assert_eq!(first_page.len(), 2, "First page should have 2 events");
 
-        let second_page = list(Some(mac.clone()), Some(2), Some(2)).unwrap();
+        let second_page = list(Some(mac.clone()), None, Some(2), Some(2)).unwrap();
         assert_eq!(second_page.len(), 1, "Second page should have 1 event");
 
         let first_ids: Vec<i64> = first_page.iter().map(|e| e.id).collect();
@@ -300,5 +307,80 @@ mod tests {
                 event.id
             );
         }
+    }
+
+    #[tokio::test]
+    async fn test_list_created_from_none_returns_all() {
+        tests_common::setup().await;
+
+        let mac = "ff:ff:ff:ff:ff:ff".to_string();
+        insert(DeviceEvent::new(
+            mac.clone(),
+            chrono::DateTime::parse_from_rfc3339("2024-01-01T00:00:00Z")
+                .unwrap()
+                .into(),
+            DeviceEventType::NewDevice,
+            "10.0.0.1".to_string(),
+            "Vendor F".to_string(),
+        ))
+        .unwrap();
+        insert(DeviceEvent::new(
+            mac.clone(),
+            chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+                .unwrap()
+                .into(),
+            DeviceEventType::DeviceSeen,
+            "10.0.0.1".to_string(),
+            "Vendor F".to_string(),
+        ))
+        .unwrap();
+
+        let events = list(Some(mac.clone()), None, None, None).unwrap();
+        assert_eq!(
+            events.len(),
+            2,
+            "created_from=None should return all events without filtering"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_list_created_from_filters_older_events() {
+        tests_common::setup().await;
+
+        let mac = "dd:dd:dd:dd:dd:dd".to_string();
+        let old_ts: DateTime<Utc> = chrono::DateTime::parse_from_rfc3339("2024-01-01T00:00:00Z")
+            .unwrap()
+            .into();
+        let new_ts: DateTime<Utc> = chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+            .unwrap()
+            .into();
+        let cutoff: DateTime<Utc> = chrono::DateTime::parse_from_rfc3339("2025-06-01T00:00:00Z")
+            .unwrap()
+            .into();
+
+        insert(DeviceEvent::new(
+            mac.clone(),
+            old_ts,
+            DeviceEventType::NewDevice,
+            "10.0.0.1".to_string(),
+            "Vendor D".to_string(),
+        ))
+        .unwrap();
+        insert(DeviceEvent::new(
+            mac.clone(),
+            new_ts,
+            DeviceEventType::DeviceSeen,
+            "10.0.0.1".to_string(),
+            "Vendor D".to_string(),
+        ))
+        .unwrap();
+
+        let events = list(Some(mac.clone()), Some(cutoff), None, None).unwrap();
+        assert_eq!(
+            events.len(),
+            1,
+            "Only the event after the cutoff should be returned"
+        );
+        assert_eq!(events[0].created_on, new_ts);
     }
 }
