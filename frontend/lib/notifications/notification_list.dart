@@ -211,7 +211,8 @@ class _NotificationListState extends State<NotificationList> {
                             icon: const Icon(Icons.more_vert),
                             onSelected: (value) async {
                               if (value == 'view_device') {
-                                context.push('/devices/${item.macAddress}');
+                                if (item.isNew) await _markAsRead(context, item);
+                                if (context.mounted) context.push('/devices/${item.macAddress}');
                               } else if (value == 'mark_read') {
                                 await _markAsRead(context, item);
                               } else if (value == 'mark_new') {
@@ -237,8 +238,10 @@ class _NotificationListState extends State<NotificationList> {
                             ],
                           ),
                           onTap: item.macAddress != null
-                              ? () =>
-                                    context.push('/devices/${item.macAddress}')
+                              ? () async {
+                                  if (item.isNew) await _markAsRead(context, item);
+                                  if (context.mounted) context.push('/devices/${item.macAddress}');
+                                }
                               : null,
                           isThreeLine: true,
                         ),
