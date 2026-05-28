@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/about/about.dart';
 import 'package:frontend/settings/settings.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -47,7 +48,7 @@ final GoRouter router = GoRouter(
         GoRoute(
           path: '/about',
           name: 'about',
-          builder: (context, state) => const Placeholder(),
+          builder: (context, state) => const About(),
         ),
       ],
     ),
