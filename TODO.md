@@ -34,3 +34,23 @@
   - [ ] Summary of devices recorded (how many in total, how many seen in the last day, how many not seen for a week)
   - [ ] Scanning process summary (is it running, when will it run again)
 - [ ] About page
+
+## Improve engine
+
+Several complementary approaches work well alongside ARP:
+
+Passive (low noise, no probing):
+- mDNS/Bonjour listening — devices broadcast their presence on 224.0.0.251:5353; catches Apple, Android, Chromecast, printers, etc. automatically
+- SSDP/UPnP — similar but for smart devices/IoT; multicast on 239.255.255.250:1900
+- DHCP snooping — monitor DHCP DISCOVER/REQUEST packets; new devices must ask for an IP before doing anything else, so this catches them very early
+- Passive packet capture — observe any broadcast/multicast traffic; a device that never responds to ARP still generates traffic
+
+Active (you probe the network):
+- ICMP ping sweep — ping every host in the subnet range; more universal than ARP but generates traffic
+- TCP/UDP SYN scan — probe common ports (22, 80, 443, etc.); finds devices that silently drop ICMP
+- NDP (Neighbor Discovery Protocol) — IPv6 equivalent of ARP; important if the network uses IPv6
+
+Via infrastructure:
+- SNMP query to router/switch — pull the router's ARP table or switch MAC table directly; no need to scan at all
+
+Best bang for the buck: mDNS + DHCP snooping as passive complements to ARP. mDNS is especially good at naming devices (hostname included in the announcement), and DHCP catches devices the moment they connect rather than waiting for an ARP sweep cycle.
