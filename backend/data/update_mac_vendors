@@ -10,6 +10,7 @@ Outputs (relative to the script's own directory):
   vendor-device-type.json   - vendor name -> device type mapping (non-unknown only)
 """
 
+import argparse
 import html.parser
 import json
 import os
@@ -22,6 +23,34 @@ BASE_URL = "https://maclookup.app"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDORS_FILE = os.path.join(SCRIPT_DIR, "mac-vendors-export.json")
 MAPPING_FILE = os.path.join(SCRIPT_DIR, "vendor-device-type.json")
+
+LLM_MODEL = "claude-haiku-4-5"
+LLM_BATCH_SIZE = 100
+
+VALID_DEVICE_TYPES = frozenset([
+    "phone", "laptop", "tablet", "server", "tv", "printer",
+    "network_appliance", "home_security", "home_appliance",
+    "watch", "pc", "gaming_console", "unknown",
+])
+
+LLM_SYSTEM_PROMPT = """You are a network device classifier. Given a list of MAC address vendor names, classify each one into exactly one device type.
+
+Device types:
+- phone: smartphones and mobile phones (Apple, Samsung, Xiaomi, etc.)
+- laptop: laptops and notebook computers (Dell, Lenovo, Acer, ASUS, etc.)
+- tablet: tablets and e-readers (Amazon Fire, iPad, etc.)
+- server: rack servers, NAS, data center equipment (Supermicro, Synology, QNAP, etc.)
+- tv: smart TVs, set-top boxes, streaming devices (Roku, Vizio, Hisense, etc.)
+- printer: printers, scanners, copiers, plotters, label printers
+- network_appliance: routers, switches, firewalls, access points, modems, gateways (Cisco, Ubiquiti, etc.)
+- home_security: security cameras, doorbells, surveillance equipment (Hikvision, Dahua, etc.)
+- home_appliance: household appliances (refrigerators, washers, ovens, dishwashers, etc.)
+- watch: smartwatches and fitness trackers (Garmin, Fitbit, etc.)
+- pc: desktop computers and workstations (Intel NUC, Gigabyte, custom builds)
+- gaming_console: video game consoles (Nintendo, Sony PlayStation, Xbox, etc.)
+- unknown: cannot be clearly identified as any of the above
+
+Respond ONLY with a valid JSON object mapping each vendor name to its device type. No explanation, no markdown fences, just raw JSON."""
 
 
 # ── HTML parser to extract the download link ──────────────────────────────────
@@ -361,15 +390,123 @@ def save_mapping(mapping: dict):
     print(f"Saved mapping to {MAPPING_FILE}")
 
 
+# ── Phase 3: LLM classification for unknown vendors ──────────────────────────
+
+def _extract_json(text: str) -> str:
+    """Strip markdown code fences if present, return raw JSON string."""
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        # drop opening fence (```json or ```) and closing fence
+        inner = []
+        for line in lines[1:]:
+            if line.strip() == "```":
+                break
+            inner.append(line)
+        return "\n".join(inner)
+    return text
+
+
+def classify_unknowns_with_llm(unknown_vendors: list[str], api_key: str) -> dict:
+    try:
+        import anthropic
+    except ImportError:
+        print(
+            "ERROR: 'anthropic' package not found. Install it with: pip install anthropic",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    client = anthropic.Anthropic(api_key=api_key)
+    result: dict[str, str] = {}
+    total = len(unknown_vendors)
+    batches = [
+        unknown_vendors[i : i + LLM_BATCH_SIZE]
+        for i in range(0, total, LLM_BATCH_SIZE)
+    ]
+    print(f"Sending {total} vendors to LLM in {len(batches)} batches (model: {LLM_MODEL})")
+
+    for idx, batch in enumerate(batches, 1):
+        print(f"  Batch {idx}/{len(batches)} ({len(batch)} vendors)...", end=" ", flush=True)
+        vendor_list = json.dumps(batch, ensure_ascii=False)
+        message = client.messages.create(
+            model=LLM_MODEL,
+            max_tokens=4096,
+            system=LLM_SYSTEM_PROMPT,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"Classify these vendor names:\n{vendor_list}",
+                }
+            ],
+        )
+        raw = message.content[0].text
+        try:
+            classifications = json.loads(_extract_json(raw))
+        except json.JSONDecodeError as exc:
+            print(f"WARNING: could not parse LLM response for batch {idx}: {exc}", file=sys.stderr)
+            continue
+
+        accepted = 0
+        for vendor, device_type in classifications.items():
+            if device_type in VALID_DEVICE_TYPES and device_type != "unknown":
+                result[vendor] = device_type
+                accepted += 1
+        print(f"{accepted} classified")
+
+    return result
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
-    print("=== Phase 1: Download vendor database ===")
-    records = download_vendors()
+    parser = argparse.ArgumentParser(
+        description="Download the MAC vendor database and generate a vendor→device-type mapping."
+    )
+    parser.add_argument(
+        "--skip-download",
+        action="store_true",
+        help="Skip downloading the vendor database (use existing mac-vendors-export.json).",
+    )
+    parser.add_argument(
+        "--llm",
+        action="store_true",
+        help="Use an LLM to classify vendors not matched by algorithmic rules.",
+    )
+    args = parser.parse_args()
+
+    if args.skip_download:
+        print("=== Phase 1: Skipped (using existing vendor database) ===")
+        with open(VENDORS_FILE, encoding="utf-8") as f:
+            records = json.load(f)
+        print(f"Loaded {len(records)} vendor records from {VENDORS_FILE}")
+    else:
+        print("=== Phase 1: Download vendor database ===")
+        records = download_vendors()
 
     print()
     print("=== Phase 2: Generate device-type mapping ===")
     mapping = generate_mapping(records)
+
+    if args.llm:
+        print()
+        print("=== Phase 3: LLM classification of unmatched vendors ===")
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            import getpass
+            api_key = getpass.getpass("Anthropic API key: ").strip()
+        if not api_key:
+            print("ERROR: No API key provided.", file=sys.stderr)
+            sys.exit(1)
+
+        all_vendors = sorted({r["vendorName"] for r in records if "vendorName" in r})
+        unknown_vendors = [v for v in all_vendors if v not in mapping]
+        print(f"Vendors not yet classified: {len(unknown_vendors)}")
+
+        llm_mapping = classify_unknowns_with_llm(unknown_vendors, api_key)
+        print(f"LLM classified {len(llm_mapping)} additional vendors")
+        mapping.update(llm_mapping)
+
     save_mapping(mapping)
 
     print()

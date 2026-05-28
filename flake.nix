@@ -33,7 +33,9 @@
       });
   in rec {
     # Development shell to test the app locally
-    devShells = forEachSystem (system: {
+    devShells = forEachSystem (system: let
+      pythonEnv = pkgsBySystem.${system}.python3.withPackages (ps: [ps.anthropic]);
+    in {
       default = pkgsBySystem.${system}.mkShell rec {
         androidSdk = pkgsBySystem.${system}.androidenv.androidPkgs.androidsdk;
         ANDROID_SDK_ROOT = "${androidSdk}/libexec/android-sdk";
@@ -52,10 +54,12 @@
           jdk17
           claude-code
           clippy # Rust linter
+          pythonEnv
         ];
 
         # fish > all
         shellHook = ''
+          export PATH="${pythonEnv}/bin:$PATH"
           DEV_SHELL=oott exec fish
         '';
       };
