@@ -15,55 +15,54 @@ class About extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('About OOTT')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Easy to setup and use network device discovery and alert system. '
-              'Notifies you when new or unknown devices join your local area network.',
-              style: textTheme.bodyLarge,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('About OOTT', style: textTheme.headlineSmall),
+          const SizedBox(height: 16),
+          Text(
+            'Easy to setup and use network device discovery and alert system. '
+            'Notifies you when new or unknown devices join your local area network.',
+            style: textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'v$_version - released $_releaseDate',
+            style: textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'v$_version - released $_releaseDate',
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+          ),
+          const SizedBox(height: 24),
+          _SurfaceContainer(
+            colorScheme: colorScheme,
+            child: Column(
+              children: [
+                _LinkRow(
+                  icon: Icons.code,
+                  label: 'Source code',
+                  url: _repoUrl,
+                  colorScheme: colorScheme,
+                  textTheme: textTheme,
+                ),
+                Divider(
+                  height: 1,
+                  color: colorScheme.outlineVariant,
+                  indent: 16,
+                  endIndent: 16,
+                ),
+                _LicenseRow(colorScheme: colorScheme, textTheme: textTheme),
+              ],
             ),
-            const SizedBox(height: 24),
-            _SurfaceContainer(
-              colorScheme: colorScheme,
-              child: Column(
-                children: [
-                  _LinkRow(
-                    icon: Icons.code,
-                    label: 'Source code',
-                    url: _repoUrl,
-                    colorScheme: colorScheme,
-                    textTheme: textTheme,
-                  ),
-                  Divider(
-                    height: 1,
-                    color: colorScheme.outlineVariant,
-                    indent: 16,
-                    endIndent: 16,
-                  ),
-                  _LicenseRow(colorScheme: colorScheme, textTheme: textTheme),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            _SurfaceContainer(
-              colorScheme: colorScheme,
-              padding: const EdgeInsets.all(16),
-              child: _NoticesSection(textTheme: textTheme),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          _SurfaceContainer(
+            colorScheme: colorScheme,
+            padding: const EdgeInsets.all(16),
+            child: _NoticesSection(textTheme: textTheme),
+          ),
+        ],
       ),
     );
   }

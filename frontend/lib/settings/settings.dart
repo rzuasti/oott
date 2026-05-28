@@ -79,13 +79,15 @@ class _SettingsState extends State<Settings> {
   Widget build(BuildContext context) {
     final appColors = Theme.of(context).extension<AppColorExtension>()!;
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: Form(
+    return SingleChildScrollView(
+      child: Form(
         key: _formKey,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('Settings', style: textTheme.headlineSmall),
             const SizedBox(height: 16),
             TextFormField(
               controller: _baseUrlController,

@@ -9,9 +9,34 @@ import 'home/home_screen.dart';
 import 'status/status_screen.dart';
 import 'utils/pref_utils.dart';
 
+// M3 window size class breakpoints
+const _mediumBreakpoint = 600.0;
+const _expandedBreakpoint = 840.0;
+
+typedef _NavDest = ({IconData icon, IconData activeIcon, String label});
+
+const List<_NavDest> _destinations = [
+  (icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home'),
+  (
+    icon: Icons.devices_other_outlined,
+    activeIcon: Icons.devices_other,
+    label: 'Devices',
+  ),
+  (
+    icon: Icons.monitor_heart_outlined,
+    activeIcon: Icons.monitor_heart,
+    label: 'Status',
+  ),
+  (
+    icon: Icons.settings_outlined,
+    activeIcon: Icons.settings,
+    label: 'Settings',
+  ),
+  (icon: Icons.info_outline, activeIcon: Icons.info, label: 'About'),
+];
+
 // Routes definitions
 final GoRouter router = GoRouter(
-  // If there is no API base URL send the user to settings
   initialLocation: '/notifications',
   routes: [
     ShellRoute(
@@ -72,27 +97,35 @@ class MainShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                'OOTT',
-                style: GoogleFonts.barlowCondensed(
-                  color: Theme.of(context).colorScheme.onPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 26,
-                ),
-              ),
+        final selectedIndex = _calculateSelectedIndex(context);
+        final width = constraints.maxWidth;
+
+        if (width < _mediumBreakpoint) {
+          return Scaffold(
+            appBar: _buildAppBar(context),
+            body: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: child,
             ),
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.surfaceContainerLowest,
-          ),
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: selectedIndex,
+              onDestinationSelected: (index) =>
+                  _onDestinationSelected(index, context),
+              destinations: _destinations
+                  .map(
+                    (d) => NavigationDestination(
+                      icon: Icon(d.icon),
+                      selectedIcon: Icon(d.activeIcon),
+                      label: d.label,
+                    ),
+                  )
+                  .toList(),
+            ),
+          );
+        }
+
+        return Scaffold(
+          appBar: _buildAppBar(context),
           body: Row(
             children: [
               SafeArea(
@@ -100,35 +133,17 @@ class MainShell extends StatelessWidget {
                   backgroundColor: Theme.of(
                     context,
                   ).colorScheme.surfaceContainerLow,
-                  extended: constraints.maxWidth >= 600,
-                  destinations: [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.home_outlined),
-                      selectedIcon: Icon(Icons.home),
-                      label: Text('Home'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.devices_other_outlined),
-                      selectedIcon: Icon(Icons.devices_other),
-                      label: Text('Devices'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.monitor_heart_outlined),
-                      selectedIcon: Icon(Icons.monitor_heart),
-                      label: Text('Status'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.settings_outlined),
-                      selectedIcon: Icon(Icons.settings),
-                      label: Text('Settings'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.info_outline),
-                      selectedIcon: Icon(Icons.info),
-                      label: Text('About'),
-                    ),
-                  ],
-                  selectedIndex: _calculateSelectedIndex(context),
+                  extended: width >= _expandedBreakpoint,
+                  destinations: _destinations
+                      .map(
+                        (d) => NavigationRailDestination(
+                          icon: Icon(d.icon),
+                          selectedIcon: Icon(d.activeIcon),
+                          label: Text(d.label),
+                        ),
+                      )
+                      .toList(),
+                  selectedIndex: selectedIndex,
                   onDestinationSelected: (index) =>
                       _onDestinationSelected(index, context),
                 ),
@@ -144,6 +159,27 @@ class MainShell extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  AppBar _buildAppBar(BuildContext context) {
+    return AppBar(
+      title: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          'OOTT',
+          style: GoogleFonts.barlowCondensed(
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 26,
+          ),
+        ),
+      ),
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
     );
   }
 }

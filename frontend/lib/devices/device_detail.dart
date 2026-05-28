@@ -53,66 +53,80 @@ class _DeviceDetailState extends State<DeviceDetail> {
   Widget build(BuildContext context) {
     final device = _device;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Device Details'),
-        leading: BackButton(onPressed: () => context.pop()),
-        actions: [
-          if (device != null)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              onSelected: (value) async {
-                if (value == 'forget') {
-                  await confirmForgetDevice(context, device, _loadDevice);
-                } else if (value == 'register') {
-                  await showRegisterDeviceDialog(context, device, _loadDevice);
-                }
-              },
-              itemBuilder: (context) => [
-                if (device.isRegistered)
-                  const PopupMenuItem(value: 'forget', child: Text('Forget')),
-                if (!device.isRegistered)
-                  const PopupMenuItem(
-                    value: 'register',
-                    child: Text('Register'),
-                  ),
-              ],
-            ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Error: $_error'),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: _loadDevice,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
-          : device == null
-          ? const Center(child: Text('Device not found'))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _DeviceHeader(device: device),
-                  const SizedBox(height: 24),
-                  _DeviceInfoCard(device: device),
-                  const SizedBox(height: 24),
-                  _SectionHeader(title: 'Event History'),
-                  const SizedBox(height: 12),
-                  DeviceEventHistory(device: device),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            BackButton(onPressed: () => context.pop()),
+            Expanded(
+              child: Text(
+                'Device Details',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
             ),
+            if (device != null)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) async {
+                  if (value == 'forget') {
+                    await confirmForgetDevice(context, device, _loadDevice);
+                  } else if (value == 'register') {
+                    await showRegisterDeviceDialog(
+                      context,
+                      device,
+                      _loadDevice,
+                    );
+                  }
+                },
+                itemBuilder: (context) => [
+                  if (device.isRegistered)
+                    const PopupMenuItem(value: 'forget', child: Text('Forget')),
+                  if (!device.isRegistered)
+                    const PopupMenuItem(
+                      value: 'register',
+                      child: Text('Register'),
+                    ),
+                ],
+              ),
+          ],
+        ),
+        Expanded(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Error: $_error'),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: _loadDevice,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : device == null
+              ? const Center(child: Text('Device not found'))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _DeviceHeader(device: device),
+                      const SizedBox(height: 24),
+                      _DeviceInfoCard(device: device),
+                      const SizedBox(height: 24),
+                      _SectionHeader(title: 'Event History'),
+                      const SizedBox(height: 12),
+                      DeviceEventHistory(device: device),
+                    ],
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }

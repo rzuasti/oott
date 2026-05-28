@@ -119,64 +119,64 @@ class _DeviceListState extends State<DeviceList> {
   @override
   Widget build(BuildContext context) {
     final formatter = FriendlyDateFormatter();
+    final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Devices'),
-        actions: [
-          Badge(
-            isLabelVisible: _hasActiveDetailFilters,
-            child: IconButton(
-              icon: const Icon(Icons.filter_list),
-              tooltip: 'Filter',
-              onPressed: () => _showFilterSheet(context),
-            ),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Wrap(
-                spacing: 8.0,
-                children: _DeviceFilter.values
-                    .map(
-                      (f) => ChoiceChip(
-                        label: Text(f.label),
-                        selected: _filter == f,
-                        onSelected: (_) {
-                          setState(() => _filter = f);
-                          _loadDevices();
-                        },
-                      ),
-                    )
-                    .toList(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text('Devices', style: textTheme.headlineSmall)),
+            Badge(
+              isLabelVisible: _hasActiveDetailFilters,
+              child: IconButton(
+                icon: const Icon(Icons.filter_list),
+                tooltip: 'Filter',
+                onPressed: () => _showFilterSheet(context),
               ),
             ),
+          ],
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Wrap(
+            spacing: 8.0,
+            children: _DeviceFilter.values
+                .map(
+                  (f) => ChoiceChip(
+                    label: Text(f.label),
+                    selected: _filter == f,
+                    onSelected: (_) {
+                      setState(() => _filter = f);
+                      _loadDevices();
+                    },
+                  ),
+                )
+                .toList(),
           ),
         ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(child: Text('Error: $_error'))
-          : _devices.isEmpty
-          ? Center(child: Text(_emptyMessage()))
-          : RefreshIndicator(
-              onRefresh: _loadDevices,
-              child: ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: _devices.length,
-                itemBuilder: (context, index) => _DeviceCard(
-                  device: _devices[index],
-                  formatter: formatter,
+        Expanded(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+              ? Center(child: Text('Error: $_error'))
+              : _devices.isEmpty
+              ? Center(child: Text(_emptyMessage()))
+              : RefreshIndicator(
                   onRefresh: _loadDevices,
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: _devices.length,
+                    itemBuilder: (context, index) => _DeviceCard(
+                      device: _devices[index],
+                      formatter: formatter,
+                      onRefresh: _loadDevices,
+                    ),
+                  ),
                 ),
-              ),
-            ),
+        ),
+      ],
     );
   }
 }
