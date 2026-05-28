@@ -1,3 +1,3 @@
 #!/bin/sh
 sudo rm -f oott.db
-cargo test -- --show-output
+sudo CARGO_HOME=$HOME/.cargo cargo test -- --show-output
