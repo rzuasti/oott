@@ -1,0 +1,380 @@
+#!/usr/bin/env python3
+"""
+update_mac_vendors
+
+Downloads the latest MAC vendor database from maclookup.app and regenerates
+the vendor-to-device-type mapping used by the backend for auto device classification.
+
+Outputs (relative to the script's own directory):
+  mac-vendors-export.json   - raw vendor database (replaces existing)
+  vendor-device-type.json   - vendor name -> device type mapping (non-unknown only)
+"""
+
+import html.parser
+import json
+import os
+import re
+import sys
+import urllib.request
+
+DOWNLOAD_PAGE = "https://maclookup.app/downloads/json-database"
+BASE_URL = "https://maclookup.app"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+VENDORS_FILE = os.path.join(SCRIPT_DIR, "mac-vendors-export.json")
+MAPPING_FILE = os.path.join(SCRIPT_DIR, "vendor-device-type.json")
+
+
+# ── HTML parser to extract the download link ──────────────────────────────────
+
+class _DownloadLinkParser(html.parser.HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.download_href = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "a" and self.download_href is None:
+            attrs_dict = dict(attrs)
+            href = attrs_dict.get("href", "")
+            if "/downloads/json-database/get-db" in href:
+                self.download_href = href
+
+
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    )
+}
+
+
+def _get_download_url() -> str:
+    print(f"Fetching download page: {DOWNLOAD_PAGE}")
+    req = urllib.request.Request(DOWNLOAD_PAGE, headers=_HEADERS)
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        html_body = resp.read().decode("utf-8", errors="replace")
+
+    parser = _DownloadLinkParser()
+    parser.feed(html_body)
+
+    if not parser.download_href:
+        print("ERROR: Could not find download link on the page.", file=sys.stderr)
+        sys.exit(1)
+
+    href = parser.download_href
+    if href.startswith("http"):
+        return href
+    return BASE_URL + href
+
+
+# ── Phase 1: download vendor database ────────────────────────────────────────
+
+def download_vendors():
+    url = _get_download_url()
+    print(f"Downloading vendor database from: {url}")
+    req = urllib.request.Request(url, headers=_HEADERS)
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        body = resp.read()
+
+    # Validate it is parseable JSON before overwriting
+    try:
+        records = json.loads(body)
+    except json.JSONDecodeError as exc:
+        print(f"ERROR: Downloaded data is not valid JSON: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    with open(VENDORS_FILE, "wb") as f:
+        f.write(body)
+
+    print(f"Saved {len(records)} vendor records to {VENDORS_FILE}")
+    return records
+
+
+# ── Phase 2: classify vendors and generate mapping ───────────────────────────
+
+# Brand rules: (compiled_regex, device_type)
+# Evaluated in order; first match wins.
+# Use word boundaries (\b) to avoid substring false-positives.
+_BRAND_RULES_RAW = [
+    # ── watch ──
+    ("watch",
+     r"\b(garmin|fitbit|fossil group|withings|polar electro|suunto|amazfit|huami)\b"),
+
+    # ── home_appliance ──
+    ("home_appliance",
+     r"\b(whirlpool|electrolux|miele|ge appliances|bosch (home|thermotechnology|siemens home))\b"),
+
+    # ── home_security ──
+    ("home_security",
+     r"\b(hikvision|prama hikvision|dahua|avigilon|hanwha|vivotek|mobotix|pelco|"
+     r"axis communications|amcrest|reolink|wyze|arlo|geovision|milestone systems|"
+     r"bosch security|dvtel|video insight)\b"),
+    ("home_security",
+     r"\bblink (services|by amazon)\b"),
+    ("home_security",
+     r"\bring (video doorbell|video|llc|inc\.?)\b"),
+
+    # ── printer ──
+    ("printer",
+     r"\b(canon|epson|brother industries|brother, brother|lexmark|ricoh|kyocera|"
+     r"konica minolta|xerox|bixolon|printronix|zebra technologies|datamax|oki data|"
+     r"toshiba tec)\b"),
+
+    # ── tv ──
+    ("tv",
+     r"\b(roku|tivo|vizio|skyworth|hisense|vestel)\b"),
+    # TCL Communications is a phone maker; other TCL entries are TVs
+    ("tv",
+     r"\btcl\b(?!.*communications)"),
+
+    # ── server ──
+    ("server",
+     r"\b(supermicro|hewlett packard enterprise|hp enterprise|dell emc|"
+     r"sun microsystems|oracle|netapp|synology|qnap|proxmox)\b"),
+    ("server",
+     r"\bibm\b"),
+
+    # ── tablet ──
+    ("tablet",
+     r"\bamazon (technologies|\.com|robotics)\b"),
+
+    # ── gaming_console ──
+    ("gaming_console",
+     r"\bnintendo\b"),
+    ("gaming_console",
+     r"\bsony (computer entertainment|interactive entertainment)\b"),
+
+    # ── phone ──
+    ("phone",
+     r"samsung electro"),                    # SAMSUNG ELECTRONICS, SAMSUNG ELECTRO-MECHANICS
+    ("phone",
+     r"\b(xiaomi|miui)\b"),
+    ("phone",
+     r"\boppo\b"),
+    ("phone",
+     r"\b(vivo mobile|bbk electronics)\b"),
+    ("phone",
+     r"\boneplus\b"),
+    ("phone",
+     r"\b(htc corporation|htc corp\.?)\b"),
+    ("phone",
+     r"\bblackberry\b"),
+    ("phone",
+     r"\b(motorola mobility|motorola, inc)\b"),
+    ("phone",
+     r"\blg electronics\b"),
+    ("phone",
+     r"\bmicrosoft mobile\b"),
+    ("phone",
+     r"\bgoogle,?\s*inc\.?\b"),              # Pixel phones
+    ("phone",
+     r"\btcl communication\b"),
+    ("phone",
+     r"\b(huawei device|huawei technologies co)\b"),
+    ("phone",
+     r"\bhmd global\b"),                     # Nokia phones
+    ("phone",
+     r"\b(realme|honor device|honor co\.|honor terminal)\b"),
+    ("phone",
+     r"\bapple,?\s*inc\.?\b"),               # iPhone is the most commonly detected Apple device
+
+    # ── laptop ──
+    ("laptop",
+     r"\bdell (inc\.?|computer|technologies)\b(?!.*emc)"),
+    ("laptop",
+     r"\blenovo\b"),
+    ("laptop",
+     r"\bacer\b"),
+    ("laptop",
+     r"\b(asustek|asus)\b"),
+    ("laptop",
+     r"\bmsi\b"),
+    ("laptop",
+     r"\bfujitsu\b"),
+    ("laptop",
+     r"\btoshiba\b(?!.*tec)"),
+    ("laptop",
+     r"\bnec (corporation|computers|personal|corp\.?)\b"),
+    ("laptop",
+     r"\brazer inc\.?\b"),
+    ("laptop",
+     r"\bmicrosoft (corporation|corp\.?)\b"),   # Surface devices
+
+    # ── pc ──
+    ("pc",
+     r"\bintel (corporation|corp\.?|, inc\.?)\b"),
+    ("pc",
+     r"\bgigabyte technology\b"),
+
+    # ── network_appliance ──
+    ("network_appliance",
+     r"\b(cisco|meraki)\b"),
+    ("network_appliance",
+     r"\bjuniper\b"),
+    ("network_appliance",
+     r"\baruba\b"),
+    ("network_appliance",
+     r"\b(ubiquiti|ubnt)\b"),
+    ("network_appliance",
+     r"\b(mikrotik|routerboard)\b"),
+    ("network_appliance",
+     r"\bfortinet\b"),
+    ("network_appliance",
+     r"\bsonicwall\b"),
+    ("network_appliance",
+     r"\barista networks\b"),
+    ("network_appliance",
+     r"\bnetgear\b"),
+    ("network_appliance",
+     r"\btp.?link\b"),
+    ("network_appliance",
+     r"\bd.?link\b"),
+    ("network_appliance",
+     r"\bzyxel\b"),
+    ("network_appliance",
+     r"\blinksys\b"),
+    ("network_appliance",
+     r"\belkin,?\s*inc\.?\b"),
+    ("network_appliance",
+     r"\bruckus\b"),
+    ("network_appliance",
+     r"\b(aerohive|aero hive)\b"),
+    ("network_appliance",
+     r"\bcradlepoint\b"),
+    ("network_appliance",
+     r"\b(peplink|pepwave)\b"),
+    ("network_appliance",
+     r"\bcambium networks\b"),
+    ("network_appliance",
+     r"\bengenius\b"),
+    ("network_appliance",
+     r"\bwatchguard\b"),
+    ("network_appliance",
+     r"\bbarracuda networks\b"),
+    ("network_appliance",
+     r"\b(check point|checkpoint)\b"),
+    ("network_appliance",
+     r"\bpalo alto networks\b"),
+    ("network_appliance",
+     r"\bextreme networks\b"),
+    ("network_appliance",
+     r"\bedgecore\b"),
+    ("network_appliance",
+     r"\badtran\b"),
+    ("network_appliance",
+     r"\bcalix\b"),
+    ("network_appliance",
+     r"\bciena\b"),
+    ("network_appliance",
+     r"\bopengear\b"),
+    ("network_appliance",
+     r"\b2wire\b"),
+    ("network_appliance",
+     r"\bactiontec\b"),
+    ("network_appliance",
+     r"\btenda (technology|network)\b"),
+    ("network_appliance",
+     r"\b(buffalo\.?inc|melco holdings)\b"),
+    ("network_appliance",
+     r"\bhuawei\b"),                          # primarily networking gear in enterprise
+    ("network_appliance",
+     r"\bzte corporation\b"),
+    ("network_appliance",
+     r"\bnokia\b"),
+    ("network_appliance",
+     r"\bericsson\b"),
+    ("network_appliance",
+     r"\bat&t\b"),
+    ("network_appliance",
+     r"\badva optical\b"),
+    ("network_appliance",
+     r"\beero\b"),
+    ("network_appliance",
+     r"\bsagecom\b"),
+    ("network_appliance",
+     r"\bcomtrend\b"),
+]
+
+# Keyword fallback rules: (compiled_regex, device_type)
+_KEYWORD_RULES_RAW = [
+    ("watch",           r"\b(smartwatch|fitness tracker|wearable)\b"),
+    ("home_appliance",  r"\b(refrigerator|dishwasher|home appliance|oven|microwave)\b"),
+    ("home_appliance",  r"\b(washer|dryer)\b(?!.*hair)"),   # exclude hair dryer edge cases
+    ("home_security",   r"\b(cctv|ip.?camera|surveillance camera|doorbell camera|ptz camera|security camera)\b"),
+    ("printer",         r"\b(printer|scanner|copier|plotter|label print|receipt print)\b"),
+    ("tv",              r"\b(smart tv|television|set.?top.?box|iptv|streaming device|media player)\b"),
+    ("server",          r"\b(rack server|blade server|data center)\b"),
+    ("tablet",          r"\b(tablet|e.?reader|kindle)\b"),
+    ("gaming_console",  r"\b(gaming console|game console)\b"),
+    ("phone",           r"\b(smartphone|mobile phone|mobile handset|cell phone)\b"),
+    ("laptop",          r"\b(laptop|notebook computer)\b"),
+    ("pc",              r"\b(desktop computer|personal computer)\b"),
+    ("network_appliance",
+     r"\b(wireless access point|wifi access point|wlan controller|network switch|"
+     r"ethernet switch|managed switch|wifi router|wireless router|network router|"
+     r"firewall|vpn concentrator|broadband router|cable modem|dsl modem|"
+     r"fiber gateway|optical network terminal)\b"),
+]
+
+_BRAND_RULES = [
+    (re.compile(pat, re.IGNORECASE), dt)
+    for dt, pat in _BRAND_RULES_RAW
+]
+_KEYWORD_RULES = [
+    (re.compile(pat, re.IGNORECASE), dt)
+    for dt, pat in _KEYWORD_RULES_RAW
+]
+
+
+def _classify(vendor_name: str) -> str:
+    for pattern, device_type in _BRAND_RULES:
+        if pattern.search(vendor_name):
+            return device_type
+    for pattern, device_type in _KEYWORD_RULES:
+        if pattern.search(vendor_name):
+            return device_type
+    return "unknown"
+
+
+def generate_mapping(records: list) -> dict:
+    vendors = sorted({r["vendorName"] for r in records if "vendorName" in r})
+    print(f"Classifying {len(vendors)} unique vendor names...")
+
+    mapping = {}
+    counts: dict[str, int] = {}
+    for vendor in vendors:
+        dt = _classify(vendor)
+        counts[dt] = counts.get(dt, 0) + 1
+        if dt != "unknown":
+            mapping[vendor] = dt
+
+    print("Classification summary:")
+    for dt, n in sorted(counts.items(), key=lambda x: -x[1]):
+        print(f"  {dt}: {n}")
+    print(f"Classified (non-unknown) entries: {len(mapping)}")
+
+    return mapping
+
+
+def save_mapping(mapping: dict):
+    with open(MAPPING_FILE, "w", encoding="utf-8") as f:
+        json.dump(mapping, f, indent=2, ensure_ascii=False, sort_keys=True)
+    print(f"Saved mapping to {MAPPING_FILE}")
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+def main():
+    print("=== Phase 1: Download vendor database ===")
+    records = download_vendors()
+
+    print()
+    print("=== Phase 2: Generate device-type mapping ===")
+    mapping = generate_mapping(records)
+    save_mapping(mapping)
+
+    print()
+    print("Done. Remember to recompile the backend to pick up the updated vendor database.")
+
+
+if __name__ == "__main__":
+    main()
