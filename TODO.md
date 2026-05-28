@@ -17,7 +17,7 @@
 - [x] Add a detail device page with access from notifications and devices lists
 - [x] Extract the device type as an enum (idem Notification) and with Icon getter too
 - [x] Extract the confirmForget and showRegisterDialog methods from both device pages
-- [ ] In the devices list add filters by owner and device type
+- [x] In the devices list add filters by owner and device type
 - [ ] View detailed log of device activity (based on event log in the backend)
 - [ ] Scan process monitor and summary page
   - [ ] Is the scan process running
