@@ -5,13 +5,14 @@ use std::error::Error;
 use std::time::Duration;
 
 use crate::db;
+use crate::model::device_events::{DeviceEvent, DeviceEventType};
 use crate::model::devices::Device;
 use crate::model::notifications::Notification;
 use crate::model::notifications::NotificationType;
 use crate::settings::get_settings;
 use chrono::{Local, Utc};
 use duration_string::DurationString;
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 
 // Private helper function to deliver messages
 fn send_notification(notification: Notification) -> Result<(), Box<dyn Error>> {
@@ -34,6 +35,17 @@ fn send_notification(notification: Notification) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn trigger_new_device(device: Device) -> Result<(), Box<dyn Error>> {
+    let event = DeviceEvent::new(
+        device.mac_address.clone(),
+        Utc::now(),
+        DeviceEventType::NewDevice,
+        device.ipv4_address.clone(),
+        device.vendor.clone(),
+    );
+    if let Err(err) = db::device_events::insert(event) {
+        error!("Failed to record device event for {}: {}", device.mac_address, err);
+    }
+
     let notification = Notification::new(
         Utc::now(),
         NotificationType::NewDeviceFound,
@@ -54,6 +66,17 @@ pub fn trigger_existing_device(
     existing_device: Device,
     new_device: Device,
 ) -> Result<(), Box<dyn Error>> {
+    let event = DeviceEvent::new(
+        new_device.mac_address.clone(),
+        Utc::now(),
+        DeviceEventType::DeviceSeen,
+        new_device.ipv4_address.clone(),
+        new_device.vendor.clone(),
+    );
+    if let Err(err) = db::device_events::insert(event) {
+        error!("Failed to record device event for {}: {}", new_device.mac_address, err);
+    }
+
     // Notify if the device comes back online after not being seen for the configured period
     let elapsed_since_last_seen: Duration = (Local::now().to_utc() - existing_device.last_seen)
         .to_std()

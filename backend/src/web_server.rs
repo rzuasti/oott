@@ -1,5 +1,6 @@
 use std::error::Error;
 
+use crate::model::device_events::{DeviceEvent, DeviceEventType};
 use crate::model::devices::Device;
 use crate::model::notifications::{Notification, NotificationType};
 use crate::settings::get_settings;
@@ -20,6 +21,7 @@ use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::Modify;
 use utoipa_swagger_ui::SwaggerUi;
 
+pub mod device_events;
 pub mod devices;
 pub mod notifications;
 pub mod utils;
@@ -42,17 +44,21 @@ pub mod utils;
         notifications::read_without_flagging,
         notifications::mark_as_new,
         notifications::mark_all_as_old,
+        device_events::list,
     ),
     components(schemas(
         Device,
         Notification,
         NotificationType,
         RegisterDevicePayload,
+        DeviceEvent,
+        DeviceEventType,
     )),
     modifiers(&SecurityAddon),
     tags(
         (name = "devices", description = "Device management"),
         (name = "notifications", description = "Notification management"),
+        (name = "device_events", description = "Device event history"),
     )
 )]
 struct ApiDoc;
@@ -94,6 +100,7 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .route("/api/devices", put(devices::register))
         .route("/api/devices/{mac_address}", delete(devices::unregister))
         .route("/api/devices/{mac_address}", get(devices::read))
+        .route("/api/devices/{mac_address}/events", get(device_events::list))
         .route("/api/notifications", get(notifications::list))
         .route(
             "/api/notifications/mark_all_as_old",
