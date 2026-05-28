@@ -6,6 +6,7 @@ mod db;
 mod device_finders;
 mod events;
 mod mac_vendor_finder;
+mod vendor_device_type_finder;
 mod model;
 mod retention;
 mod scanner;

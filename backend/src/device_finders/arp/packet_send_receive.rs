@@ -1,4 +1,5 @@
 use crate::mac_vendor_finder;
+use crate::vendor_device_type_finder;
 use crate::model::devices::Device;
 use chrono::Local;
 use duration_string::DurationString;
@@ -106,12 +107,14 @@ pub async fn listen_for_packets(
                         "Found online  device - IP addr={} - MAC addr={} - vendor={}",
                         packet_ip_address, packet_mac_address, packet_vendor
                     );
-                    devices.push(Device::new(
+                    let mut device = Device::new(
                         packet_mac_address,
                         packet_ip_address,
                         packet_vendor,
                         Local::now().to_utc(),
-                    ));
+                    );
+                    device.device_type = vendor_device_type_finder::find(&device.vendor);
+                    devices.push(device);
                 }
             }
         }

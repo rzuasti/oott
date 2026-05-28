@@ -8,7 +8,7 @@
 - [x] Record an activity log in the database
   - [x] One event for each device appearance
 - [x] Add date filter to device event list method (from)
-- [ ] Add a data set (json) to store maps from vendors -> device type; modify the device creation so that it uses it automatically
+- [x] Add a data set (json) to store maps from vendors -> device type; modify the device creation so that it uses it automatically
 
 ## Frontend
 
