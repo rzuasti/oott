@@ -70,7 +70,7 @@ class DeviceEventHistory extends StatefulWidget {
 }
 
 class _DeviceEventHistoryState extends State<DeviceEventHistory> {
-  List<DeviceEvent>? _allEvents;
+  List<DeviceEvent>? _events;
   bool _isLoading = true;
   String? _error;
   _TimeRange _selectedRange = _TimeRange.lastWeek;
@@ -89,10 +89,11 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
     try {
       final events = await BackendAPI.instance.getDeviceEvents(
         widget.device.macAddress,
+        createdFrom: _selectedRange.cutoff,
       );
       if (!mounted) return;
       setState(() {
-        _allEvents = events;
+        _events = events;
         _isLoading = false;
       });
     } catch (e) {
@@ -102,12 +103,6 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
         _isLoading = false;
       });
     }
-  }
-
-  List<DeviceEvent> get _filteredEvents {
-    if (_allEvents == null) return [];
-    final cutoff = _selectedRange.cutoff;
-    return _allEvents!.where((e) => e.createdOn.isAfter(cutoff)).toList();
   }
 
   @override
@@ -126,7 +121,7 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
       );
     }
 
-    final events = _filteredEvents;
+    final events = _events ?? [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,6 +138,7 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
             selected: {_selectedRange},
             onSelectionChanged: (selection) {
               setState(() => _selectedRange = selection.first);
+              _loadEvents();
             },
           ),
         ),

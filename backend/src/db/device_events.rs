@@ -13,7 +13,7 @@ pub fn insert(event: DeviceEvent) -> Result<i64, DbError> {
         "INSERT INTO device_events (mac_address, created_on, event_type, ipv4_address, vendor) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![
             event.mac_address,
-            event.created_on,
+            event.created_on.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false),
             event.event_type,
             event.ipv4_address,
             event.vendor
@@ -92,7 +92,7 @@ pub fn purge_older_than(cutoff: DateTime<Utc>) -> Result<usize, DbError> {
 
     match conn.execute(
         "DELETE FROM device_events WHERE created_on < ?1",
-        params![cutoff],
+        params![cutoff.to_rfc3339()],
     ) {
         Ok(count) => {
             debug!("Purged {} device event(s) older than {}", count, cutoff);

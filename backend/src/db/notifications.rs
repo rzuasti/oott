@@ -67,7 +67,7 @@ pub fn insert(notification: Notification) -> Result<i64, DbError> {
 
     match conn.execute(
             "INSERT INTO notifications (created_on, notification_type, title, body, is_new, mac_address) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![notification.created_on, notification.notification_type, notification.title, notification.body, notification.is_new, notification.mac_address]) {
+            params![notification.created_on.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false), notification.notification_type, notification.title, notification.body, notification.is_new, notification.mac_address]) {
                 Ok(_) => {
                     debug!("Notification inserted into database: {}", notification);
                     Ok(conn.last_insert_rowid())
@@ -129,7 +129,7 @@ pub fn purge_older_than(cutoff: DateTime<Utc>) -> Result<usize, DbError> {
 
     match conn.execute(
         "DELETE FROM notifications WHERE created_on < ?1",
-        params![cutoff],
+        params![cutoff.to_rfc3339()],
     ) {
         Ok(count) => {
             debug!("Purged {} notification(s) older than {}", count, cutoff);

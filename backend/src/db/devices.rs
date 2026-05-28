@@ -27,30 +27,14 @@ pub fn list_devices(
         params.push(is_registered.into());
     };
     if let Some(last_seen_from) = last_seen_from {
-        debug!(
-            "Adding filter last_seen>={}",
-            last_seen_from.format("%Y-%m-%d %H:%M:%S")
-        );
+        debug!("Adding filter last_seen>={}", last_seen_from.to_rfc3339());
         sql_statement.push_str("AND last_seen>=? ");
-        params.push(
-            last_seen_from
-                .format("%Y-%m-%d %H:%M:%S")
-                .to_string()
-                .into(),
-        );
+        params.push(last_seen_from.to_rfc3339().into());
     };
     if let Some(last_seen_to) = last_seen_to {
-        debug!(
-            "Adding filter last_seen<={}",
-            last_seen_to.format("%Y-%m-%d %H:%M:%S")
-        );
+        debug!("Adding filter last_seen<={}", last_seen_to.to_rfc3339());
         sql_statement.push_str("AND last_seen<=? ");
-        params.push(
-            last_seen_to
-                .format("%Y-%m-%d %H:%M:%S")
-                .to_string()
-                .into(),
-        );
+        params.push(last_seen_to.to_rfc3339().into());
     };
     if let Some(owner) = owner {
         debug!("Adding filter owner={}", owner);
@@ -126,7 +110,7 @@ pub fn insert(device: Device) -> Result<(), DbError> {
 
     match conn.execute(
         "INSERT INTO devices (mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![device.mac_address, device.ipv4_address, device.vendor, device.last_seen, device.is_registered, device.owner, device.device_type]) {
+        params![device.mac_address, device.ipv4_address, device.vendor, device.last_seen.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false), device.is_registered, device.owner, device.device_type]) {
             Ok(_) => {
                 debug!("Device inserted into database: {}", device);
                 Ok(())
@@ -145,7 +129,7 @@ pub fn update(device: Device) -> Result<(), DbError> {
         params![
             device.ipv4_address,
             device.vendor,
-            device.last_seen,
+            device.last_seen.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false),
             device.is_registered,
             device.owner,
             device.device_type,

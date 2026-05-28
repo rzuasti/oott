@@ -137,9 +137,19 @@ class BackendAPI {
     await _dio.delete('/devices/$macAddress');
   }
 
-  Future<List<DeviceEvent>> getDeviceEvents(String macAddress) async {
+  Future<List<DeviceEvent>> getDeviceEvents(
+    String macAddress, {
+    DateTime? createdFrom,
+  }) async {
     debugPrint('About to call GET /devices/$macAddress/events');
-    final response = await _dio.get('/devices/$macAddress/events');
+    final queryParams = <String, dynamic>{};
+    if (createdFrom != null) {
+      queryParams['created_from'] = createdFrom.toUtc().toIso8601String();
+    }
+    final response = await _dio.get(
+      '/devices/$macAddress/events',
+      queryParameters: queryParams.isEmpty ? null : queryParams,
+    );
     debugPrint('Received: ${response.data}');
     return (response.data as List)
         .map((item) => DeviceEvent.fromJson(item as Map<String, dynamic>))
