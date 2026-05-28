@@ -80,16 +80,16 @@ pub async fn find(interface: String) -> Result<Vec<Device>, Box<dyn std::error::
     let send_interface = network_interface.clone();
 
     // Get timeouts
-    let sender_timeout: Duration = get_settings().timings.arp_sender_timeout.into();
+    let sender_timeout: Duration = get_settings().arp_scanner.sender_timeout.into();
     info!(
         "Sender timeout set to {}",
-        get_settings().timings.arp_sender_timeout
+        get_settings().arp_scanner.sender_timeout
     );
-    let scan_duration: Duration = get_settings().timings.arp_scan_duration.into();
+    let scan_duration: Duration = get_settings().arp_scanner.scan_duration.into();
     let receiver_timeout: Duration = scan_duration * 2;
     info!(
         "Scan duration set to {}",
-        get_settings().timings.arp_scan_duration
+        get_settings().arp_scanner.scan_duration
     );
     info!(
         "Receiver timeout set to {}",

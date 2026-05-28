@@ -2,6 +2,8 @@ use crate::settings::get_settings;
 use clap::Parser;
 use log::{LevelFilter, info};
 
+mod arp_scanner;
+mod arp_scanner_status;
 mod db;
 mod device_finders;
 mod events;
@@ -9,7 +11,6 @@ mod mac_vendor_finder;
 mod vendor_device_type_finder;
 mod model;
 mod retention;
-mod scanner;
 mod settings;
 mod utils;
 mod web_server;
@@ -58,6 +59,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize database
     db::init_db().await?;
 
+    // Initialize ARP scanner status tracking
+    arp_scanner_status::init();
+
     // Start the device scanner, web server, and retention cleaner in parallel
-    tokio::join!(scanner::scan(), web_server::serve(), retention::run()).0
+    tokio::join!(arp_scanner::scan(), web_server::serve(), retention::run()).0
 }

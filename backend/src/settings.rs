@@ -22,10 +22,10 @@ pub struct Log {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Timings {
+pub struct ArpScanner {
     pub wait_between_scans: DurationString,
-    pub arp_sender_timeout: DurationString,
-    pub arp_scan_duration: DurationString,
+    pub sender_timeout: DurationString,
+    pub scan_duration: DurationString,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -66,7 +66,7 @@ pub struct Settings {
     pub database: Database,
     pub networking: Networking,
     pub log: Log,
-    pub timings: Timings,
+    pub arp_scanner: ArpScanner,
     pub notifications: Notifications,
     pub web_server: WebServer,
     #[serde(default)]

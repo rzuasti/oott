@@ -4,6 +4,7 @@ use crate::model::device_events::{DeviceEvent, DeviceEventType};
 use crate::model::devices::Device;
 use crate::model::notifications::{Notification, NotificationType};
 use crate::settings::get_settings;
+use crate::web_server::arp_scanner::ArpScannerStatusResponse;
 use crate::web_server::devices::RegisterDevicePayload;
 use axum::extract::Request;
 use axum::http::StatusCode;
@@ -21,6 +22,7 @@ use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::Modify;
 use utoipa_swagger_ui::SwaggerUi;
 
+pub mod arp_scanner;
 pub mod device_events;
 pub mod devices;
 pub mod notifications;
@@ -45,6 +47,7 @@ pub mod utils;
         notifications::mark_as_new,
         notifications::mark_all_as_old,
         device_events::list,
+        arp_scanner::status,
     ),
     components(schemas(
         Device,
@@ -53,12 +56,14 @@ pub mod utils;
         RegisterDevicePayload,
         DeviceEvent,
         DeviceEventType,
+        ArpScannerStatusResponse,
     )),
     modifiers(&SecurityAddon),
     tags(
         (name = "devices", description = "Device management"),
         (name = "notifications", description = "Notification management"),
         (name = "device_events", description = "Device event history"),
+        (name = "arp_scanner", description = "ARP scanner process status"),
     )
 )]
 struct ApiDoc;
@@ -101,6 +106,7 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .route("/api/devices/{mac_address}", delete(devices::unregister))
         .route("/api/devices/{mac_address}", get(devices::read))
         .route("/api/devices/{mac_address}/events", get(device_events::list))
+        .route("/api/arp_scanner/status", get(arp_scanner::status))
         .route("/api/notifications", get(notifications::list))
         .route(
             "/api/notifications/mark_all_as_old",

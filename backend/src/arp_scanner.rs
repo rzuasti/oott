@@ -1,12 +1,16 @@
+use crate::arp_scanner_status;
 use crate::db;
 use crate::device_finders;
 use crate::events;
 use crate::settings::get_settings;
+use chrono::Utc;
 use log::{debug, info};
 use tokio::time::{Duration, sleep};
 
 pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
     loop {
+        arp_scanner_status::set_running();
+
         // Find online devices via ARP
         let devices =
             device_finders::arp::find(get_settings().networking.interface.to_string()).await?;
@@ -43,10 +47,14 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
         }
+
+        let wait = Duration::from(get_settings().arp_scanner.wait_between_scans);
+        let next_scan_at = Utc::now() + chrono::Duration::from_std(wait).unwrap();
         info!(
             "Scan finished. Sleeping for {}",
-            get_settings().timings.wait_between_scans
+            get_settings().arp_scanner.wait_between_scans
         );
-        sleep(Duration::from(get_settings().timings.wait_between_scans)).await;
+        arp_scanner_status::set_waiting(next_scan_at);
+        sleep(wait).await;
     }
 }
