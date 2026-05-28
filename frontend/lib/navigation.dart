@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/settings/settings.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'devices/device_detail.dart';
 import 'devices/device_list.dart';
 import 'notifications/notification_list.dart';
@@ -65,7 +66,21 @@ class MainShell extends StatelessWidget {
       builder: (context, constraints) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('OOTT'),
+            title: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'OOTT',
+                style: GoogleFonts.barlowCondensed(
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 26,
+                ),
+              ),
+            ),
             backgroundColor: Theme.of(
               context,
             ).colorScheme.surfaceContainerLowest,
