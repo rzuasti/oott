@@ -122,19 +122,18 @@ class _NotificationListState extends State<NotificationList> {
                 tooltip: 'Mark all as read',
               ),
           ],
-        ),
-        body: CustomScrollView(
-          slivers: [
-            // Filters go here
-            SliverToBoxAdapter(
-              child: Container(
-                height: 50,
-                alignment: Alignment.centerRight,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(48),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 child: Wrap(
                   spacing: 8.0,
                   children: [
                     ChoiceChip(
-                      label: Text('New'),
+                      label: const Text('New'),
                       selected: _filterChoice == 1,
                       onSelected: (bool selected) {
                         _filterChoice = 1;
@@ -142,7 +141,7 @@ class _NotificationListState extends State<NotificationList> {
                       },
                     ),
                     ChoiceChip(
-                      label: Text('Old'),
+                      label: const Text('Old'),
                       selected: _filterChoice == 2,
                       onSelected: (bool selected) {
                         _filterChoice = 2;
@@ -150,7 +149,7 @@ class _NotificationListState extends State<NotificationList> {
                       },
                     ),
                     ChoiceChip(
-                      label: Text('All'),
+                      label: const Text('All'),
                       selected: _filterChoice == 3,
                       onSelected: (bool selected) {
                         _filterChoice = 3;
@@ -161,6 +160,10 @@ class _NotificationListState extends State<NotificationList> {
                 ),
               ),
             ),
+          ),
+        ),
+        body: CustomScrollView(
+          slivers: [
             PagedSliverList<int, oott_model.Notification>(
               state: state,
               fetchNextPage: fetchNextPage,

@@ -87,120 +87,152 @@ class _DeviceListState extends State<DeviceList> {
     }
   }
 
+  bool get _hasActiveDetailFilters =>
+      _ownerController.text.isNotEmpty || _typeFilter != null;
+
+  void _showFilterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 24,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Filters', style: Theme.of(sheetContext).textTheme.titleMedium),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _ownerController,
+                decoration: const InputDecoration(
+                  labelText: 'Owner',
+                  prefixIcon: Icon(Icons.person_outline),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<DeviceType?>(
+                initialValue: _typeFilter,
+                decoration: const InputDecoration(
+                  labelText: 'Type',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('All types')),
+                  ...DeviceType.values.map(
+                    (t) => DropdownMenuItem(
+                      value: t,
+                      child: Row(
+                        children: [
+                          Icon(t.icon, size: 16),
+                          const SizedBox(width: 4),
+                          Text(t.label),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() => _typeFilter = value);
+                  _loadDevices();
+                },
+              ),
+              const SizedBox(height: 16),
+              if (_hasActiveDetailFilters)
+                OutlinedButton(
+                  onPressed: () {
+                    setState(() {
+                      _ownerController.clear();
+                      _typeFilter = null;
+                    });
+                    _loadDevices();
+                    Navigator.of(sheetContext).pop();
+                  },
+                  child: const Text('Clear filters'),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final formatter = FriendlyDateFormatter();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Devices')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Wrap(
-                    spacing: 8.0,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('Not registered'),
-                        selected: _filter == _DeviceFilter.newDevices,
-                        onSelected: (bool selected) {
-                          setState(() => _filter = _DeviceFilter.newDevices);
-                          _loadDevices();
-                        },
-                      ),
-                      ChoiceChip(
-                        label: const Text('Registered'),
-                        selected: _filter == _DeviceFilter.registered,
-                        onSelected: (bool selected) {
-                          setState(() => _filter = _DeviceFilter.registered);
-                          _loadDevices();
-                        },
-                      ),
-                      ChoiceChip(
-                        label: const Text('All'),
-                        selected: _filter == _DeviceFilter.all,
-                        onSelected: (bool selected) {
-                          setState(() => _filter = _DeviceFilter.all);
-                          _loadDevices();
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        controller: _ownerController,
-                        decoration: const InputDecoration(
-                          labelText: 'Owner',
-                          prefixIcon: Icon(Icons.person_outline),
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: DropdownButtonFormField<DeviceType?>(
-                        initialValue: _typeFilter,
-                        decoration: const InputDecoration(
-                          labelText: 'Type',
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
-                        items: [
-                          const DropdownMenuItem(
-                            value: null,
-                            child: Text('All'),
-                          ),
-                          ...DeviceType.values.map(
-                            (t) => DropdownMenuItem(
-                              value: t,
-                              child: Row(
-                                children: [
-                                  Icon(t.icon, size: 16),
-                                  const SizedBox(width: 4),
-                                  Text(t.label),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _typeFilter = value);
-                          _loadDevices();
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-              ],
+      appBar: AppBar(
+        title: const Text('Devices'),
+        actions: [
+          Badge(
+            isLabelVisible: _hasActiveDetailFilters,
+            child: IconButton(
+              icon: const Icon(Icons.filter_list),
+              tooltip: 'Filter',
+              onPressed: () => _showFilterSheet(context),
             ),
           ),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                ? Center(child: Text('Error: $_error'))
-                : _devices.isEmpty
-                ? Center(child: Text(_emptyMessage()))
-                : RefreshIndicator(
-                    onRefresh: _loadDevices,
-                    child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: _devices.length,
-                      itemBuilder: (context, index) {
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Wrap(
+                spacing: 8.0,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Not registered'),
+                    selected: _filter == _DeviceFilter.newDevices,
+                    onSelected: (bool selected) {
+                      setState(() => _filter = _DeviceFilter.newDevices);
+                      _loadDevices();
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Registered'),
+                    selected: _filter == _DeviceFilter.registered,
+                    onSelected: (bool selected) {
+                      setState(() => _filter = _DeviceFilter.registered);
+                      _loadDevices();
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('All'),
+                    selected: _filter == _DeviceFilter.all,
+                    onSelected: (bool selected) {
+                      setState(() => _filter = _DeviceFilter.all);
+                      _loadDevices();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(child: Text('Error: $_error'))
+          : _devices.isEmpty
+          ? Center(child: Text(_emptyMessage()))
+          : RefreshIndicator(
+              onRefresh: _loadDevices,
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: _devices.length,
+                itemBuilder: (context, index) {
                         final device = _devices[index];
                         return Card(
                           color: device.isRegistered
@@ -277,9 +309,6 @@ class _DeviceListState extends State<DeviceList> {
                       },
                     ),
                   ),
-          ),
-        ],
-      ),
     );
   }
 }
