@@ -24,6 +24,7 @@
 - [x] Use date filter from backend API for device events list
 - [x] Use favicon in web frontend
 - [x] Style app title like favicon (font Barlow Condensed in a pill format with "primary" background)
+- [ ] Update the device type management to consider the following list: phone, laptop, tablet, server, tv, printer, network_appliance (router, switch, firewall, etc.), home_security (camera, doorbell, etc.), home_appliance (fridge, dish washer, washer, dryer, etc.), watch, pc, gaming_console, unknown (use when a vendor cannot be clearly identified with any of the device types or a device is of a vendor not in the vendors json file)
 - [ ] Change the unkown device icon (maybe just a question mark)
 - [ ] Scan process monitor and summary page
   - [ ] Is the scan process running
