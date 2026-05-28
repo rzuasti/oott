@@ -24,3 +24,6 @@ user_key="" # User key goes here, this is the account wide code for pushover
 ip_address="0.0.0.0" # IP to bind the web server for the API and web UI to, use 0.0.0.0 to bind it to all interfaces
 port=3000 # Port to listen on
 api_key="CHANGE_ME" # API Key to use the system's API, change this!
+
+[retention]
+window="365d" # How long to keep device events and notifications. Records older than this are deleted daily. Supports: d (days), w (weeks), h (hours), m (minutes)

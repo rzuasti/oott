@@ -1,5 +1,6 @@
 use crate::db;
 use crate::db::error::DbError;
+use chrono::{DateTime, Utc};
 use log::{debug, error};
 use rusqlite::{params, params_from_iter};
 
@@ -49,7 +50,7 @@ pub fn list(
         params.push(mac.into());
     }
 
-    sql_statement.push_str(" ORDER BY created_on DESC");
+    sql_statement.push_str(" ORDER BY created_on DESC, id DESC");
 
     if let (Some(page_offset), Some(page_limit)) = (page_offset, page_limit) {
         debug!(
@@ -77,6 +78,24 @@ pub fn list(
         .collect::<Result<_, _>>()?;
 
     Ok(events)
+}
+
+pub fn purge_older_than(cutoff: DateTime<Utc>) -> Result<usize, DbError> {
+    let conn = db::get_db_connection();
+
+    match conn.execute(
+        "DELETE FROM device_events WHERE created_on < ?1",
+        params![cutoff],
+    ) {
+        Ok(count) => {
+            debug!("Purged {} device event(s) older than {}", count, cutoff);
+            Ok(count)
+        }
+        Err(error) => {
+            error!("Error purging old device events: {error}");
+            Err(DbError::from(error))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -199,17 +218,79 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_purge_older_than() {
+        tests_common::setup().await;
+
+        let mac = "ee:ee:ee:ee:ee:ee".to_string();
+        let old_id = insert(DeviceEvent::new(
+            mac.clone(),
+            chrono::DateTime::parse_from_rfc3339("2020-01-01T00:00:00+00:00")
+                .unwrap()
+                .into(),
+            DeviceEventType::NewDevice,
+            "10.0.0.200".to_string(),
+            "Old Vendor".to_string(),
+        ))
+        .unwrap();
+
+        let recent_id = insert(DeviceEvent::new(
+            mac.clone(),
+            Utc::now(),
+            DeviceEventType::DeviceSeen,
+            "10.0.0.200".to_string(),
+            "Old Vendor".to_string(),
+        ))
+        .unwrap();
+
+        let cutoff = Utc::now() - chrono::TimeDelta::days(365);
+        let purged = purge_older_than(cutoff).unwrap();
+
+        assert!(purged >= 1, "At least 1 device event should have been purged");
+        assert!(read(old_id).is_none(), "Old device event should have been purged");
+        assert!(read(recent_id).is_some(), "Recent device event should not have been purged");
+    }
+
+    #[tokio::test]
     async fn test_list_pagination() {
         tests_common::setup().await;
 
-        let first_page = list(None, Some(0), Some(2)).unwrap();
+        let mac = "cc:cc:cc:cc:cc:cc".to_string();
+        insert(DeviceEvent::new(
+            mac.clone(),
+            chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+                .unwrap()
+                .into(),
+            DeviceEventType::NewDevice,
+            "10.0.0.1".to_string(),
+            "Vendor C".to_string(),
+        ))
+        .unwrap();
+        insert(DeviceEvent::new(
+            mac.clone(),
+            chrono::DateTime::parse_from_rfc3339("2026-02-01T00:00:00Z")
+                .unwrap()
+                .into(),
+            DeviceEventType::DeviceSeen,
+            "10.0.0.1".to_string(),
+            "Vendor C".to_string(),
+        ))
+        .unwrap();
+        insert(DeviceEvent::new(
+            mac.clone(),
+            chrono::DateTime::parse_from_rfc3339("2026-03-01T00:00:00Z")
+                .unwrap()
+                .into(),
+            DeviceEventType::DeviceSeen,
+            "10.0.0.1".to_string(),
+            "Vendor C".to_string(),
+        ))
+        .unwrap();
+
+        let first_page = list(Some(mac.clone()), Some(0), Some(2)).unwrap();
         assert_eq!(first_page.len(), 2, "First page should have 2 events");
 
-        let second_page = list(None, Some(2), Some(2)).unwrap();
-        assert!(
-            second_page.len() >= 1,
-            "Second page should have at least 1 event"
-        );
+        let second_page = list(Some(mac.clone()), Some(2), Some(2)).unwrap();
+        assert_eq!(second_page.len(), 1, "Second page should have 1 event");
 
         let first_ids: Vec<i64> = first_page.iter().map(|e| e.id).collect();
         for event in &second_page {

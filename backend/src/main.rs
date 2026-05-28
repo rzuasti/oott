@@ -7,6 +7,7 @@ mod device_finders;
 mod events;
 mod mac_vendor_finder;
 mod model;
+mod retention;
 mod scanner;
 mod settings;
 mod utils;
@@ -56,6 +57,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize database
     db::init_db().await?;
 
-    // Start the device scanner and web server (for API and UI) in parallel
-    tokio::join!(scanner::scan(), web_server::serve()).0
+    // Start the device scanner, web server, and retention cleaner in parallel
+    tokio::join!(scanner::scan(), web_server::serve(), retention::run()).0
 }

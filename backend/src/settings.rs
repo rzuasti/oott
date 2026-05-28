@@ -49,6 +49,19 @@ pub struct WebServer {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct Retention {
+    pub window: DurationString,
+}
+
+impl Default for Retention {
+    fn default() -> Self {
+        Retention {
+            window: DurationString::try_from("365d".to_string()).unwrap(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub database: Database,
     pub networking: Networking,
@@ -56,6 +69,8 @@ pub struct Settings {
     pub timings: Timings,
     pub notifications: Notifications,
     pub web_server: WebServer,
+    #[serde(default)]
+    pub retention: Retention,
 }
 // End configuration structure
 // -----------------------------------------------------------

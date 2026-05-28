@@ -1,5 +1,6 @@
 use crate::db;
 use crate::db::error::DbError;
+use chrono::{DateTime, Utc};
 use log::{debug, error};
 use rusqlite::{params, params_from_iter};
 
@@ -123,6 +124,24 @@ pub fn mark_all_as_old() -> Result<(), DbError> {
     }
 }
 
+pub fn purge_older_than(cutoff: DateTime<Utc>) -> Result<usize, DbError> {
+    let conn = db::get_db_connection();
+
+    match conn.execute(
+        "DELETE FROM notifications WHERE created_on < ?1",
+        params![cutoff],
+    ) {
+        Ok(count) => {
+            debug!("Purged {} notification(s) older than {}", count, cutoff);
+            Ok(count)
+        }
+        Err(error) => {
+            error!("Error purging old notifications: {error}");
+            Err(DbError::from(error))
+        }
+    }
+}
+
 pub fn read(id: i64) -> Option<Notification> {
     let conn = db::get_db_connection();
 
@@ -162,6 +181,40 @@ mod tests {
 
     use super::*;
     use crate::{model::notifications::NotificationType, tests_common};
+
+    #[tokio::test]
+    async fn test_purge_older_than() {
+        tests_common::setup().await;
+
+        let old_id = insert(Notification::new(
+            chrono::DateTime::parse_from_rfc3339("2020-01-01T00:00:00+00:00")
+                .unwrap()
+                .into(),
+            NotificationType::Other,
+            "Old notification".to_string(),
+            "Old body".to_string(),
+            false,
+            None,
+        ))
+        .unwrap();
+
+        let recent_id = insert(Notification::new(
+            Utc::now(),
+            NotificationType::Other,
+            "Recent notification".to_string(),
+            "Recent body".to_string(),
+            false,
+            None,
+        ))
+        .unwrap();
+
+        let cutoff = Utc::now() - chrono::TimeDelta::days(365);
+        let purged = purge_older_than(cutoff).unwrap();
+
+        assert!(purged >= 1, "At least 1 notification should have been purged");
+        assert!(read(old_id).is_none(), "Old notification should have been purged");
+        assert!(read(recent_id).is_some(), "Recent notification should not have been purged");
+    }
 
     #[tokio::test]
     async fn test_mark_as_old() {
