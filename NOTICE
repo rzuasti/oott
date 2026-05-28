@@ -1,0 +1,34 @@
+OOTT
+Copyright (C) 2024-2026 rzuasti
+
+This product includes software developed by third parties and distributed
+under the Apache License, Version 2.0. A copy of the Apache License is
+available at https://www.apache.org/licenses/LICENSE-2.0
+
+--------------------------------------------------------------------------------
+
+openssl (https://github.com/rust-openssl/rust-openssl)
+Copyright 2011-2017 Google Inc.
+          2013 Jack Lloyd
+          2013-2014 Steven Fackler
+Licensed under the Apache License, Version 2.0.
+
+--------------------------------------------------------------------------------
+
+rusqlite_migration (https://github.com/cljoly/rusqlite_migration)
+Copyright Clément Joly and contributors.
+Licensed under the Apache License, Version 2.0.
+
+--------------------------------------------------------------------------------
+
+sync_wrapper (https://github.com/Actyx/sync_wrapper)
+Copyright Actyx AG.
+Licensed under the Apache License, Version 2.0.
+
+--------------------------------------------------------------------------------
+
+zopfli (https://github.com/zopfli-rs/zopfli)
+Copyright the zopfli-rs contributors.
+Based on the original Zopfli C code by Google (Mark Adler, Jyrki Alakuijala,
+Frédéric Kayser, Jeffrey Lim).
+Licensed under the Apache License, Version 2.0.
