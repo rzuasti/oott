@@ -5,8 +5,10 @@
 ## Backend
 
 - [x] Add Swagger and API docs (OpenAPI)
-- [ ] Record an activity log in the database
-  - [ ] One event for each device appearance
+- [x] Record an activity log in the database
+  - [x] One event for each device appearance
+- [x] Add date filter to device event list method (from)
+- [ ] Add a data set (json) to store maps from vendors -> device type; modify the device creation so that it uses it automatically
 
 ## Frontend
 
@@ -18,7 +20,11 @@
 - [x] Extract the device type as an enum (idem Notification) and with Icon getter too
 - [x] Extract the confirmForget and showRegisterDialog methods from both device pages
 - [x] In the devices list add filters by owner and device type
-- [ ] View detailed log of device activity (based on event log in the backend)
+- [x] View detailed log of device activity (based on event log in the backend)
+- [x] Use date filter from backend API for device events list
+- [x] Use favicon in web frontend
+- [ ] Style app title like favicon (font Barlow Condensed in a pill format with "primary" background)
+- [ ] Change the unkown device icon (maybe just a question mark)
 - [ ] Scan process monitor and summary page
   - [ ] Is the scan process running
   - [ ] Last run (when, how long did it take, how many devices did it found)

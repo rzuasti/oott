@@ -19,9 +19,9 @@ For Flutter/Dart code:
 
 ## Project commands
 
-- `sudo cargo run` from the `backend/` folder - Run the backend (you need sudo to enable the process to attach itself to the network channel)
-- `flutter run -d web-server --web-port 3333` from the `frontend/` folder - Run the front-end for the web
-- `run_tests.sh` - Run the backend tests
+- `cd backend && run.sh` from the `backend/` folder - Run the backend
+- `cd frontend && run.sh` from the `frontend/` folder - Run the front-end for the web
+- `cd backend && run_tests.sh` - Run the backend tests
 - `cargo clippy` - Run the clippy linter for Rust code
 - `dart analyze` - Run the Dart linter
 
