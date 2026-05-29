@@ -172,7 +172,11 @@ class BackendAPI {
     return ArpScannerStatus.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<List<Notification>> listNotifications(bool? isNew, int offset) async {
+  Future<List<Notification>> listNotifications(
+    bool? isNew,
+    int offset, {
+    int? limit,
+  }) async {
     debugPrint('About to call /notifications');
 
     Response response;
@@ -181,7 +185,7 @@ class BackendAPI {
       queryParameters: {
         'is_new': isNew ?? '',
         'page_offset': offset,
-        'page_limit': _pageSize,
+        'page_limit': limit ?? _pageSize,
       },
     );
 

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
 import '../model/notification.dart' as oott_model;
 import '../utils/friendly_date_formatter.dart';
@@ -12,6 +11,7 @@ import '../widgets/device_summary_card.dart';
 import 'notification_card.dart';
 
 const _twoColumnBreakpoint = 700.0;
+const _pageSize = 5;
 
 enum _NotificationFilter {
   newOnly('New'),
@@ -40,34 +40,49 @@ class _HomeScreenState extends State<HomeScreen> {
   _NotificationFilter _filter = _NotificationFilter.newOnly;
   Timer? _notificationTimer;
 
-  late final _pagingController =
-      PagingController<int, oott_model.Notification>(
-        getNextPageKey: (state) => state.lastPageIsEmpty
-            ? null
-            : (state.items == null ? 0 : state.items?.length),
-        fetchPage: (pageKey) =>
-            BackendAPI.instance.listNotifications(_filter.isNew, pageKey),
-      );
+  int _currentPage = 0;
+  List<oott_model.Notification> _items = [];
+  bool _isLoading = false;
+  bool _hasNextPage = false;
 
   @override
   void initState() {
     super.initState();
+    _fetchPage(0);
     _notificationTimer = Timer.periodic(
       const Duration(minutes: 1),
-      (_) => _pagingController.refresh(),
+      (_) => _fetchPage(_currentPage),
     );
   }
 
   @override
   void dispose() {
     _notificationTimer?.cancel();
-    _pagingController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchPage(int page) async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    try {
+      final results = await BackendAPI.instance
+          .listNotifications(_filter.isNew, page * _pageSize, limit: _pageSize + 1);
+      if (!mounted) return;
+      setState(() {
+        _currentPage = page;
+        _hasNextPage = results.length > _pageSize;
+        _items = _hasNextPage ? results.take(_pageSize).toList() : results;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _markAllAsRead(BuildContext context) async {
     await BackendAPI.instance.markAllNotificationsAsRead();
-    _pagingController.refresh();
+    _fetchPage(_currentPage);
     if (context.mounted) {
       UISnackbars.showSuccess(context, 'All notifications marked as read');
     }
@@ -96,13 +111,13 @@ class _HomeScreenState extends State<HomeScreen> {
       'Event marked as ${read ? 'read' : 'unread'}',
     );
     if (_filter != _NotificationFilter.all) {
-      _pagingController.value = _pagingController.value.filterItems(
-        (n) => n.id != item.id,
-      );
+      setState(() => _items = _items.where((n) => n.id != item.id).toList());
       return true;
     }
-    _pagingController.mapItems(
-      (n) => n.id == item.id ? n.copyWith(isNew: !read) : n,
+    setState(
+      () => _items = _items
+          .map((n) => n.id == item.id ? n.copyWith(isNew: !read) : n)
+          .toList(),
     );
     return false;
   }
@@ -112,21 +127,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isTwoColumn = constraints.maxWidth >= _twoColumnBreakpoint;
-        return PagingListener(
-          controller: _pagingController,
-          builder: (context, state, fetchNextPage) => isTwoColumn
-              ? _buildTwoColumn(context, state, fetchNextPage)
-              : _buildSingleColumn(context, state, fetchNextPage),
-        );
+        return isTwoColumn
+            ? _buildTwoColumn(context)
+            : _buildSingleColumn(context);
       },
     );
   }
 
-  Widget _buildTwoColumn(
-    BuildContext context,
-    PagingState<int, oott_model.Notification> state,
-    void Function() fetchNextPage,
-  ) {
+  Widget _buildTwoColumn(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -135,10 +143,12 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildNotificationsHeader(context, state),
+              _buildNotificationsHeader(context),
               Expanded(
                 child: CustomScrollView(
-                  slivers: [_buildNotificationSliver(state, fetchNextPage)],
+                  slivers: [
+                    ..._buildNotificationSlivers(context),
+                  ],
                 ),
               ),
             ],
@@ -162,32 +172,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSingleColumn(
-    BuildContext context,
-    PagingState<int, oott_model.Notification> state,
-    void Function() fetchNextPage,
-  ) {
-    final isEmpty =
-        !state.isLoading && state.items != null && state.items!.isEmpty;
+  Widget _buildSingleColumn(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: _buildNotificationsHeader(context, state)),
-        if (isEmpty)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 12),
-              child: Center(
-                child: Text(
-                  'No items found',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          )
-        else
-          _buildNotificationSliver(state, fetchNextPage),
+        SliverToBoxAdapter(child: _buildNotificationsHeader(context)),
+        ..._buildNotificationSlivers(context),
         const SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.only(top: 24),
@@ -204,10 +193,38 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNotificationsHeader(
-    BuildContext context,
-    PagingState<int, oott_model.Notification> state,
-  ) {
+  List<Widget> _buildNotificationSlivers(BuildContext context) {
+    if (_isLoading) {
+      return [
+        const SliverFillRemaining(
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ];
+    }
+    if (_items.isEmpty) {
+      return [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 16, bottom: 12),
+            child: Center(
+              child: Text(
+                'No items found',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ];
+    }
+    return [
+      _buildNotificationSliver(),
+      if (_currentPage > 0 || _hasNextPage) _buildPaginationControls(context),
+    ];
+  }
+
+  Widget _buildNotificationsHeader(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -218,8 +235,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const Spacer(),
-            if (_filter == _NotificationFilter.newOnly &&
-                (state.items?.isNotEmpty ?? false))
+            if (_filter == _NotificationFilter.newOnly && _items.isNotEmpty)
               IconButton(
                 onPressed: () => _markAllAsRead(context),
                 icon: const Icon(Icons.done_all),
@@ -239,7 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     selected: _filter == f,
                     onSelected: (_) {
                       setState(() => _filter = f);
-                      _pagingController.refresh();
+                      _fetchPage(0);
                     },
                   ),
                 )
@@ -250,19 +266,50 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNotificationSliver(
-    PagingState<int, oott_model.Notification> state,
-    void Function() fetchNextPage,
-  ) {
+  Widget _buildNotificationSliver() {
     final formatter = FriendlyDateFormatter();
-    return PagedSliverList<int, oott_model.Notification>(
-      state: state,
-      fetchNextPage: fetchNextPage,
-      builderDelegate: PagedChildBuilderDelegate(
-        itemBuilder: (context, item, index) => NotificationCard(
+    return SliverList.builder(
+      itemCount: _items.length,
+      itemBuilder: (context, index) {
+        final item = _items[index];
+        return NotificationCard(
           item: item,
           formatter: formatter,
           onSetRead: (ctx, read) => _setRead(ctx, item, read),
+        );
+      },
+    );
+  }
+
+  Widget _buildPaginationControls(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton.outlined(
+              onPressed: _currentPage > 0 && !_isLoading
+                  ? () => _fetchPage(_currentPage - 1)
+                  : null,
+              icon: const Icon(Icons.chevron_left),
+              tooltip: 'Previous page',
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Page ${_currentPage + 1}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            IconButton.outlined(
+              onPressed: _hasNextPage && !_isLoading
+                  ? () => _fetchPage(_currentPage + 1)
+                  : null,
+              icon: const Icon(Icons.chevron_right),
+              tooltip: 'Next page',
+            ),
+          ],
         ),
       ),
     );
