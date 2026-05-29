@@ -340,6 +340,13 @@ class _DeviceCard extends StatelessWidget {
     required this.onRefresh,
   });
 
+  String get _registeredName {
+    final type = device.deviceType == DeviceType.unknown
+        ? 'Device'
+        : device.deviceType.label;
+    return "${device.owner}'s $type";
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -355,7 +362,12 @@ class _DeviceCard extends StatelessWidget {
         ),
         title: Row(
           children: [
-            Text(device.ipv4Address),
+            Flexible(
+              child: Text(
+                device.isRegistered ? _registeredName : device.ipv4Address,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             const SizedBox(width: 8),
             if (device.isRegistered)
               const StatusBadge(label: 'Registered', color: BadgeColor.success)
@@ -367,6 +379,7 @@ class _DeviceCard extends StatelessWidget {
           ],
         ),
         subtitle: Text(
+          '${device.isRegistered ? '${device.ipv4Address}\n' : ''}'
           '${device.vendor} · ${device.macAddress}\n'
           'Last seen: ${formatter.format(device.lastSeen)}',
         ),
@@ -374,7 +387,6 @@ class _DeviceCard extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (device.isRegistered) Text(device.owner),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: (value) async {
