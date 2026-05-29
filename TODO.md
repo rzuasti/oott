@@ -17,8 +17,10 @@
 
 ## Frontend
 
-- [ ] Add pagination to the devices list screen
-- [ ] Add the mDNS/Bonjour scanner status to the Status and Home screens
+- [ ] Add a "go to first" and "go to last" buttons to paginations (notification list for now)
+- [x] Replace the ARP scanner widget in the home screen with a Scanning status widget that provides a one liner for each scanner
+- [ ] Add pagination to the devices list screen - now you can't see all devices
+- [x] Add the mDNS/Bonjour scanner status to the Status and Home screens
 - [x] Change the notifications list so it has explicit paging (not infinite paging)
 - [x] List recorded devices
 - [x] Register a device

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../widgets/arp_scanner_card.dart';
 import '../widgets/device_summary_card.dart';
+import '../widgets/scanners_status_card.dart';
 import 'notifications_list.dart';
 
 const _twoColumnBreakpoint = 700.0;
@@ -33,7 +33,7 @@ class HomeScreen extends StatelessWidget {
               children: [
                 DeviceSummaryCard(),
                 SizedBox(height: 16),
-                ArpScannerCard(),
+                ScannersStatusCard(),
               ],
             ),
           ),
@@ -54,7 +54,7 @@ class HomeScreen extends StatelessWidget {
         SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.only(top: 16, bottom: 20),
-            child: ArpScannerCard(),
+            child: ScannersStatusCard(),
           ),
         ),
       ],

@@ -3,19 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../model/arp_scanner_status.dart';
+import '../model/mdns_scanner_status.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/oott_api.dart';
 
-class ArpScannerCard extends StatefulWidget {
-  const ArpScannerCard({super.key});
+class MdnsScannerCard extends StatefulWidget {
+  const MdnsScannerCard({super.key});
 
   @override
-  State<ArpScannerCard> createState() => _ArpScannerCardState();
+  State<MdnsScannerCard> createState() => _MdnsScannerCardState();
 }
 
-class _ArpScannerCardState extends State<ArpScannerCard> {
-  ArpScannerStatus? _status;
+class _MdnsScannerCardState extends State<MdnsScannerCard> {
+  MdnsScannerStatus? _status;
   DateTime? _statusReceivedAt;
   bool _isLoading = true;
   String? _error;
@@ -41,7 +41,7 @@ class _ArpScannerCardState extends State<ArpScannerCard> {
 
   Future<void> _load() async {
     try {
-      final status = await BackendAPI.instance.getArpScannerStatus();
+      final status = await BackendAPI.instance.getMdnsScannerStatus();
       if (!mounted) return;
       setState(() {
         _status = status;
@@ -69,7 +69,7 @@ class _ArpScannerCardState extends State<ArpScannerCard> {
       );
     }
 
-    final (color, label, sublabel) = _resolveState(context);
+    final (color, label, sublabels) = _resolveState(context);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -86,12 +86,12 @@ class _ArpScannerCardState extends State<ArpScannerCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'ARP Scanner',
+                      'mDNS Scanner',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 2),
                     Text(label, style: Theme.of(context).textTheme.bodyMedium),
-                    if (sublabel != null) ...[
+                    for (final sublabel in sublabels) ...[
                       const SizedBox(height: 2),
                       Text(
                         sublabel,
@@ -110,12 +110,14 @@ class _ArpScannerCardState extends State<ArpScannerCard> {
     );
   }
 
-  (Color, String, String?) _resolveState(BuildContext context) {
+  (Color, String, List<String>) _resolveState(BuildContext context) {
     if (_error != null || _status == null) {
       return (
         Colors.red,
         'Error',
-        'Unable to reach the server or a server-side error occurred. Check the logs for details.',
+        [
+          'Unable to reach the server or a server-side error occurred. Check the logs for details.',
+        ],
       );
     }
 
@@ -123,23 +125,23 @@ class _ArpScannerCardState extends State<ArpScannerCard> {
         ? DateTime.now().difference(_statusReceivedAt!).inSeconds.toDouble()
         : 0.0;
 
-    if (_status!.isRunning) {
-      final sub = _status!.runningForSeconds != null
-          ? 'Running for ${formatSeconds(_status!.runningForSeconds! + elapsed)}'
-          : null;
-      return (Colors.green, 'Running', sub);
+    if (_status!.isListening) {
+      final sublabels = <String>[];
+      if (_status!.listeningForSeconds != null) {
+        sublabels.add(
+          'Listening for ${formatSeconds(_status!.listeningForSeconds! + elapsed)} · ${_status!.devicesSeen} devices seen',
+        );
+      } else {
+        sublabels.add('${_status!.devicesSeen} devices seen');
+      }
+      if (_status!.lastDeviceSeenSecondsAgo != null) {
+        sublabels.add(
+          'Last device ${formatSeconds(_status!.lastDeviceSeenSecondsAgo! + elapsed)} ago',
+        );
+      }
+      return (Colors.green, 'Listening', sublabels);
     }
-    if (_status!.nextRunInSeconds != null) {
-      final remaining = (_status!.nextRunInSeconds! - elapsed).clamp(
-        0.0,
-        double.infinity,
-      );
-      return (
-        Colors.amber,
-        'Waiting for next run',
-        'Next run in ${formatSeconds(remaining)}',
-      );
-    }
-    return (Colors.grey, 'Not yet started', null);
+
+    return (Colors.grey, 'Not yet started', <String>[]);
   }
 }
