@@ -167,10 +167,27 @@ class _HomeScreenState extends State<HomeScreen> {
     PagingState<int, oott_model.Notification> state,
     void Function() fetchNextPage,
   ) {
+    final isEmpty =
+        !state.isLoading && state.items != null && state.items!.isEmpty;
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: _buildNotificationsHeader(context, state)),
-        _buildNotificationSliver(state, fetchNextPage),
+        if (isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16, bottom: 12),
+              child: Center(
+                child: Text(
+                  'No items found',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          )
+        else
+          _buildNotificationSliver(state, fetchNextPage),
         const SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.only(top: 24),
@@ -212,6 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Wrap(
             spacing: 8.0,
             children: _NotificationFilter.values
@@ -228,7 +246,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 .toList(),
           ),
         ),
-        const SizedBox(height: 8),
       ],
     );
   }

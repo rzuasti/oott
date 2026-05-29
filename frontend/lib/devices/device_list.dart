@@ -156,26 +156,37 @@ class _DeviceListState extends State<DeviceList> {
                 .toList(),
           ),
         ),
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-              ? Center(child: Text('Error: $_error'))
-              : _devices.isEmpty
-              ? Center(child: Text(_emptyMessage()))
-              : RefreshIndicator(
-                  onRefresh: _loadDevices,
-                  child: ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: _devices.length,
-                    itemBuilder: (context, index) => _DeviceCard(
-                      device: _devices[index],
-                      formatter: formatter,
-                      onRefresh: _loadDevices,
-                    ),
-                  ),
+        if (_isLoading)
+          const Expanded(child: Center(child: CircularProgressIndicator()))
+        else if (_error != null)
+          Expanded(child: Center(child: Text('Error: $_error')))
+        else if (_devices.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 16, bottom: 12),
+            child: Center(
+              child: Text(
+                _emptyMessage(),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-        ),
+              ),
+            ),
+          )
+        else
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadDevices,
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: _devices.length,
+                itemBuilder: (context, index) => _DeviceCard(
+                  device: _devices[index],
+                  formatter: formatter,
+                  onRefresh: _loadDevices,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
