@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../model/device.dart';
 import '../model/device_type.dart';
+import '../navigation.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../widgets/status_badge.dart';
@@ -29,7 +30,7 @@ class DeviceList extends StatefulWidget {
   State<DeviceList> createState() => _DeviceListState();
 }
 
-class _DeviceListState extends State<DeviceList> {
+class _DeviceListState extends State<DeviceList> with RouteAware {
   _DeviceFilter _filter = _DeviceFilter.newDevices;
   List<Device> _devices = [];
   bool _isLoading = true;
@@ -49,7 +50,22 @@ class _DeviceListState extends State<DeviceList> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is ModalRoute<void>) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    _fetchPage(_currentPage);
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _ownerDebounce?.cancel();
     _ownerController.dispose();
     super.dispose();

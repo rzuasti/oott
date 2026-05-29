@@ -35,11 +35,17 @@ const List<_NavDest> _destinations = [
   (icon: Icons.info_outline, activeIcon: Icons.info, label: 'About'),
 ];
 
+// Observer used to notify subscribed routes when another route is pushed
+// on top of or popped from them, so they can refresh stale data.
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
+
 // Routes definitions
 final GoRouter router = GoRouter(
   initialLocation: '/notifications',
   routes: [
     ShellRoute(
+      observers: [routeObserver],
       builder: (context, state, child) {
         return MainShell(child: child);
       },
