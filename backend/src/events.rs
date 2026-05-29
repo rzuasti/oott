@@ -26,9 +26,10 @@ fn display_name(device: &Device) -> &str {
 
 // Whether a re-sighting represents a real vendor change. A scanner that cannot deduce a vendor
 // reports an empty string; that is not a change (db::devices::update keeps the known vendor), so
-// it must not raise a "vendor changed" notification either.
+// it must not raise a "vendor changed" notification either. Likewise, first deducing a vendor for a
+// device that previously had none is not a change worth notifying about.
 fn vendor_changed(existing: &str, new: &str) -> bool {
-    !new.is_empty() && existing != new
+    !existing.is_empty() && !new.is_empty() && existing != new
 }
 
 // Private helper function to deliver messages
@@ -216,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn newly_deduced_vendor_from_empty_is_a_change() {
-        assert!(vendor_changed("", "Apple, Inc."));
+    fn newly_deduced_vendor_from_empty_is_not_a_change() {
+        assert!(!vendor_changed("", "Apple, Inc."));
     }
 }

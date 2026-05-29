@@ -12,7 +12,7 @@
 - [x] Add a data set (json) to store maps from vendors -> device type; modify the device creation so that it uses it automatically
 - [x] Add an mDNS/Bonjour scanner
 - [x] Extract the select_interface method and interface logic from ARP scanner to a centralized utility file
-- [ ] Figure out if we can univocally identify devices that mask their MAC address (like apple)
+- [x] Figure out if we can univocally identify devices that mask their MAC address (like apple)
 - [ ] Add the scanner that triggered the event to the device_events table
 
 ## Frontend
