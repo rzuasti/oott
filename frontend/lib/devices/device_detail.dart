@@ -65,30 +65,6 @@ class _DeviceDetailState extends State<DeviceDetail> {
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
             ),
-            if (device != null)
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
-                onSelected: (value) async {
-                  if (value == 'forget') {
-                    await confirmForgetDevice(context, device, _loadDevice);
-                  } else if (value == 'register') {
-                    await showRegisterDeviceDialog(
-                      context,
-                      device,
-                      _loadDevice,
-                    );
-                  }
-                },
-                itemBuilder: (context) => [
-                  if (device.isRegistered)
-                    const PopupMenuItem(value: 'forget', child: Text('Forget')),
-                  if (!device.isRegistered)
-                    const PopupMenuItem(
-                      value: 'register',
-                      child: Text('Register'),
-                    ),
-                ],
-              ),
           ],
         ),
         Expanded(
@@ -118,6 +94,8 @@ class _DeviceDetailState extends State<DeviceDetail> {
                       _DeviceHeader(device: device),
                       const SizedBox(height: 24),
                       _DeviceInfoCard(device: device),
+                      const SizedBox(height: 24),
+                      _DeviceActions(device: device, onAction: _loadDevice),
                       const SizedBox(height: 24),
                       _SectionHeader(title: 'Event History'),
                       const SizedBox(height: 12),
@@ -205,6 +183,35 @@ class _DeviceInfoCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _DeviceActions extends StatelessWidget {
+  final Device device;
+  final VoidCallback onAction;
+
+  const _DeviceActions({required this.device, required this.onAction});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (device.isRegistered) {
+      return OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: colorScheme.error,
+          side: BorderSide(color: colorScheme.error),
+        ),
+        onPressed: () => confirmForgetDevice(context, device, onAction),
+        icon: const Icon(Icons.link_off),
+        label: const Text('Forget Device'),
+      );
+    }
+    return FilledButton.icon(
+      onPressed: () => showRegisterDeviceDialog(context, device, onAction),
+      icon: const Icon(Icons.how_to_reg),
+      label: const Text('Register Device'),
     );
   }
 }
