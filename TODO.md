@@ -10,9 +10,15 @@
   - [x] One event for each device appearance
 - [x] Add date filter to device event list method (from)
 - [x] Add a data set (json) to store maps from vendors -> device type; modify the device creation so that it uses it automatically
+- [x] Add an mDNS/Bonjour scanner
+- [ ] Extract the select_interface method and interface logic from ARP scanner to a centralized utility file
+- [ ] Figure out if we can univocally identify devices that mask their MAC address (like apple)
+- [ ] Add the scanner that triggered the event to the device_events table
 
 ## Frontend
 
+- [ ] Add pagination to the devices list screen
+- [ ] Add the mDNS/Bonjour scanner status to the Status and Home screens
 - [x] Change the notifications list so it has explicit paging (not infinite paging)
 - [x] List recorded devices
 - [x] Register a device

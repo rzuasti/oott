@@ -19,7 +19,7 @@ pub fn list_devices(
     let conn = db::get_db_connection();
 
     // Prepare SQL and parameters
-    let mut sql_statement = "SELECT mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type FROM devices WHERE 1=1 ".to_string();
+    let mut sql_statement = "SELECT mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type, name FROM devices WHERE 1=1 ".to_string();
     let mut params: Vec<rusqlite::types::Value> = Vec::new();
     if let Some(is_registered) = is_registered {
         debug!("Adding filter is_registered={}", is_registered);
@@ -64,6 +64,7 @@ pub fn list_devices(
                 is_registered: row.get(4)?,
                 owner: row.get(5)?,
                 device_type: row.get(6)?,
+                name: row.get(7)?,
             })
         })?
         .collect::<Result<_, _>>()?;
@@ -76,7 +77,7 @@ pub fn read(mac_address: String) -> Option<Device> {
     let conn = db::get_db_connection();
 
     let result: Result<Device, rusqlite::Error> = conn.query_one(
-        "SELECT mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type FROM devices WHERE mac_address=?1",
+        "SELECT mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type, name FROM devices WHERE mac_address=?1",
         params![mac_address],
         |row| {
             Ok(Device {
@@ -87,6 +88,7 @@ pub fn read(mac_address: String) -> Option<Device> {
                 is_registered: row.get(4)?,
                 owner: row.get(5)?,
                 device_type: row.get(6)?,
+                name: row.get(7)?,
             })
         },
     );
@@ -109,8 +111,8 @@ pub fn insert(device: Device) -> Result<(), DbError> {
     let conn = db::get_db_connection();
 
     match conn.execute(
-        "INSERT INTO devices (mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![device.mac_address, device.ipv4_address, device.vendor, device.last_seen.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false), device.is_registered, device.owner, device.device_type]) {
+        "INSERT INTO devices (mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type, name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![device.mac_address, device.ipv4_address, device.vendor, device.last_seen.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false), device.is_registered, device.owner, device.device_type, device.name]) {
             Ok(_) => {
                 debug!("Device inserted into database: {}", device);
                 Ok(())
@@ -165,18 +167,31 @@ pub fn get_summary() -> Result<DeviceSummary, DbError> {
 
 pub fn update(device: Device) -> Result<(), DbError> {
     let conn = db::get_db_connection();
-    match conn.execute(
-        "UPDATE devices SET ipv4_address=?1, vendor=?2, last_seen=?3, is_registered=?4, owner=?5, device_type=?6 WHERE mac_address=?7",
-        params![
-            device.ipv4_address,
-            device.vendor,
-            device.last_seen.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false),
-            device.is_registered,
-            device.owner,
-            device.device_type,
-            device.mac_address,
-        ],
-    ) {
+
+    let mut sql = "UPDATE devices SET ipv4_address=?, vendor=?, last_seen=?, is_registered=?, owner=?, device_type=?".to_string();
+    let mut params: Vec<rusqlite::types::Value> = vec![
+        device.ipv4_address.clone().into(),
+        device.vendor.clone().into(),
+        device
+            .last_seen
+            .to_rfc3339_opts(chrono::SecondsFormat::Nanos, false)
+            .into(),
+        device.is_registered.into(),
+        device.owner.clone().into(),
+        device.device_type.clone().into(),
+    ];
+
+    // Only write the name column when it is set, so an ARP rescan (name: None) never
+    // clobbers a hostname previously stored by the mDNS scanner.
+    if let Some(name) = &device.name {
+        sql.push_str(", name=?");
+        params.push(name.clone().into());
+    }
+
+    sql.push_str(" WHERE mac_address=?");
+    params.push(device.mac_address.clone().into());
+
+    match conn.execute(sql.as_str(), params_from_iter(params.iter())) {
         Ok(_) => {
             debug!("Device updated in database: {}", device);
             Ok(())
@@ -371,6 +386,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_update_name_set_and_preserve() {
+        tests_common::setup().await;
+
+        let last_seen = Utc::now();
+        insert(Device::new(
+            "nn:nn:nn:nn:nn:01".to_string(),
+            "192.168.210.1".to_string(),
+            "Test vendor".to_string(),
+            last_seen,
+        ))
+        .unwrap();
+
+        // ARP-style insert leaves name unset
+        assert_eq!(read("nn:nn:nn:nn:nn:01".to_string()).unwrap().name, None);
+
+        // mDNS sets the name
+        let mut device = read("nn:nn:nn:nn:nn:01".to_string()).unwrap();
+        device.name = Some("host.local".to_string());
+        update(device).unwrap();
+        assert_eq!(
+            read("nn:nn:nn:nn:nn:01".to_string()).unwrap().name,
+            Some("host.local".to_string())
+        );
+
+        // An ARP rescan (name: None) must NOT clobber the stored name
+        let mut device = read("nn:nn:nn:nn:nn:01".to_string()).unwrap();
+        device.name = None;
+        device.ipv4_address = "192.168.210.99".to_string();
+        update(device).unwrap();
+        let device = read("nn:nn:nn:nn:nn:01".to_string()).unwrap();
+        assert_eq!(device.name, Some("host.local".to_string()));
+        assert_eq!(device.ipv4_address, "192.168.210.99".to_string());
+
+        // A later mDNS sighting updates the name
+        let mut device = read("nn:nn:nn:nn:nn:01".to_string()).unwrap();
+        device.name = Some("renamed.local".to_string());
+        update(device).unwrap();
+        assert_eq!(
+            read("nn:nn:nn:nn:nn:01".to_string()).unwrap().name,
+            Some("renamed.local".to_string())
+        );
+    }
+
+    #[tokio::test]
     async fn test_insert() {
         tests_common::setup().await;
 
@@ -406,6 +465,7 @@ mod tests {
             last_seen: last_seen,
             owner: "Carl".to_string(),
             vendor: "Vendor X".to_string(),
+            name: None,
         })
         .unwrap();
 
@@ -486,6 +546,7 @@ mod tests {
             is_registered: true,
             owner: "Test".to_string(),
             device_type: "Server".to_string(),
+            name: None,
         })
         .unwrap();
 
@@ -498,6 +559,7 @@ mod tests {
             is_registered: false,
             owner: "".to_string(),
             device_type: "".to_string(),
+            name: None,
         })
         .unwrap();
 

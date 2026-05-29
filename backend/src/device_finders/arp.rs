@@ -14,7 +14,7 @@ use pnet::{
 };
 use tokio::time::{Duration, timeout};
 
-fn select_interface<'a>(
+pub(crate) fn select_interface<'a>(
     interfaces: &'a [NetworkInterface],
     configured: &Option<String>,
 ) -> Option<&'a NetworkInterface> {
@@ -30,7 +30,10 @@ fn select_interface<'a>(
 }
 
 pub async fn find(interface: Option<String>) -> Result<Vec<Device>, Box<dyn std::error::Error>> {
-    debug!("Looking up devices via ARP, configured interface: {:?}", interface);
+    debug!(
+        "Looking up devices via ARP, configured interface: {:?}",
+        interface
+    );
 
     // Get the network device to use
     let all_interfaces = datalink::interfaces();
@@ -60,7 +63,10 @@ pub async fn find(interface: Option<String>) -> Result<Vec<Device>, Box<dyn std:
     {
         Some(value) => value,
         None => {
-            error!("No IP address found for selected interface ({}).", network_interface.name);
+            error!(
+                "No IP address found for selected interface ({}).",
+                network_interface.name
+            );
             return Err(NoIPAddressError.into());
         }
     };
@@ -69,7 +75,10 @@ pub async fn find(interface: Option<String>) -> Result<Vec<Device>, Box<dyn std:
     let mac = match network_interface.mac {
         Some(mac) => mac,
         None => {
-            error!("Could not get MAC address for selected interface ({}).", network_interface.name);
+            error!(
+                "Could not get MAC address for selected interface ({}).",
+                network_interface.name
+            );
             return Err(NoMACAddressError.into());
         }
     };

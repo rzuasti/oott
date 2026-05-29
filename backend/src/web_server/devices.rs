@@ -8,7 +8,10 @@ use log::{debug, error};
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-use crate::{db, model::devices::{Device, DeviceSummary}};
+use crate::{
+    db,
+    model::devices::{Device, DeviceSummary},
+};
 
 use crate::web_server::utils;
 

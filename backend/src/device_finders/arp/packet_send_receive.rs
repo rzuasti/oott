@@ -1,6 +1,6 @@
 use crate::mac_vendor_finder;
-use crate::vendor_device_type_finder;
 use crate::model::devices::Device;
+use crate::vendor_device_type_finder;
 use chrono::Local;
 use duration_string::DurationString;
 use log::{debug, info, trace};

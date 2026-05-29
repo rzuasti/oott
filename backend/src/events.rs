@@ -14,6 +14,16 @@ use chrono::{Local, Utc};
 use duration_string::DurationString;
 use log::{debug, error, info, warn};
 
+// Device name for display in messages; falls back to "(unknown)" for devices with no
+// mDNS-discovered hostname (e.g. those found only via ARP).
+fn display_name(device: &Device) -> &str {
+    device
+        .name
+        .as_deref()
+        .filter(|name| !name.is_empty())
+        .unwrap_or("(unknown)")
+}
+
 // Private helper function to deliver messages
 fn send_notification(notification: Notification) -> Result<(), Box<dyn Error>> {
     debug!("About to record notification in database");
@@ -43,7 +53,10 @@ pub fn trigger_new_device(device: Device) -> Result<(), Box<dyn Error>> {
         device.vendor.clone(),
     );
     if let Err(err) = db::device_events::insert(event) {
-        error!("Failed to record device event for {}: {}", device.mac_address, err);
+        error!(
+            "Failed to record device event for {}: {}",
+            device.mac_address, err
+        );
     }
 
     let notification = Notification::new(
@@ -51,8 +64,11 @@ pub fn trigger_new_device(device: Device) -> Result<(), Box<dyn Error>> {
         NotificationType::NewDeviceFound,
         "New device found in your network".to_string(),
         format!(
-            "A new device was found in your network:\n\nMAC address: {}\nIP address: {}\nVendor: {}",
-            device.mac_address, device.ipv4_address, device.vendor
+            "A new device was found in your network:\n\nName: {}\nMAC address: {}\nIP address: {}\nVendor: {}",
+            display_name(&device),
+            device.mac_address,
+            device.ipv4_address,
+            device.vendor
         ),
         true,
         Some(device.mac_address.clone()),
@@ -74,7 +90,10 @@ pub fn trigger_existing_device(
         new_device.vendor.clone(),
     );
     if let Err(err) = db::device_events::insert(event) {
-        error!("Failed to record device event for {}: {}", new_device.mac_address, err);
+        error!(
+            "Failed to record device event for {}: {}",
+            new_device.mac_address, err
+        );
     }
 
     // Notify if the device comes back online after not being seen for the configured period
@@ -90,7 +109,8 @@ pub fn trigger_existing_device(
             NotificationType::DeviceOnlineAfterTime,
             "A device came back online after a while".to_string(),
             format!(
-                "Device:\n\nMAC address: {}\nIP address: {}\nVendor: {}\n\ncame back online after {}.",
+                "Device:\n\nName: {}\nMAC address: {}\nIP address: {}\nVendor: {}\n\ncame back online after {}.",
+                display_name(&new_device),
                 new_device.mac_address,
                 new_device.ipv4_address,
                 new_device.vendor,
@@ -114,7 +134,8 @@ pub fn trigger_existing_device(
             NotificationType::DeviceChanged,
             "Device changed vendor and IP address".to_string(),
             format!(
-                "Device with MAC address {} has changed:\nIP address from {} to {}\nVendor from {} to {}.",
+                "Device {} (MAC address {}) has changed:\nIP address from {} to {}\nVendor from {} to {}.",
+                display_name(&new_device),
                 existing_device.mac_address,
                 existing_device.ipv4_address,
                 new_device.ipv4_address,
@@ -132,7 +153,8 @@ pub fn trigger_existing_device(
             NotificationType::DeviceChanged,
             "Device changed IP address".to_string(),
             format!(
-                "Device with MAC address {} ({}) has changed:\nIP address from {} to {}.",
+                "Device {} (MAC address {}, {}) has changed:\nIP address from {} to {}.",
+                display_name(&new_device),
                 existing_device.mac_address,
                 existing_device.vendor,
                 existing_device.ipv4_address,
@@ -149,7 +171,8 @@ pub fn trigger_existing_device(
             NotificationType::DeviceChanged,
             "Device changed vendor".to_string(),
             format!(
-                "Device with MAC address {} ({}) has changed:\nVendor from {} to {}.",
+                "Device {} (MAC address {}, {}) has changed:\nVendor from {} to {}.",
+                display_name(&new_device),
                 existing_device.mac_address,
                 existing_device.ipv4_address,
                 existing_device.vendor,

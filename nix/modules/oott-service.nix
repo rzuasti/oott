@@ -31,20 +31,25 @@ in {
       description = "Log level for the oott service";
       default = "info";
     };
-    timings.wait_between_scans = mkOption {
+    arp_scanner.wait_between_scans = mkOption {
       type = types.str;
       description = "Wait time between scans. This does not include the scan time.";
-      default = "15m";
+      default = "30m";
     };
-    timings.arp_sender_timeout = mkOption {
+    arp_scanner.sender_timeout = mkOption {
       type = types.str;
       description = "If the ARP sender process takes longer than this it will be stopped (for a class C network - 254 IPs - it should take less than a minute).";
       default = "1m";
     };
-    timings.arp_scan_duration = mkOption {
+    arp_scanner.scan_duration = mkOption {
       type = types.str;
       description = "How long to wait for response packets on each scan (5m to 10m is a good timeframe for a class B or C network).";
       default = "10m";
+    };
+    mdns_scanner.probe_timeout = mkOption {
+      type = types.str;
+      description = "When an mDNS-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address.";
+      default = "2s";
     };
     notifications.method = mkOption {
       type = types.str;

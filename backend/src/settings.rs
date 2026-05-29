@@ -29,6 +29,19 @@ pub struct ArpScanner {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct MdnsScanner {
+    pub probe_timeout: DurationString,
+}
+
+impl Default for MdnsScanner {
+    fn default() -> Self {
+        MdnsScanner {
+            probe_timeout: DurationString::try_from("2s".to_string()).unwrap(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Pushover {
     pub token: String,
     pub user_key: String,
@@ -71,6 +84,8 @@ pub struct Settings {
     pub web_server: WebServer,
     #[serde(default)]
     pub retention: Retention,
+    #[serde(default)]
+    pub mdns_scanner: MdnsScanner,
 }
 // End configuration structure
 // -----------------------------------------------------------

@@ -34,8 +34,7 @@ pub fn list(
     if let (Some(page_offset), Some(page_limit)) = (page_offset, page_limit) {
         debug!(
             "Adding paging to list with offset={} and limit={}",
-            page_offset,
-            page_limit
+            page_offset, page_limit
         );
         sql_statement.push_str(" LIMIT ? OFFSET ?");
 
@@ -211,9 +210,18 @@ mod tests {
         let cutoff = Utc::now() - chrono::TimeDelta::days(365);
         let purged = purge_older_than(cutoff).unwrap();
 
-        assert!(purged >= 1, "At least 1 notification should have been purged");
-        assert!(read(old_id).is_none(), "Old notification should have been purged");
-        assert!(read(recent_id).is_some(), "Recent notification should not have been purged");
+        assert!(
+            purged >= 1,
+            "At least 1 notification should have been purged"
+        );
+        assert!(
+            read(old_id).is_none(),
+            "Old notification should have been purged"
+        );
+        assert!(
+            read(recent_id).is_some(),
+            "Recent notification should not have been purged"
+        );
     }
 
     #[tokio::test]

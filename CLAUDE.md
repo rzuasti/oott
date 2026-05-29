@@ -19,6 +19,7 @@ For Flutter/Dart code:
 
 ## Project commands
 
+- `cd backend && ./build.sh` from the `backend/` folder - Build the backend
 - `cd backend && ./run.sh` from the `backend/` folder - Run the backend
 - `cd frontend && ./run.sh` from the `frontend/` folder - Run the front-end for the web
 - `cd backend && ./run_tests.sh` - Run the backend tests

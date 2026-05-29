@@ -44,7 +44,13 @@ impl fmt::Display for Notification {
         write!(
             f,
             "id={}, created_on={}, notification_type={}, is_new={}, mac_address={:?}\ntitle={}\nbody={}",
-            self.id, self.created_on, self.notification_type, self.is_new, self.mac_address, self.title, self.body
+            self.id,
+            self.created_on,
+            self.notification_type,
+            self.is_new,
+            self.mac_address,
+            self.title,
+            self.body
         )
     }
 }
