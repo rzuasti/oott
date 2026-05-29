@@ -236,6 +236,14 @@ class _NotificationsListState extends State<NotificationsList> {
           children: [
             IconButton.outlined(
               onPressed: _currentPage > 0 && !_isLoading
+                  ? () => _fetchPage(0)
+                  : null,
+              icon: const Icon(Icons.first_page),
+              tooltip: 'First page',
+            ),
+            const SizedBox(width: 8),
+            IconButton.outlined(
+              onPressed: _currentPage > 0 && !_isLoading
                   ? () => _fetchPage(_currentPage - 1)
                   : null,
               icon: const Icon(Icons.chevron_left),

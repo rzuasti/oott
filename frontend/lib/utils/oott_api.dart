@@ -99,6 +99,8 @@ class BackendAPI {
     bool? isRegistered,
     String? owner,
     DeviceType? deviceType,
+    int? offset,
+    int? limit,
   }) async {
     debugPrint('About to call /devices');
 
@@ -109,6 +111,10 @@ class BackendAPI {
       params['device_type'] = deviceType == DeviceType.unknown
           ? ''
           : deviceType.apiName;
+    }
+    if (offset != null) {
+      params['page_offset'] = offset;
+      params['page_limit'] = limit ?? _pageSize;
     }
 
     final response = await _dio.get('/devices', queryParameters: params);

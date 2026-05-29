@@ -26,6 +26,8 @@ use crate::web_server::utils;
         ("owner" = Option<String>, Query, description = "Filter by owner"),
         ("device_type" = Option<String>, Query, description = "Filter by device type"),
         ("vendor" = Option<String>, Query, description = "Filter by vendor"),
+        ("page_offset" = Option<i64>, Query, description = "Pagination offset"),
+        ("page_limit" = Option<i64>, Query, description = "Maximum number of results to return"),
     ),
     responses(
         (status = 200, description = "List of devices", body = Vec<Device>),
@@ -43,6 +45,8 @@ pub async fn list(
     let owner: Option<String> = utils::parse_parameter_string(&params, "owner");
     let device_type: Option<String> = utils::parse_parameter_string(&params, "device_type");
     let vendor: Option<String> = utils::parse_parameter_string(&params, "vendor");
+    let page_offset: Option<i64> = utils::parse_parameter_int(&params, "page_offset");
+    let page_limit: Option<i64> = utils::parse_parameter_int(&params, "page_limit");
 
     match db::devices::list_devices(
         is_registered,
@@ -51,6 +55,8 @@ pub async fn list(
         owner,
         device_type,
         vendor,
+        page_offset,
+        page_limit,
     ) {
         Ok(value) => Ok(Json(value)),
         Err(err) => {
