@@ -107,7 +107,7 @@ Finally, in your `configuration.nix` (or in an import file) enable and configure
   services.oott = {
     enable = true;
     database.path = "/var/lib/oott.db";
-    networking.interface = "eth0";
+    # networking.interface = "eth0"; # Optional: auto-detected if not set
     log.level = "info";
     timings.wait_between_scans = "15m";
     timings.arp_sender_timeout = "20m";
@@ -132,7 +132,7 @@ If you are using Docker I recommend writing the config using TOML, [here](https:
 |Option|Sample value|Description|
 |------|-------------|-----------|
 |`database.path`|`/var/lib/oott.db`|Location of the system database|
-|`networking.interface`|`eno1`|Network interface to use for scans|
+|`networking.interface`|`eno1`|Network interface to use for scans. Optional — if not set, the first non-loopback connected interface is used automatically.|
 |`log.level`|`info`|Log level to use (trace, debug, info, warn, error)|
 |`timings.wait_between_scans`|`15m`|Time to wait between each network scan (you can express it in seconds, minutes, hours, etc. as a suffix - for example: 30s, 10m, 1h)|
 |`timings.arp_sender_timeout`|`1m`|If the ARP sender process takes longer than this it will be stopped (for a class C network - 254 IPs - it should take less than a minute)|
