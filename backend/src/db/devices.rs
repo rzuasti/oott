@@ -199,8 +199,10 @@ pub fn update(device: Device) -> Result<(), DbError> {
 
     // Only write the vendor (and its derived device_type) when deduced, so a sighting that
     // could not determine a vendor (empty string) never clobbers a previously known one.
+    // device_type is only written when the stored value is empty, so a value chosen by the
+    // user (via register) or previously deduced is never overwritten by a later sighting.
     if !device.vendor.is_empty() {
-        sql.push_str(", vendor=?, device_type=?");
+        sql.push_str(", vendor=?, device_type=CASE WHEN device_type='' THEN ? ELSE device_type END");
         params.push(device.vendor.clone().into());
         params.push(device.device_type.clone().into());
     }
@@ -559,14 +561,47 @@ mod tests {
         assert_eq!(device.device_type, "phone".to_string());
         assert_eq!(device.ipv4_address, "192.168.220.99".to_string());
 
-        // A later sighting that deduces a different vendor updates both vendor and device_type.
+        // A later sighting that deduces a different vendor updates vendor but must NOT
+        // overwrite a device_type that is already set.
         let mut device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
         device.vendor = "Google, Inc.".to_string();
         device.device_type = "tablet".to_string();
         update(device).unwrap();
         let device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
         assert_eq!(device.vendor, "Google, Inc.".to_string());
-        assert_eq!(device.device_type, "tablet".to_string());
+        assert_eq!(device.device_type, "phone".to_string());
+    }
+
+    #[tokio::test]
+    async fn test_update_preserves_registered_device_type() {
+        tests_common::setup().await;
+
+        // A device registered with a user-chosen device_type must not have it overwritten
+        // by a later sighting that deduces a different device_type from a new vendor.
+        let last_seen = Utc::now();
+        insert(Device::new(
+            "pp:pp:pp:pp:pp:01".to_string(),
+            "192.168.240.1".to_string(),
+            "".to_string(),
+            last_seen,
+        ))
+        .unwrap();
+
+        register(
+            "pp:pp:pp:pp:pp:01".to_string(),
+            "Grace".to_string(),
+            "Laptop".to_string(),
+        )
+        .unwrap();
+
+        let mut device = read("pp:pp:pp:pp:pp:01".to_string()).unwrap();
+        device.vendor = "Apple, Inc.".to_string();
+        device.device_type = "Phone".to_string();
+        update(device).unwrap();
+
+        let device = read("pp:pp:pp:pp:pp:01".to_string()).unwrap();
+        assert_eq!(device.vendor, "Apple, Inc.".to_string());
+        assert_eq!(device.device_type, "Laptop".to_string());
     }
 
     #[tokio::test]
