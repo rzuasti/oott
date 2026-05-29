@@ -58,60 +58,66 @@ Future<void> showRegisterDeviceDialog(
   final saved = await showDialog<bool>(
     context: context,
     builder: (context) => StatefulBuilder(
-      builder: (context, setDialogState) => AlertDialog(
-        title: const Text('Register Device'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Owner'),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Owner is required'
-                    : null,
-                onSaved: (value) => owner = value?.trim() ?? '',
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<DeviceType>(
-                initialValue: deviceType,
-                decoration: const InputDecoration(labelText: 'Device Type'),
-                items: DeviceType.values
-                    .map(
-                      (t) => DropdownMenuItem(
-                        value: t,
-                        child: Row(
-                          children: [
-                            Icon(t.icon, size: 16),
-                            const SizedBox(width: 4),
-                            Text(t.label),
-                          ],
+      builder: (context, setDialogState) {
+        void save() {
+          if (formKey.currentState?.validate() ?? false) {
+            formKey.currentState?.save();
+            Navigator.of(context).pop(true);
+          }
+        }
+
+        return AlertDialog(
+          title: const Text('Register Device'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'Owner'),
+                  autofocus: true,
+                  onFieldSubmitted: (_) => save(),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Owner is required'
+                      : null,
+                  onSaved: (value) => owner = value?.trim() ?? '',
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<DeviceType>(
+                  initialValue: deviceType,
+                  decoration: const InputDecoration(labelText: 'Device Type'),
+                  items: DeviceType.values
+                      .map(
+                        (t) => DropdownMenuItem(
+                          value: t,
+                          child: Row(
+                            children: [
+                              Icon(t.icon, size: 16),
+                              const SizedBox(width: 4),
+                              Text(t.label),
+                            ],
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setDialogState(() => deviceType = value ?? deviceType),
-              ),
-            ],
+                      )
+                      .toList(),
+                  onChanged: (value) =>
+                      setDialogState(() => deviceType = value ?? deviceType),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                formKey.currentState?.save();
-                Navigator.of(context).pop(true);
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: save,
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     ),
   );
 
