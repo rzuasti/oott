@@ -4,6 +4,7 @@
 
 ## Backend
 
+- [ ] Use first available network interface when not configured
 - [x] Add Swagger and API docs (OpenAPI)
 - [x] Record an activity log in the database
   - [x] One event for each device appearance
