@@ -13,7 +13,7 @@ pub struct Database {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Networking {
-    pub interface: String,
+    pub interface: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

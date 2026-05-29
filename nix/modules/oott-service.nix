@@ -22,9 +22,9 @@ in {
       default = "/var/lib/oott.db";
     };
     networking.interface = mkOption {
-      type = types.str;
-      description = "Network interface to use for scans";
-      default = "eno1";
+      type = types.nullOr types.str;
+      description = "Network interface to use for scans. If not set, the first non-loopback connected interface is used automatically.";
+      default = null;
     };
     log.level = mkOption {
       type = types.str;

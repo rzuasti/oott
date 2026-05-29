@@ -13,7 +13,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
 
         // Find online devices via ARP
         let devices =
-            device_finders::arp::find(get_settings().networking.interface.to_string()).await?;
+            device_finders::arp::find(get_settings().networking.interface.clone()).await?;
 
         info!("Done with ARP probes");
         info!("Found {} online devices", devices.len());

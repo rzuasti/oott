@@ -2,7 +2,7 @@
 path = "./oott.db" # Database path. Make sure it's writeable for the user running this process
 
 [networking]
-interface = "eno1" # Network interface to use for scans
+# interface = "eno1" # Optional: network interface to use for scans. If not set, the first non-loopback connected interface is used.
 
 [log]
 level = "info" # off, error, warn, info, debug, trace
