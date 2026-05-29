@@ -183,18 +183,18 @@ pub fn get_summary() -> Result<DeviceSummary, DbError> {
     })
 }
 
+// Records a sighting of an existing device. Registration fields (is_registered, owner) are
+// owned by register/unregister and are intentionally never touched here.
 pub fn update(device: Device) -> Result<(), DbError> {
     let conn = db::get_db_connection();
 
-    let mut sql = "UPDATE devices SET ipv4_address=?, last_seen=?, is_registered=?, owner=?".to_string();
+    let mut sql = "UPDATE devices SET ipv4_address=?, last_seen=?".to_string();
     let mut params: Vec<rusqlite::types::Value> = vec![
         device.ipv4_address.clone().into(),
         device
             .last_seen
             .to_rfc3339_opts(chrono::SecondsFormat::Nanos, false)
             .into(),
-        device.is_registered.into(),
-        device.owner.clone().into(),
     ];
 
     // Only write the vendor (and its derived device_type) when deduced, so a sighting that
@@ -222,6 +222,42 @@ pub fn update(device: Device) -> Result<(), DbError> {
         }
         Err(error) => {
             error!("Error updating device ({device}) in database: {error}");
+            Err(DbError::from(error))
+        }
+    }
+}
+
+pub fn register(mac_address: String, owner: String, device_type: String) -> Result<(), DbError> {
+    let conn = db::get_db_connection();
+
+    match conn.execute(
+        "UPDATE devices SET is_registered=1, owner=?1, device_type=?2 WHERE mac_address=?3",
+        params![owner, device_type, mac_address],
+    ) {
+        Ok(_) => {
+            debug!("Device registered in database: {mac_address}");
+            Ok(())
+        }
+        Err(error) => {
+            error!("Error registering device ({mac_address}) in database: {error}");
+            Err(DbError::from(error))
+        }
+    }
+}
+
+pub fn unregister(mac_address: String) -> Result<(), DbError> {
+    let conn = db::get_db_connection();
+
+    match conn.execute(
+        "UPDATE devices SET is_registered=0, owner='' WHERE mac_address=?1",
+        params![mac_address],
+    ) {
+        Ok(_) => {
+            debug!("Device unregistered in database: {mac_address}");
+            Ok(())
+        }
+        Err(error) => {
+            error!("Error unregistering device ({mac_address}) in database: {error}");
             Err(DbError::from(error))
         }
     }
@@ -392,10 +428,22 @@ mod tests {
         ))
         .unwrap();
 
+        // Register the device, then update it with a Device carrying the scanner defaults
+        // (is_registered=false, owner=""). The update must NOT clobber the registration while
+        // still refreshing sighting fields like ipv4_address and last_seen.
+        register(
+            "uu:tt:tt:tt:tt:aa".to_string(),
+            "Grace".to_string(),
+            "Phone".to_string(),
+        )
+        .unwrap();
+
+        let new_last_seen = Utc::now();
         let mut device = read("uu:tt:tt:tt:tt:aa".to_string()).unwrap();
-        device.is_registered = true;
-        device.owner = "Grace".to_string();
-        device.device_type = "Phone".to_string();
+        device.is_registered = false;
+        device.owner = "".to_string();
+        device.ipv4_address = "192.168.200.50".to_string();
+        device.last_seen = new_last_seen;
 
         update(device).unwrap();
 
@@ -405,9 +453,9 @@ mod tests {
             device,
             "uu:tt:tt:tt:tt:aa".to_string(),
             "Phone".to_string(),
-            "192.168.200.1".to_string(),
+            "192.168.200.50".to_string(),
             true,
-            last_seen,
+            new_last_seen,
             "Grace".to_string(),
             "Test vendor".to_string(),
         );
@@ -519,6 +567,63 @@ mod tests {
         let device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
         assert_eq!(device.vendor, "Google, Inc.".to_string());
         assert_eq!(device.device_type, "tablet".to_string());
+    }
+
+    #[tokio::test]
+    async fn test_register() {
+        tests_common::setup().await;
+
+        // A device with no deduced vendor must still persist the device_type chosen at registration.
+        let last_seen = Utc::now();
+        insert(Device::new(
+            "rr:rr:rr:rr:rr:01".to_string(),
+            "192.168.230.1".to_string(),
+            "".to_string(),
+            last_seen,
+        ))
+        .unwrap();
+
+        register(
+            "rr:rr:rr:rr:rr:01".to_string(),
+            "Grace".to_string(),
+            "Phone".to_string(),
+        )
+        .unwrap();
+
+        let device = read("rr:rr:rr:rr:rr:01".to_string()).unwrap();
+        assert!(device.is_registered, "Device should be registered");
+        assert_eq!(device.owner, "Grace".to_string());
+        assert_eq!(device.device_type, "Phone".to_string());
+        assert_eq!(device.vendor, "".to_string());
+    }
+
+    #[tokio::test]
+    async fn test_unregister() {
+        tests_common::setup().await;
+
+        let last_seen = Utc::now();
+        insert(Device::new(
+            "rr:rr:rr:rr:rr:02".to_string(),
+            "192.168.230.2".to_string(),
+            "Test vendor".to_string(),
+            last_seen,
+        ))
+        .unwrap();
+
+        register(
+            "rr:rr:rr:rr:rr:02".to_string(),
+            "Grace".to_string(),
+            "Phone".to_string(),
+        )
+        .unwrap();
+
+        unregister("rr:rr:rr:rr:rr:02".to_string()).unwrap();
+
+        let device = read("rr:rr:rr:rr:rr:02".to_string()).unwrap();
+        assert!(!device.is_registered, "Device should not be registered");
+        assert_eq!(device.owner, "".to_string());
+        // device_type is left untouched by unregister
+        assert_eq!(device.device_type, "Phone".to_string());
     }
 
     #[tokio::test]

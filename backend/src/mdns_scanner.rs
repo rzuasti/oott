@@ -88,6 +88,11 @@ async fn process_announcement(
     match db::devices::read(mac.clone()) {
         Some(recorded) => {
             debug!("mDNS sighting of known device {mac}; updating");
+            // Keep the previously stored hostname rather than overwriting it with this
+            // announcement's hostname.
+            if recorded.name.is_some() {
+                device.name = recorded.name.clone();
+            }
             if let Err(err) = db::devices::update(device.clone()) {
                 error!("Failed to update mDNS device {mac}: {err}");
                 return;

@@ -105,7 +105,7 @@ pub async fn register(Json(payload): Json<RegisterDevicePayload>) -> impl IntoRe
         payload.mac_address, payload.owner, payload.device_type
     );
 
-    let mut device = match db::devices::read(payload.mac_address) {
+    let device = match db::devices::read(payload.mac_address.clone()) {
         Some(value) => value,
         None => {
             return (
@@ -122,11 +122,7 @@ pub async fn register(Json(payload): Json<RegisterDevicePayload>) -> impl IntoRe
         );
     }
 
-    device.is_registered = true;
-    device.owner = payload.owner;
-    device.device_type = payload.device_type;
-
-    match db::devices::update(device) {
+    match db::devices::register(payload.mac_address, payload.owner, payload.device_type) {
         Ok(_) => (axum::http::StatusCode::CREATED, "Device registered"),
         Err(err) => {
             error!("Error registering device in the database: {}", err);
@@ -154,7 +150,7 @@ pub async fn register(Json(payload): Json<RegisterDevicePayload>) -> impl IntoRe
     security(("bearer_auth" = []))
 )]
 pub async fn unregister(Path(mac_address): Path<String>) -> impl IntoResponse {
-    let mut device = match db::devices::read(mac_address) {
+    let device = match db::devices::read(mac_address.clone()) {
         Some(value) => value,
         None => {
             return (
@@ -171,10 +167,7 @@ pub async fn unregister(Path(mac_address): Path<String>) -> impl IntoResponse {
         );
     }
 
-    device.is_registered = false;
-    device.owner = "".to_string();
-
-    match db::devices::update(device) {
+    match db::devices::unregister(mac_address) {
         Ok(_) => (axum::http::StatusCode::OK, "Device un-registered"),
         Err(err) => {
             error!("Error updating device in the database: {}", err);
