@@ -5,7 +5,7 @@ use chrono::Local;
 use log::{debug, error, info, warn};
 
 use crate::db;
-use crate::device_finders::{mac_resolver, mdns};
+use crate::device_finders::mdns;
 use crate::events;
 use crate::mac_vendor_finder;
 use crate::mdns_scanner_status;
@@ -53,7 +53,7 @@ async fn process_announcement(
     interface: Option<String>,
     probe_timeout: Duration,
 ) {
-    let mac = match mac_resolver::resolve(src_ip, interface, probe_timeout).await {
+    let mac = match crate::utils::network::resolve_mac_address(src_ip, interface, probe_timeout).await {
         Some(mac) => mac.to_string(),
         None => {
             debug!("Could not resolve MAC for mDNS device {src_ip} ({hostname}); skipping");

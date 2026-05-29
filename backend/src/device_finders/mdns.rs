@@ -8,7 +8,7 @@ use simple_dns::rdata::RData;
 use socket2::{Domain, Protocol, Socket, Type};
 use tokio::net::UdpSocket;
 
-use crate::device_finders::arp::select_interface;
+use crate::utils::network::select_interface;
 
 const MDNS_GROUP: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 251);
 const MDNS_PORT: u16 = 5353;
