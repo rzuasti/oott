@@ -45,30 +45,52 @@ pub fn open_socket(interface: Option<String>) -> Result<UdpSocket, Box<dyn std::
     Ok(udp)
 }
 
-/// Parse a raw mDNS/DNS message and return the hostnames advertised by its A records.
-pub fn parse_announcement(buf: &[u8]) -> Vec<String> {
+/// The contents of an mDNS/DNS announcement relevant to device discovery.
+pub struct Announcement {
+    /// Hostnames advertised by A records (e.g. `Test-Device.local`).
+    pub hostnames: Vec<String>,
+    /// Service types advertised by PTR records (e.g. `_airplay._tcp.local`).
+    pub service_types: Vec<String>,
+}
+
+/// Parse a raw mDNS/DNS message into the hostnames (A records) and service types (PTR records)
+/// it advertises. Returns an empty `Announcement` if the packet cannot be parsed.
+pub fn parse_announcement(buf: &[u8]) -> Announcement {
     let packet = match Packet::parse(buf) {
         Ok(p) => p,
         Err(err) => {
             debug!("Ignoring unparseable mDNS packet: {err}");
-            return Vec::new();
+            return Announcement {
+                hostnames: Vec::new(),
+                service_types: Vec::new(),
+            };
         }
     };
 
-    packet
-        .answers
-        .iter()
-        .chain(packet.additional_records.iter())
+    let records = || packet.answers.iter().chain(packet.additional_records.iter());
+
+    let hostnames = records()
         .filter(|record| matches!(record.rdata, RData::A(_)))
         .map(|record| record.name.to_string())
         .filter(|host| !host.is_empty())
-        .collect()
+        .collect();
+
+    let service_types = records()
+        .filter(|record| matches!(record.rdata, RData::PTR(_)))
+        .map(|record| record.name.to_string())
+        .filter(|service| !service.is_empty())
+        .collect();
+
+    Announcement {
+        hostnames,
+        service_types,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use simple_dns::rdata::A;
+    use simple_dns::rdata::{A, PTR};
     use simple_dns::{CLASS, Name, Packet, ResourceRecord};
 
     #[test]
@@ -85,15 +107,45 @@ mod tests {
         ));
         let bytes = packet.build_bytes_vec().unwrap();
 
-        let hosts = parse_announcement(&bytes);
+        let announcement = parse_announcement(&bytes);
         assert!(
-            hosts.iter().any(|h| h.contains("Test-Device.local")),
-            "expected to extract Test-Device.local, got {hosts:?}"
+            announcement
+                .hostnames
+                .iter()
+                .any(|h| h.contains("Test-Device.local")),
+            "expected to extract Test-Device.local, got {:?}",
+            announcement.hostnames
+        );
+    }
+
+    #[test]
+    fn test_parse_announcement_extracts_service_type() {
+        let mut packet = Packet::new_reply(1);
+        let service = Name::new("_airplay._tcp.local").unwrap();
+        let target = Name::new("Apple-TV._airplay._tcp.local").unwrap();
+        packet.answers.push(ResourceRecord::new(
+            service,
+            CLASS::IN,
+            120,
+            RData::PTR(PTR(target)),
+        ));
+        let bytes = packet.build_bytes_vec().unwrap();
+
+        let announcement = parse_announcement(&bytes);
+        assert!(
+            announcement
+                .service_types
+                .iter()
+                .any(|s| s.contains("_airplay._tcp.local")),
+            "expected to extract _airplay._tcp.local, got {:?}",
+            announcement.service_types
         );
     }
 
     #[test]
     fn test_parse_announcement_ignores_garbage() {
-        assert!(parse_announcement(&[0xff, 0x00, 0x13]).is_empty());
+        let announcement = parse_announcement(&[0xff, 0x00, 0x13]);
+        assert!(announcement.hostnames.is_empty());
+        assert!(announcement.service_types.is_empty());
     }
 }

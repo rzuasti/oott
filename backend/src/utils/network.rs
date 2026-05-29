@@ -138,6 +138,16 @@ fn probe_mac(target_ip: Ipv4Addr, interface: Option<String>, timeout: Duration) 
     None
 }
 
+/// Return whether a MAC address is locally administered, i.e. the second-least-significant bit of
+/// its first octet is set. Randomized/private MACs (e.g. Apple "Private WiFi Address") are locally
+/// administered and have no real OUI. Returns `false` for malformed input.
+pub fn is_locally_administered(mac: &str) -> bool {
+    mac.split(':')
+        .next()
+        .and_then(|octet| u8::from_str_radix(octet, 16).ok())
+        .is_some_and(|first_octet| first_octet & 0x02 != 0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,5 +254,23 @@ mod tests {
     fn test_parse_absent_ip_is_none() {
         let mac = parse_proc_net_arp(SAMPLE, Ipv4Addr::new(10, 0, 0, 1));
         assert_eq!(mac, None);
+    }
+
+    #[test]
+    fn test_locally_administered_mac_is_detected() {
+        assert!(is_locally_administered("f2:00:a9:35:91:fc"));
+        assert!(is_locally_administered("a6:11:22:33:44:55"));
+    }
+
+    #[test]
+    fn test_globally_administered_mac_is_not_locally_administered() {
+        assert!(!is_locally_administered("00:1a:2b:3c:4d:5e"));
+        assert!(!is_locally_administered("3c:22:fb:00:11:22"));
+    }
+
+    #[test]
+    fn test_malformed_mac_is_not_locally_administered() {
+        assert!(!is_locally_administered(""));
+        assert!(!is_locally_administered("zz:00:00:00:00:00"));
     }
 }

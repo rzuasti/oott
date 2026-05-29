@@ -4,17 +4,16 @@ use log::{LevelFilter, info};
 
 mod arp_scanner;
 mod arp_scanner_status;
+mod data;
 mod db;
 mod device_finders;
 mod events;
-mod mac_vendor_finder;
 mod mdns_scanner;
 mod mdns_scanner_status;
 mod model;
 mod retention;
 mod settings;
 mod utils;
-mod vendor_device_type_finder;
 mod web_server;
 
 #[cfg(test)]

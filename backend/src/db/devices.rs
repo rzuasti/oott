@@ -186,18 +186,24 @@ pub fn get_summary() -> Result<DeviceSummary, DbError> {
 pub fn update(device: Device) -> Result<(), DbError> {
     let conn = db::get_db_connection();
 
-    let mut sql = "UPDATE devices SET ipv4_address=?, vendor=?, last_seen=?, is_registered=?, owner=?, device_type=?".to_string();
+    let mut sql = "UPDATE devices SET ipv4_address=?, last_seen=?, is_registered=?, owner=?".to_string();
     let mut params: Vec<rusqlite::types::Value> = vec![
         device.ipv4_address.clone().into(),
-        device.vendor.clone().into(),
         device
             .last_seen
             .to_rfc3339_opts(chrono::SecondsFormat::Nanos, false)
             .into(),
         device.is_registered.into(),
         device.owner.clone().into(),
-        device.device_type.clone().into(),
     ];
+
+    // Only write the vendor (and its derived device_type) when deduced, so a sighting that
+    // could not determine a vendor (empty string) never clobbers a previously known one.
+    if !device.vendor.is_empty() {
+        sql.push_str(", vendor=?, device_type=?");
+        params.push(device.vendor.clone().into());
+        params.push(device.device_type.clone().into());
+    }
 
     // Only write the name column when it is set, so an ARP rescan (name: None) never
     // clobbers a hostname previously stored by the mDNS scanner.
@@ -474,6 +480,45 @@ mod tests {
             read("nn:nn:nn:nn:nn:01".to_string()).unwrap().name,
             Some("renamed.local".to_string())
         );
+    }
+
+    #[tokio::test]
+    async fn test_update_vendor_set_and_preserve() {
+        tests_common::setup().await;
+
+        let last_seen = Utc::now();
+        insert(Device::new(
+            "vv:vv:vv:vv:vv:01".to_string(),
+            "192.168.220.1".to_string(),
+            "Apple, Inc.".to_string(),
+            last_seen,
+        ))
+        .unwrap();
+
+        let mut device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
+        device.device_type = "phone".to_string();
+        update(device).unwrap();
+
+        // A re-sighting that could not deduce a vendor (empty) must NOT clobber the known one,
+        // nor its derived device_type, but other fields still update.
+        let mut device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
+        device.vendor = "".to_string();
+        device.device_type = "".to_string();
+        device.ipv4_address = "192.168.220.99".to_string();
+        update(device).unwrap();
+        let device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
+        assert_eq!(device.vendor, "Apple, Inc.".to_string());
+        assert_eq!(device.device_type, "phone".to_string());
+        assert_eq!(device.ipv4_address, "192.168.220.99".to_string());
+
+        // A later sighting that deduces a different vendor updates both vendor and device_type.
+        let mut device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
+        device.vendor = "Google, Inc.".to_string();
+        device.device_type = "tablet".to_string();
+        update(device).unwrap();
+        let device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
+        assert_eq!(device.vendor, "Google, Inc.".to_string());
+        assert_eq!(device.device_type, "tablet".to_string());
     }
 
     #[tokio::test]

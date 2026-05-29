@@ -24,6 +24,13 @@ fn display_name(device: &Device) -> &str {
         .unwrap_or("(unknown)")
 }
 
+// Whether a re-sighting represents a real vendor change. A scanner that cannot deduce a vendor
+// reports an empty string; that is not a change (db::devices::update keeps the known vendor), so
+// it must not raise a "vendor changed" notification either.
+fn vendor_changed(existing: &str, new: &str) -> bool {
+    !new.is_empty() && existing != new
+}
+
 // Private helper function to deliver messages
 fn send_notification(notification: Notification) -> Result<(), Box<dyn Error>> {
     debug!("About to record notification in database");
@@ -126,9 +133,10 @@ pub fn trigger_existing_device(
     }
 
     // Notify if the devices vendor and/or IP changed
-    if (existing_device.ipv4_address != new_device.ipv4_address)
-        && (existing_device.vendor != new_device.vendor)
-    {
+    let ip_changed = existing_device.ipv4_address != new_device.ipv4_address;
+    let vendor_changed = vendor_changed(&existing_device.vendor, &new_device.vendor);
+
+    if ip_changed && vendor_changed {
         let notification = Notification::new(
             Utc::now(),
             NotificationType::DeviceChanged,
@@ -147,7 +155,7 @@ pub fn trigger_existing_device(
         );
 
         send_notification(notification)?;
-    } else if existing_device.ipv4_address != new_device.ipv4_address {
+    } else if ip_changed {
         let notification = Notification::new(
             Utc::now(),
             NotificationType::DeviceChanged,
@@ -165,7 +173,7 @@ pub fn trigger_existing_device(
         );
 
         send_notification(notification)?;
-    } else if existing_device.vendor != new_device.vendor {
+    } else if vendor_changed {
         let notification = Notification::new(
             Utc::now(),
             NotificationType::DeviceChanged,
@@ -186,4 +194,29 @@ pub fn trigger_existing_device(
     };
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_new_vendor_is_not_a_change() {
+        assert!(!vendor_changed("Apple, Inc.", ""));
+    }
+
+    #[test]
+    fn different_non_empty_vendor_is_a_change() {
+        assert!(vendor_changed("Apple, Inc.", "Google, Inc."));
+    }
+
+    #[test]
+    fn same_vendor_is_not_a_change() {
+        assert!(!vendor_changed("Apple, Inc.", "Apple, Inc."));
+    }
+
+    #[test]
+    fn newly_deduced_vendor_from_empty_is_a_change() {
+        assert!(vendor_changed("", "Apple, Inc."));
+    }
 }
