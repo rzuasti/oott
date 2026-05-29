@@ -12,6 +12,7 @@
 
 ## Frontend
 
+- [ ] Change the notifications list so it has explicit paging (not infinite paging)
 - [x] List recorded devices
 - [x] Register a device
 - [x] Forget a device
