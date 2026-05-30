@@ -5,7 +5,7 @@ use crate::model::devices::{Device, DeviceSummary};
 use crate::model::notifications::{Notification, NotificationType};
 use crate::settings::get_settings;
 use crate::web_server::arp_scanner::ArpScannerStatusResponse;
-use crate::web_server::devices::RegisterDevicePayload;
+use crate::web_server::devices::{RegisterDevicePayload, UpdateDevicePayload};
 use crate::web_server::mdns_scanner::MdnsScannerStatusResponse;
 use axum::Json;
 use axum::extract::Request;
@@ -43,6 +43,7 @@ pub mod utils;
         devices::summary,
         devices::read,
         devices::register,
+        devices::update,
         devices::unregister,
         notifications::list,
         notifications::read,
@@ -59,6 +60,7 @@ pub mod utils;
         Notification,
         NotificationType,
         RegisterDevicePayload,
+        UpdateDevicePayload,
         DeviceEvent,
         DeviceEventType,
         ArpScannerStatusResponse,
@@ -109,6 +111,7 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .route("/api/devices/summary", get(devices::summary))
         .route("/api/devices/{mac_address}", delete(devices::unregister))
         .route("/api/devices/{mac_address}", get(devices::read))
+        .route("/api/devices/{mac_address}", put(devices::update))
         .route(
             "/api/devices/{mac_address}/events",
             get(device_events::list),

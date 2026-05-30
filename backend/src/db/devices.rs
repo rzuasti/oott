@@ -183,16 +183,22 @@ pub fn get_summary() -> Result<DeviceSummary, DbError> {
     })
 }
 
-// Records a sighting of an existing device. Registration fields (is_registered, owner) are
-// owned by register/unregister and are intentionally never touched here.
-pub fn update(device: Device) -> Result<(), DbError> {
+// Records a sighting of an existing device by a scanner. last_seen is stamped here with the
+// current time. Registration fields (is_registered, owner) are owned by register/unregister
+// and are intentionally never touched here.
+pub fn seen(
+    mac_address: String,
+    ipv4_address: String,
+    vendor: String,
+    device_type: String,
+    name: Option<String>,
+) -> Result<(), DbError> {
     let conn = db::get_db_connection();
 
     let mut sql = "UPDATE devices SET ipv4_address=?, last_seen=?".to_string();
     let mut params: Vec<rusqlite::types::Value> = vec![
-        device.ipv4_address.clone().into(),
-        device
-            .last_seen
+        ipv4_address.into(),
+        Utc::now()
             .to_rfc3339_opts(chrono::SecondsFormat::Nanos, false)
             .into(),
     ];
@@ -201,29 +207,54 @@ pub fn update(device: Device) -> Result<(), DbError> {
     // could not determine a vendor (empty string) never clobbers a previously known one.
     // device_type is only written when the stored value is empty, so a value chosen by the
     // user (via register) or previously deduced is never overwritten by a later sighting.
-    if !device.vendor.is_empty() {
+    if !vendor.is_empty() {
         sql.push_str(", vendor=?, device_type=CASE WHEN device_type='' THEN ? ELSE device_type END");
-        params.push(device.vendor.clone().into());
-        params.push(device.device_type.clone().into());
+        params.push(vendor.into());
+        params.push(device_type.into());
     }
 
     // Only write the name column when it is set, so an ARP rescan (name: None) never
     // clobbers a hostname previously stored by the mDNS scanner.
-    if let Some(name) = &device.name {
+    if let Some(name) = name {
         sql.push_str(", name=?");
-        params.push(name.clone().into());
+        params.push(name.into());
     }
 
     sql.push_str(" WHERE mac_address=?");
-    params.push(device.mac_address.clone().into());
+    params.push(mac_address.clone().into());
 
     match conn.execute(sql.as_str(), params_from_iter(params.iter())) {
         Ok(_) => {
-            debug!("Device updated in database: {}", device);
+            debug!("Device sighting recorded in database: {mac_address}");
             Ok(())
         }
         Err(error) => {
-            error!("Error updating device ({device}) in database: {error}");
+            error!("Error recording device sighting ({mac_address}) in database: {error}");
+            Err(DbError::from(error))
+        }
+    }
+}
+
+// Modifies user-editable fields of a device. Intended for the UI's "modify" feature; scanners
+// must use seen() instead.
+pub fn update(
+    mac_address: String,
+    owner: String,
+    device_type: String,
+    vendor: String,
+) -> Result<(), DbError> {
+    let conn = db::get_db_connection();
+
+    match conn.execute(
+        "UPDATE devices SET owner=?1, device_type=?2, vendor=?3 WHERE mac_address=?4",
+        params![owner, device_type, vendor, mac_address],
+    ) {
+        Ok(_) => {
+            debug!("Device updated in database: {mac_address}");
+            Ok(())
+        }
+        Err(error) => {
+            error!("Error updating device ({mac_address}) in database: {error}");
             Err(DbError::from(error))
         }
     }
@@ -416,23 +447,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_update() {
+    async fn test_seen() {
         tests_common::setup().await;
 
-        // Insert a device, update it and validate it
+        // Insert a device, record a sighting and validate it
 
-        let last_seen = Utc::now();
+        let initial_last_seen = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap();
         insert(Device::new(
             "uu:tt:tt:tt:tt:aa".to_string(),
             "192.168.200.1".to_string(),
             "Test vendor".to_string(),
-            last_seen,
+            initial_last_seen,
         ))
         .unwrap();
 
-        // Register the device, then update it with a Device carrying the scanner defaults
-        // (is_registered=false, owner=""). The update must NOT clobber the registration while
-        // still refreshing sighting fields like ipv4_address and last_seen.
+        // Register the device, then record a sighting. seen() must NOT clobber the
+        // registration while still refreshing sighting fields (ipv4_address, last_seen).
         register(
             "uu:tt:tt:tt:tt:aa".to_string(),
             "Grace".to_string(),
@@ -440,56 +470,44 @@ mod tests {
         )
         .unwrap();
 
-        let new_last_seen = Utc::now();
-        let mut device = read("uu:tt:tt:tt:tt:aa".to_string()).unwrap();
-        device.is_registered = false;
-        device.owner = "".to_string();
-        device.ipv4_address = "192.168.200.50".to_string();
-        device.last_seen = new_last_seen;
-
-        update(device).unwrap();
-
-        let device = read("uu:tt:tt:tt:tt:aa".to_string()).unwrap();
-
-        validate_device(
-            device,
+        let before = Utc::now();
+        seen(
             "uu:tt:tt:tt:tt:aa".to_string(),
-            "Phone".to_string(),
             "192.168.200.50".to_string(),
-            true,
-            new_last_seen,
-            "Grace".to_string(),
             "Test vendor".to_string(),
-        );
-
-        // Insert a device, change its MAC address and validate it hasnt changed (it cannot)
-        let last_seen = Utc::now();
-        insert(Device::new(
-            "uu:tt:tt:tt:tt:bb".to_string(),
-            "192.168.200.3".to_string(),
-            "Test vendor".to_string(),
-            last_seen,
-        ))
+            "".to_string(),
+            None,
+        )
         .unwrap();
 
-        let mut device = read("uu:tt:tt:tt:tt:bb".to_string()).unwrap();
-        device.mac_address = "uu:tt:tt:tt:tt:cc".to_string();
+        let device = read("uu:tt:tt:tt:tt:aa".to_string()).unwrap();
+        assert_eq!(device.ipv4_address, "192.168.200.50".to_string());
+        assert!(
+            device.last_seen >= before,
+            "seen() should stamp last_seen with the current time"
+        );
+        assert!(device.is_registered);
+        assert_eq!(device.owner, "Grace".to_string());
+        assert_eq!(device.device_type, "Phone".to_string());
+        assert_eq!(device.vendor, "Test vendor".to_string());
 
-        update(device).unwrap();
-
+        // A seen() call for a MAC that doesn't exist is a no-op (no row matches)
+        seen(
+            "uu:tt:tt:tt:tt:cc".to_string(),
+            "192.168.200.99".to_string(),
+            "Test vendor".to_string(),
+            "".to_string(),
+            None,
+        )
+        .unwrap();
         assert!(
             read("uu:tt:tt:tt:tt:cc".to_string()).is_none(),
-            "Device should not exist"
+            "seen() must not insert new devices"
         );
-
-        assert!(
-            read("uu:tt:tt:tt:tt:bb".to_string()).is_some(),
-            "Device should exist"
-        )
     }
 
     #[tokio::test]
-    async fn test_update_name_set_and_preserve() {
+    async fn test_seen_name_set_and_preserve() {
         tests_common::setup().await;
 
         let last_seen = Utc::now();
@@ -505,27 +523,41 @@ mod tests {
         assert_eq!(read("nn:nn:nn:nn:nn:01".to_string()).unwrap().name, None);
 
         // mDNS sets the name
-        let mut device = read("nn:nn:nn:nn:nn:01".to_string()).unwrap();
-        device.name = Some("host.local".to_string());
-        update(device).unwrap();
+        seen(
+            "nn:nn:nn:nn:nn:01".to_string(),
+            "192.168.210.1".to_string(),
+            "Test vendor".to_string(),
+            "".to_string(),
+            Some("host.local".to_string()),
+        )
+        .unwrap();
         assert_eq!(
             read("nn:nn:nn:nn:nn:01".to_string()).unwrap().name,
             Some("host.local".to_string())
         );
 
         // An ARP rescan (name: None) must NOT clobber the stored name
-        let mut device = read("nn:nn:nn:nn:nn:01".to_string()).unwrap();
-        device.name = None;
-        device.ipv4_address = "192.168.210.99".to_string();
-        update(device).unwrap();
+        seen(
+            "nn:nn:nn:nn:nn:01".to_string(),
+            "192.168.210.99".to_string(),
+            "Test vendor".to_string(),
+            "".to_string(),
+            None,
+        )
+        .unwrap();
         let device = read("nn:nn:nn:nn:nn:01".to_string()).unwrap();
         assert_eq!(device.name, Some("host.local".to_string()));
         assert_eq!(device.ipv4_address, "192.168.210.99".to_string());
 
         // A later mDNS sighting updates the name
-        let mut device = read("nn:nn:nn:nn:nn:01".to_string()).unwrap();
-        device.name = Some("renamed.local".to_string());
-        update(device).unwrap();
+        seen(
+            "nn:nn:nn:nn:nn:01".to_string(),
+            "192.168.210.99".to_string(),
+            "Test vendor".to_string(),
+            "".to_string(),
+            Some("renamed.local".to_string()),
+        )
+        .unwrap();
         assert_eq!(
             read("nn:nn:nn:nn:nn:01".to_string()).unwrap().name,
             Some("renamed.local".to_string())
@@ -533,7 +565,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_update_vendor_set_and_preserve() {
+    async fn test_seen_vendor_set_and_preserve() {
         tests_common::setup().await;
 
         let last_seen = Utc::now();
@@ -545,17 +577,25 @@ mod tests {
         ))
         .unwrap();
 
-        let mut device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
-        device.device_type = "phone".to_string();
-        update(device).unwrap();
+        seen(
+            "vv:vv:vv:vv:vv:01".to_string(),
+            "192.168.220.1".to_string(),
+            "Apple, Inc.".to_string(),
+            "phone".to_string(),
+            None,
+        )
+        .unwrap();
 
         // A re-sighting that could not deduce a vendor (empty) must NOT clobber the known one,
         // nor its derived device_type, but other fields still update.
-        let mut device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
-        device.vendor = "".to_string();
-        device.device_type = "".to_string();
-        device.ipv4_address = "192.168.220.99".to_string();
-        update(device).unwrap();
+        seen(
+            "vv:vv:vv:vv:vv:01".to_string(),
+            "192.168.220.99".to_string(),
+            "".to_string(),
+            "".to_string(),
+            None,
+        )
+        .unwrap();
         let device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
         assert_eq!(device.vendor, "Apple, Inc.".to_string());
         assert_eq!(device.device_type, "phone".to_string());
@@ -563,17 +603,21 @@ mod tests {
 
         // A later sighting that deduces a different vendor updates vendor but must NOT
         // overwrite a device_type that is already set.
-        let mut device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
-        device.vendor = "Google, Inc.".to_string();
-        device.device_type = "tablet".to_string();
-        update(device).unwrap();
+        seen(
+            "vv:vv:vv:vv:vv:01".to_string(),
+            "192.168.220.99".to_string(),
+            "Google, Inc.".to_string(),
+            "tablet".to_string(),
+            None,
+        )
+        .unwrap();
         let device = read("vv:vv:vv:vv:vv:01".to_string()).unwrap();
         assert_eq!(device.vendor, "Google, Inc.".to_string());
         assert_eq!(device.device_type, "phone".to_string());
     }
 
     #[tokio::test]
-    async fn test_update_preserves_registered_device_type() {
+    async fn test_seen_preserves_registered_device_type() {
         tests_common::setup().await;
 
         // A device registered with a user-chosen device_type must not have it overwritten
@@ -594,14 +638,56 @@ mod tests {
         )
         .unwrap();
 
-        let mut device = read("pp:pp:pp:pp:pp:01".to_string()).unwrap();
-        device.vendor = "Apple, Inc.".to_string();
-        device.device_type = "Phone".to_string();
-        update(device).unwrap();
+        seen(
+            "pp:pp:pp:pp:pp:01".to_string(),
+            "192.168.240.1".to_string(),
+            "Apple, Inc.".to_string(),
+            "Phone".to_string(),
+            None,
+        )
+        .unwrap();
 
         let device = read("pp:pp:pp:pp:pp:01".to_string()).unwrap();
         assert_eq!(device.vendor, "Apple, Inc.".to_string());
         assert_eq!(device.device_type, "Laptop".to_string());
+    }
+
+    #[tokio::test]
+    async fn test_update() {
+        tests_common::setup().await;
+
+        // update() overwrites owner, device_type and vendor unconditionally, leaving sighting
+        // fields (ipv4_address, last_seen, name) and is_registered untouched.
+        let last_seen = Utc::now();
+        insert(Device {
+            mac_address: "mm:mm:mm:mm:mm:01".to_string(),
+            ipv4_address: "192.168.250.1".to_string(),
+            vendor: "Old Vendor".to_string(),
+            last_seen,
+            is_registered: true,
+            owner: "Alice".to_string(),
+            device_type: "Phone".to_string(),
+            name: Some("host.local".to_string()),
+        })
+        .unwrap();
+
+        update(
+            "mm:mm:mm:mm:mm:01".to_string(),
+            "Bob".to_string(),
+            "Laptop".to_string(),
+            "New Vendor".to_string(),
+        )
+        .unwrap();
+
+        let device = read("mm:mm:mm:mm:mm:01".to_string()).unwrap();
+        assert_eq!(device.owner, "Bob".to_string());
+        assert_eq!(device.device_type, "Laptop".to_string());
+        assert_eq!(device.vendor, "New Vendor".to_string());
+        // Sighting and registration fields are untouched
+        assert_eq!(device.ipv4_address, "192.168.250.1".to_string());
+        assert_eq!(device.last_seen, last_seen);
+        assert_eq!(device.name, Some("host.local".to_string()));
+        assert!(device.is_registered);
     }
 
     #[tokio::test]

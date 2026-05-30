@@ -135,6 +135,60 @@ pub async fn register(Json(payload): Json<RegisterDevicePayload>) -> impl IntoRe
 }
 
 #[utoipa::path(
+    put,
+    path = "/api/devices/{mac_address}",
+    tag = "devices",
+    params(
+        ("mac_address" = String, Path, description = "MAC address of the device"),
+    ),
+    request_body = UpdateDevicePayload,
+    responses(
+        (status = 200, description = "Device updated"),
+        (status = 404, description = "Device not found"),
+        (status = 409, description = "Device is not registered"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn update(
+    Path(mac_address): Path<String>,
+    Json(payload): Json<UpdateDevicePayload>,
+) -> impl IntoResponse {
+    debug!(
+        "Device update received: mac_address={}, owner={}, device_type={}, vendor={}",
+        mac_address, payload.owner, payload.device_type, payload.vendor
+    );
+
+    let device = match db::devices::read(mac_address.clone()) {
+        Some(value) => value,
+        None => {
+            return (
+                axum::http::StatusCode::NOT_FOUND,
+                "Device not found or could not be read",
+            );
+        }
+    };
+
+    if !device.is_registered {
+        return (
+            axum::http::StatusCode::CONFLICT,
+            "Device is not registered, register it before modifying",
+        );
+    }
+
+    match db::devices::update(mac_address, payload.owner, payload.device_type, payload.vendor) {
+        Ok(_) => (axum::http::StatusCode::OK, "Device updated"),
+        Err(err) => {
+            error!("Error updating device in the database: {}", err);
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "Error updating device in the server, check your logs",
+            )
+        }
+    }
+}
+
+#[utoipa::path(
     delete,
     path = "/api/devices/{mac_address}",
     tag = "devices",
@@ -205,4 +259,11 @@ pub struct RegisterDevicePayload {
     mac_address: String,
     owner: String,
     device_type: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct UpdateDevicePayload {
+    owner: String,
+    device_type: String,
+    vendor: String,
 }

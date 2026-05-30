@@ -32,7 +32,13 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
                         "Device found in database {}. Updating to {}.",
                         recorded_device, device
                     );
-                    db::devices::update(device.clone())?;
+                    db::devices::seen(
+                        device.mac_address.clone(),
+                        device.ipv4_address.clone(),
+                        device.vendor.clone(),
+                        device.device_type.clone(),
+                        device.name.clone(),
+                    )?;
                     events::trigger_existing_device(recorded_device, device.clone()).ok(); // Ignoring errors here, do not stop loop if notification delivery fails
                 }
                 None => {

@@ -93,7 +93,13 @@ async fn process_announcement(
             if recorded.name.is_some() {
                 device.name = recorded.name.clone();
             }
-            if let Err(err) = db::devices::update(device.clone()) {
+            if let Err(err) = db::devices::seen(
+                device.mac_address.clone(),
+                device.ipv4_address.clone(),
+                device.vendor.clone(),
+                device.device_type.clone(),
+                device.name.clone(),
+            ) {
                 error!("Failed to update mDNS device {mac}: {err}");
                 return;
             }
