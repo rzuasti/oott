@@ -275,12 +275,13 @@ pub fn update(
     owner: String,
     device_type: String,
     vendor: String,
+    name: Option<String>,
 ) -> Result<(), DbError> {
     let conn = db::get_db_connection();
 
     match conn.execute(
-        "UPDATE devices SET owner=?1, device_type=?2, vendor=?3 WHERE mac_address=?4",
-        params![owner, device_type, vendor, mac_address],
+        "UPDATE devices SET owner=?1, device_type=?2, vendor=?3, name=?4 WHERE mac_address=?5",
+        params![owner, device_type, vendor, name, mac_address],
     ) {
         Ok(_) => {
             debug!("Device updated in database: {mac_address}");
@@ -842,6 +843,7 @@ mod tests {
             "Bob".to_string(),
             "Laptop".to_string(),
             "New Vendor".to_string(),
+            Some("kitchen-pc".to_string()),
         )
         .unwrap();
 
@@ -849,11 +851,24 @@ mod tests {
         assert_eq!(device.owner, "Bob".to_string());
         assert_eq!(device.device_type, "Laptop".to_string());
         assert_eq!(device.vendor, "New Vendor".to_string());
+        assert_eq!(device.name, Some("kitchen-pc".to_string()));
         // Sighting and registration fields are untouched
         assert_eq!(device.ipv4_address, "192.168.250.1".to_string());
         assert_eq!(device.last_seen, last_seen);
-        assert_eq!(device.name, Some("host.local".to_string()));
         assert!(device.is_registered);
+
+        // Passing None clears the name (edit dialog is an explicit user action — "what you see
+        // in the dialog is what gets saved", unlike register() which preserves on None).
+        update(
+            "mm:mm:mm:mm:mm:01".to_string(),
+            "Bob".to_string(),
+            "Laptop".to_string(),
+            "New Vendor".to_string(),
+            None,
+        )
+        .unwrap();
+        let device = read("mm:mm:mm:mm:mm:01".to_string()).unwrap();
+        assert_eq!(device.name, None);
     }
 
     #[tokio::test]

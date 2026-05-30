@@ -166,8 +166,8 @@ pub async fn update(
     Json(payload): Json<UpdateDevicePayload>,
 ) -> impl IntoResponse {
     debug!(
-        "Device update received: mac_address={}, owner={}, device_type={}, vendor={}",
-        mac_address, payload.owner, payload.device_type, payload.vendor
+        "Device update received: mac_address={}, owner={}, device_type={}, vendor={}, name={:?}",
+        mac_address, payload.owner, payload.device_type, payload.vendor, payload.name
     );
 
     let device = match db::devices::read(mac_address.clone()) {
@@ -192,6 +192,7 @@ pub async fn update(
         payload.owner,
         payload.device_type,
         payload.vendor,
+        payload.name,
     ) {
         Ok(_) => (axum::http::StatusCode::OK, "Device updated"),
         Err(err) => {
@@ -283,4 +284,5 @@ pub struct UpdateDevicePayload {
     owner: String,
     device_type: String,
     vendor: String,
+    name: Option<String>,
 }

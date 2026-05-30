@@ -11,17 +11,19 @@
 - [x] Add date filter to device event list method (from)
 - [x] Add a data set (json) to store maps from vendors -> device type; modify the device creation so that it uses it automatically
 - [x] Separate the devices "update" method into update and seen (one for API edit one for scanners)
+- [ ] Add the scanner that triggered the event to the device_events table
+- [ ] Improve notifications layout/text
 
 ## Frontend
 
-- [ ] Rework the devices list into a list when the screen is wide enough
-- [ ] Display the device "name" in the list and details
-- [ ] When registering a device ask for the name
-- [ ] Add a device edit feature for registered devices
+- [ ] Review how we are using DIO and improve error handling (500 error page?)
+- [x] Rework the devices list into a list when the screen is wide enough
+- [x] Display the device "name" in the list and details
+- [x] When registering a device ask for the name
+- [x] Add a device edit feature for registered devices
 - [x] Add an mDNS/Bonjour scanner
 - [x] Extract the select_interface method and interface logic from ARP scanner to a centralized utility file
 - [x] Figure out if we can univocally identify devices that mask their MAC address (like apple)
-- [ ] Add the scanner that triggered the event to the device_events table
 
 ## Frontend
 

@@ -46,6 +46,121 @@ Future<void> confirmForgetDevice(
   }
 }
 
+Future<void> showEditDeviceDialog(
+  BuildContext context,
+  Device device,
+  VoidCallback onRefresh,
+) async {
+  final formKey = GlobalKey<FormState>();
+  String owner = device.owner;
+  String name = device.name ?? '';
+  String vendor = device.vendor;
+  DeviceType deviceType = device.deviceType;
+
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        void save() {
+          if (formKey.currentState?.validate() ?? false) {
+            formKey.currentState?.save();
+            Navigator.of(context).pop(true);
+          }
+        }
+
+        return AlertDialog(
+          title: const Text('Edit Device'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  initialValue: owner,
+                  decoration: const InputDecoration(labelText: 'Owner'),
+                  autofocus: true,
+                  onFieldSubmitted: (_) => save(),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Owner is required'
+                      : null,
+                  onSaved: (value) => owner = value?.trim() ?? '',
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  initialValue: name,
+                  decoration: const InputDecoration(
+                    labelText: 'Name (optional)',
+                  ),
+                  onFieldSubmitted: (_) => save(),
+                  onSaved: (value) => name = value?.trim() ?? '',
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  initialValue: vendor,
+                  decoration: const InputDecoration(
+                    labelText: 'Vendor (optional)',
+                  ),
+                  onFieldSubmitted: (_) => save(),
+                  onSaved: (value) => vendor = value?.trim() ?? '',
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<DeviceType>(
+                  initialValue: deviceType,
+                  decoration: const InputDecoration(labelText: 'Device Type'),
+                  items: DeviceType.values
+                      .map(
+                        (t) => DropdownMenuItem(
+                          value: t,
+                          child: Row(
+                            children: [
+                              Icon(t.icon, size: 16),
+                              const SizedBox(width: 4),
+                              Text(t.label),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) =>
+                      setDialogState(() => deviceType = value ?? deviceType),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: save,
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+
+  if (saved != true || !context.mounted) return;
+
+  try {
+    await BackendAPI.instance.updateDevice(
+      device.macAddress,
+      owner,
+      deviceType.apiName,
+      vendor,
+      name: name.isEmpty ? null : name,
+    );
+    if (!context.mounted) return;
+    UISnackbars.showSuccess(context, 'Device updated');
+    onRefresh();
+  } catch (e) {
+    if (!context.mounted) return;
+    UISnackbars.showError(context, 'Failed to update device: $e');
+  }
+}
+
 Future<void> showRegisterDeviceDialog(
   BuildContext context,
   Device device,

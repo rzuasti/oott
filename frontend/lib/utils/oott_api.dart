@@ -150,6 +150,25 @@ class BackendAPI {
     );
   }
 
+  Future<void> updateDevice(
+    String macAddress,
+    String owner,
+    String deviceType,
+    String vendor, {
+    String? name,
+  }) async {
+    debugPrint('About to call PUT /devices/$macAddress');
+    await _dio.put(
+      '/devices/$macAddress',
+      data: {
+        'owner': owner,
+        'device_type': deviceType,
+        'vendor': vendor,
+        'name': name,
+      },
+    );
+  }
+
   Future<void> forgetDevice(String macAddress) async {
     debugPrint('About to call DELETE /devices/$macAddress');
     await _dio.delete('/devices/$macAddress');

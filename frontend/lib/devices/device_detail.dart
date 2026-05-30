@@ -199,14 +199,25 @@ class _DeviceActions extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     if (device.isRegistered) {
-      return OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: colorScheme.error,
-          side: BorderSide(color: colorScheme.error),
-        ),
-        onPressed: () => confirmForgetDevice(context, device, onAction),
-        icon: const Icon(Icons.link_off),
-        label: const Text('Forget Device'),
+      return Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          FilledButton.icon(
+            onPressed: () => showEditDeviceDialog(context, device, onAction),
+            icon: const Icon(Icons.edit),
+            label: const Text('Edit'),
+          ),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colorScheme.error,
+              side: BorderSide(color: colorScheme.error),
+            ),
+            onPressed: () => confirmForgetDevice(context, device, onAction),
+            icon: const Icon(Icons.link_off),
+            label: const Text('Forget Device'),
+          ),
+        ],
       );
     }
     return FilledButton.icon(

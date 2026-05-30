@@ -333,6 +333,8 @@ class _DeviceActionsMenu extends StatelessWidget {
       onSelected: (value) async {
         if (value == 'details') {
           context.push('/devices/${device.macAddress}');
+        } else if (value == 'edit') {
+          await showEditDeviceDialog(context, device, onRefresh);
         } else if (value == 'forget') {
           await confirmForgetDevice(context, device, onRefresh);
         } else if (value == 'register') {
@@ -341,6 +343,8 @@ class _DeviceActionsMenu extends StatelessWidget {
       },
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'details', child: Text('View details')),
+        if (device.isRegistered)
+          const PopupMenuItem(value: 'edit', child: Text('Edit')),
         if (device.isRegistered)
           const PopupMenuItem(value: 'forget', child: Text('Forget')),
         if (!device.isRegistered)
