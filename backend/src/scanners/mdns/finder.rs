@@ -67,7 +67,12 @@ pub fn parse_announcement(buf: &[u8]) -> Announcement {
         }
     };
 
-    let records = || packet.answers.iter().chain(packet.additional_records.iter());
+    let records = || {
+        packet
+            .answers
+            .iter()
+            .chain(packet.additional_records.iter())
+    };
 
     let hostnames = records()
         .filter(|record| matches!(record.rdata, RData::A(_)))

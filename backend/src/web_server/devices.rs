@@ -176,7 +176,12 @@ pub async fn update(
         );
     }
 
-    match db::devices::update(mac_address, payload.owner, payload.device_type, payload.vendor) {
+    match db::devices::update(
+        mac_address,
+        payload.owner,
+        payload.device_type,
+        payload.vendor,
+    ) {
         Ok(_) => (axum::http::StatusCode::OK, "Device updated"),
         Err(err) => {
             error!("Error updating device in the database: {}", err);

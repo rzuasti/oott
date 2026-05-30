@@ -208,7 +208,9 @@ pub fn seen(
     // device_type is only written when the stored value is empty, so a value chosen by the
     // user (via register) or previously deduced is never overwritten by a later sighting.
     if !vendor.is_empty() {
-        sql.push_str(", vendor=?, device_type=CASE WHEN device_type='' THEN ? ELSE device_type END");
+        sql.push_str(
+            ", vendor=?, device_type=CASE WHEN device_type='' THEN ? ELSE device_type END",
+        );
         params.push(vendor.into());
         params.push(device_type.into());
     }
@@ -377,8 +379,17 @@ mod tests {
         );
 
         // Filter by owner substring - "oh" matches "John" but not "Sarah"
-        let devices: Vec<Device> =
-            list_devices(None, None, None, Some("oh".to_string()), None, None, None, None).unwrap();
+        let devices: Vec<Device> = list_devices(
+            None,
+            None,
+            None,
+            Some("oh".to_string()),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
 
         assert!(
             devices.len() >= 1,
@@ -426,7 +437,8 @@ mod tests {
         tests_common::setup().await;
 
         // First page with 2 devices
-        let first_page = list_devices(None, None, None, None, None, None, Some(0), Some(2)).unwrap();
+        let first_page =
+            list_devices(None, None, None, None, None, None, Some(0), Some(2)).unwrap();
         assert_eq!(first_page.len(), 2, "First page should have 2 devices");
 
         // Second page with 2 devices, should have at least 1 (seed data has >= 3 devices)

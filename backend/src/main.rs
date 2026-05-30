@@ -2,16 +2,12 @@ use crate::settings::get_settings;
 use clap::Parser;
 use log::{LevelFilter, info};
 
-mod arp_scanner;
-mod arp_scanner_status;
 mod data;
 mod db;
-mod device_finders;
 mod events;
-mod mdns_scanner;
-mod mdns_scanner_status;
 mod model;
 mod retention;
+mod scanners;
 mod settings;
 mod utils;
 mod web_server;
@@ -61,13 +57,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     db::init_db().await?;
 
     // Initialize scanner status tracking
-    arp_scanner_status::init();
-    mdns_scanner_status::init();
+    scanners::arp::status::init();
+    scanners::mdns::status::init();
 
     // Start the device scanners, web server, and retention cleaner in parallel
     tokio::join!(
-        arp_scanner::scan(),
-        mdns_scanner::listen(),
+        scanners::arp::scanner::scan(),
+        scanners::mdns::scanner::listen(),
         web_server::serve(),
         retention::run()
     )

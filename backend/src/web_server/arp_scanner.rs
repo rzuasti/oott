@@ -4,7 +4,7 @@ use log::error;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::arp_scanner_status;
+use crate::scanners::arp::status as arp_scanner_status;
 
 #[derive(Serialize, ToSchema)]
 pub struct ArpScannerStatusResponse {

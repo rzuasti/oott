@@ -4,7 +4,7 @@ use log::error;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::mdns_scanner_status;
+use crate::scanners::mdns::status as mdns_scanner_status;
 
 #[derive(Serialize, ToSchema)]
 pub struct MdnsScannerStatusResponse {

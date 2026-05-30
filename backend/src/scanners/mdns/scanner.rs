@@ -4,14 +4,14 @@ use std::time::Duration;
 use chrono::Local;
 use log::{debug, error, info, warn};
 
-use crate::db;
-use crate::device_finders::mdns;
-use crate::events;
+use super::finder as mdns;
+use super::status as mdns_scanner_status;
 use crate::data::mac_vendor_finder;
-use crate::mdns_scanner_status;
+use crate::data::vendor_device_type_finder;
+use crate::db;
+use crate::events;
 use crate::model::devices::Device;
 use crate::settings::get_settings;
-use crate::data::vendor_device_type_finder;
 
 /// Passively listen for mDNS/Bonjour announcements and feed discovered devices into the same
 /// pipeline used by the ARP scanner (devices table + events + notifications).
@@ -62,13 +62,14 @@ async fn process_announcement(
     interface: Option<String>,
     probe_timeout: Duration,
 ) {
-    let mac = match crate::utils::network::resolve_mac_address(src_ip, interface, probe_timeout).await {
-        Some(mac) => mac.to_string(),
-        None => {
-            debug!("Could not resolve MAC for mDNS device {src_ip} ({hostname}); skipping");
-            return;
-        }
-    };
+    let mac =
+        match crate::utils::network::resolve_mac_address(src_ip, interface, probe_timeout).await {
+            Some(mac) => mac.to_string(),
+            None => {
+                debug!("Could not resolve MAC for mDNS device {src_ip} ({hostname}); skipping");
+                return;
+            }
+        };
 
     let mut vendor = mac_vendor_finder::find(mac.get(0..8).unwrap_or("").to_string());
     // Privacy MACs are locally administered and have no real OUI, so the lookup above fails.

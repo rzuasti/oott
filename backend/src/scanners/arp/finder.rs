@@ -1,14 +1,12 @@
-mod packet_send_receive;
-
-use crate::device_finders::error::{
+use super::packet_send_receive::{listen_for_packets, send_packet};
+use crate::model::devices::Device;
+use crate::scanners::error::{
     DataChannelError, InvalidDeviceError, NoIPAddressError, NoMACAddressError,
 };
-use crate::model::devices::Device;
 use crate::settings::get_settings;
 use crate::utils::network::select_interface;
 use duration_string::DurationString;
 use log::{debug, error, info, warn};
-use packet_send_receive::{listen_for_packets, send_packet};
 use pnet::{
     datalink::{self, Channel, NetworkInterface},
     ipnetwork::IpNetwork,

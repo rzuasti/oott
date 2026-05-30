@@ -1,6 +1,6 @@
-use crate::arp_scanner_status;
+use super::finder;
+use super::status as arp_scanner_status;
 use crate::db;
-use crate::device_finders;
 use crate::events;
 use crate::settings::get_settings;
 use chrono::Utc;
@@ -12,8 +12,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
         arp_scanner_status::set_running();
 
         // Find online devices via ARP
-        let devices =
-            device_finders::arp::find(get_settings().networking.interface.clone()).await?;
+        let devices = finder::find(get_settings().networking.interface.clone()).await?;
 
         info!("Done with ARP probes");
         info!("Found {} online devices", devices.len());
