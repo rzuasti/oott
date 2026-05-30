@@ -358,8 +358,8 @@ mod tests {
             NotificationType::DeviceOnlineAfterTime,
             "Wrong notification type (should be DeviceOnlineAfterTime)"
         );
-        assert_eq!(
-            inserted_notification.is_new, true,
+        assert!(
+            inserted_notification.is_new,
             "Notification should be new"
         );
         assert_eq!(
@@ -421,8 +421,8 @@ mod tests {
             NotificationType::Other,
             "Wrong notification type (should be Other)"
         );
-        assert_eq!(
-            inserted_notification.is_new, false,
+        assert!(
+            !inserted_notification.is_new,
             "Notification should not be new"
         );
         assert_eq!(
@@ -460,7 +460,7 @@ mod tests {
             NotificationType::NewDeviceFound,
             "Wrong notification type (should be NewDeviceFound)"
         );
-        assert_eq!(notification.is_new, false, "Notification should not be new");
+        assert!(!notification.is_new, "Notification should not be new");
         assert_eq!(
             notification.created_on,
             Utc.with_ymd_and_hms(2026, 1, 4, 8, 10, 13).unwrap(),
@@ -500,8 +500,8 @@ mod tests {
             NotificationType::DeviceOnlineAfterTime,
             "Wrong notification type (should be DeviceOnlineAfterTime)"
         );
-        assert_eq!(
-            inserted_notification.is_new, true,
+        assert!(
+            inserted_notification.is_new,
             "Notification should be new"
         );
         assert_eq!(
@@ -574,9 +574,7 @@ mod tests {
 
         // Check date of notification 1
         let notification1 = notifications
-            .iter()
-            .filter(|notification| notification.id == 1)
-            .next()
+            .iter().find(|notification| notification.id == 1)
             .unwrap();
 
         // 2026-01-03 14:13:12 - UTC
@@ -588,9 +586,7 @@ mod tests {
 
         // Check title of notification 3
         let notification3 = notifications
-            .iter()
-            .filter(|notification| notification.id == 3)
-            .next()
+            .iter().find(|notification| notification.id == 3)
             .unwrap();
 
         assert_eq!(
@@ -601,9 +597,7 @@ mod tests {
 
         // Check body of notification 5
         let notification5 = notifications
-            .iter()
-            .filter(|notification| notification.id == 5)
-            .next()
+            .iter().find(|notification| notification.id == 5)
             .unwrap();
 
         assert_eq!(

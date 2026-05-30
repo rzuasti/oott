@@ -40,12 +40,12 @@ pub async fn setup() {
     debug!("Running database setup scripts for testing.");
 
     for entry in TEST_MIGRATIONS_DIR.entries() {
-        if entry.path().extension().map_or(false, |ext| ext == "sql") {
+        if entry.path().extension().is_some_and(|ext| ext == "sql") {
             debug!("About to run {}", entry.path().display());
 
-            if entry.path().extension().map_or(false, |ext| ext == "sql") {
+            if entry.path().extension().is_some_and(|ext| ext == "sql") {
                 let sql = entry.as_file().unwrap().contents_utf8().unwrap();
-                conn.execute_batch(&sql).unwrap_or_else(|err| {
+                conn.execute_batch(sql).unwrap_or_else(|err| {
                     panic!("Error executing script: {}", err);
                 });
             };

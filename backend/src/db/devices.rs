@@ -300,7 +300,7 @@ pub fn unregister(mac_address: String) -> Result<(), DbError> {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, TimeZone, Utc};
+    use chrono::{TimeZone, Utc};
 
     use super::*;
     use crate::tests_common;
@@ -316,20 +316,21 @@ mod tests {
         assert!(devices.len() >= 3, "There should be at least 3 devices");
         // Validate 1 device data
         let device = devices
-            .iter()
-            .filter(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
-            .next()
+            .iter().find(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
             .unwrap();
 
         validate_device(
-            device.clone(),
-            "bb:bb:bb:bb:bb:bb".to_string(),
-            "Phone".to_string(),
-            "192.168.0.2".to_string(),
-            true,
-            Utc.with_ymd_and_hms(2026, 2, 3, 13, 14, 15).unwrap(),
-            "John".to_string(),
-            "Vendor 2".to_string(),
+            device,
+            &Device {
+                mac_address: "bb:bb:bb:bb:bb:bb".to_string(),
+                device_type: "Phone".to_string(),
+                ipv4_address: "192.168.0.2".to_string(),
+                is_registered: true,
+                last_seen: Utc.with_ymd_and_hms(2026, 2, 3, 13, 14, 15).unwrap(),
+                owner: "John".to_string(),
+                vendor: "Vendor 2".to_string(),
+                name: None,
+            },
         );
 
         // List registered devices
@@ -343,9 +344,7 @@ mod tests {
         // Device aa:aa:aa:aa:aa:aa should not be present
         assert!(
             devices
-                .iter()
-                .filter(|item| item.mac_address == "aa:aa:aa:aa:aa:aa")
-                .next()
+                .iter().find(|item| item.mac_address == "aa:aa:aa:aa:aa:aa")
                 .is_none(),
             "Device aa:aa:aa:aa:aa:aa should not be present"
         );
@@ -353,29 +352,28 @@ mod tests {
         // All devices should be registered
         assert!(
             devices
-                .iter()
-                .filter(|item| !item.is_registered)
-                .next()
+                .iter().find(|item| !item.is_registered)
                 .is_none(),
             "There should not be any non-registered devices"
         );
 
         // Validate 1 device
         let device = devices
-            .iter()
-            .filter(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
-            .next()
+            .iter().find(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
             .unwrap();
 
         validate_device(
-            device.clone(),
-            "bb:bb:bb:bb:bb:bb".to_string(),
-            "Phone".to_string(),
-            "192.168.0.2".to_string(),
-            true,
-            Utc.with_ymd_and_hms(2026, 2, 3, 13, 14, 15).unwrap(),
-            "John".to_string(),
-            "Vendor 2".to_string(),
+            device,
+            &Device {
+                mac_address: "bb:bb:bb:bb:bb:bb".to_string(),
+                device_type: "Phone".to_string(),
+                ipv4_address: "192.168.0.2".to_string(),
+                is_registered: true,
+                last_seen: Utc.with_ymd_and_hms(2026, 2, 3, 13, 14, 15).unwrap(),
+                owner: "John".to_string(),
+                vendor: "Vendor 2".to_string(),
+                name: None,
+            },
         );
 
         // Filter by owner substring - "oh" matches "John" but not "Sarah"
@@ -392,7 +390,7 @@ mod tests {
         .unwrap();
 
         assert!(
-            devices.len() >= 1,
+            !devices.is_empty(),
             "There should be at least one device matching owner 'oh'"
         );
         assert!(
@@ -421,12 +419,10 @@ mod tests {
         )
         .unwrap();
 
-        assert!(devices.len() >= 1, "There should be at least one device");
+        assert!(!devices.is_empty(), "There should be at least one device");
         assert!(
             devices
-                .iter()
-                .filter(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
-                .next()
+                .iter().find(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
                 .is_some(),
             "Device bb:bb:bb:bb:bb:bb should be present"
         );
@@ -775,14 +771,17 @@ mod tests {
 
         let device = read("tt:tt:tt:tt:tt:aa".to_string()).unwrap();
         validate_device(
-            device,
-            "tt:tt:tt:tt:tt:aa".to_string(),
-            "".to_string(),
-            "192.168.100.1".to_string(),
-            false,
-            last_seen,
-            "".to_string(),
-            "Test vendor".to_string(),
+            &device,
+            &Device {
+                mac_address: "tt:tt:tt:tt:tt:aa".to_string(),
+                device_type: "".to_string(),
+                ipv4_address: "192.168.100.1".to_string(),
+                is_registered: false,
+                last_seen,
+                owner: "".to_string(),
+                vendor: "Test vendor".to_string(),
+                name: None,
+            },
         );
 
         // Insert complete device and validate it
@@ -792,7 +791,7 @@ mod tests {
             device_type: "Server".to_string(),
             ipv4_address: "192.168.100.2".to_string(),
             is_registered: true,
-            last_seen: last_seen,
+            last_seen,
             owner: "Carl".to_string(),
             vendor: "Vendor X".to_string(),
             name: None,
@@ -802,14 +801,17 @@ mod tests {
         let device = read("tt:tt:tt:tt:tt:bb".to_string()).unwrap();
 
         validate_device(
-            device,
-            "tt:tt:tt:tt:tt:bb".to_string(),
-            "Server".to_string(),
-            "192.168.100.2".to_string(),
-            true,
-            last_seen,
-            "Carl".to_string(),
-            "Vendor X".to_string(),
+            &device,
+            &Device {
+                mac_address: "tt:tt:tt:tt:tt:bb".to_string(),
+                device_type: "Server".to_string(),
+                ipv4_address: "192.168.100.2".to_string(),
+                is_registered: true,
+                last_seen,
+                owner: "Carl".to_string(),
+                vendor: "Vendor X".to_string(),
+                name: None,
+            },
         );
     }
 
@@ -826,40 +828,49 @@ mod tests {
         // 'aa:aa:aa:aa:aa:aa', '192.168.0.1', 'Vendor 1', '2026-01-01 11:11:11', 0, '', ''
         let device1 = read("aa:aa:aa:aa:aa:aa".to_string()).unwrap();
         validate_device(
-            device1,
-            "aa:aa:aa:aa:aa:aa".to_string(),
-            "".to_string(),
-            "192.168.0.1".to_string(),
-            false,
-            Utc.with_ymd_and_hms(2026, 1, 1, 11, 11, 11).unwrap(),
-            "".to_string(),
-            "Vendor 1".to_string(),
+            &device1,
+            &Device {
+                mac_address: "aa:aa:aa:aa:aa:aa".to_string(),
+                device_type: "".to_string(),
+                ipv4_address: "192.168.0.1".to_string(),
+                is_registered: false,
+                last_seen: Utc.with_ymd_and_hms(2026, 1, 1, 11, 11, 11).unwrap(),
+                owner: "".to_string(),
+                vendor: "Vendor 1".to_string(),
+                name: None,
+            },
         );
 
         // 'bb:bb:bb:bb:bb:bb', '192.168.0.2', 'Vendor 2', '2026-02-03 13:14:15', 1, 'John', 'Phone'
         let device2 = read("bb:bb:bb:bb:bb:bb".to_string()).unwrap();
         validate_device(
-            device2,
-            "bb:bb:bb:bb:bb:bb".to_string(),
-            "Phone".to_string(),
-            "192.168.0.2".to_string(),
-            true,
-            Utc.with_ymd_and_hms(2026, 2, 3, 13, 14, 15).unwrap(),
-            "John".to_string(),
-            "Vendor 2".to_string(),
+            &device2,
+            &Device {
+                mac_address: "bb:bb:bb:bb:bb:bb".to_string(),
+                device_type: "Phone".to_string(),
+                ipv4_address: "192.168.0.2".to_string(),
+                is_registered: true,
+                last_seen: Utc.with_ymd_and_hms(2026, 2, 3, 13, 14, 15).unwrap(),
+                owner: "John".to_string(),
+                vendor: "Vendor 2".to_string(),
+                name: None,
+            },
         );
 
         // 'cc:cc:cc:cc:cc:cc', '192.168.0.3', 'Vendor 3', '2026-02-17 20:11:00', 1, 'Sarah', 'Laptop'
         let device3 = read("cc:cc:cc:cc:cc:cc".to_string()).unwrap();
         validate_device(
-            device3,
-            "cc:cc:cc:cc:cc:cc".to_string(),
-            "Laptop".to_string(),
-            "192.168.0.3".to_string(),
-            true,
-            Utc.with_ymd_and_hms(2026, 2, 17, 20, 11, 00).unwrap(),
-            "Sarah".to_string(),
-            "Vendor 3".to_string(),
+            &device3,
+            &Device {
+                mac_address: "cc:cc:cc:cc:cc:cc".to_string(),
+                device_type: "Laptop".to_string(),
+                ipv4_address: "192.168.0.3".to_string(),
+                is_registered: true,
+                last_seen: Utc.with_ymd_and_hms(2026, 2, 17, 20, 11, 00).unwrap(),
+                owner: "Sarah".to_string(),
+                vendor: "Vendor 3".to_string(),
+                name: None,
+            },
         );
     }
 
@@ -918,49 +929,45 @@ mod tests {
         );
     }
 
-    fn validate_device(
-        device: Device,
-        mac_address: String,
-        device_type: String,
-        ipv4_address: String,
-        is_registered: bool,
-        last_seen: DateTime<Utc>,
-        owner: String,
-        vendor: String,
-    ) {
+    fn validate_device(device: &Device, expected: &Device) {
         assert_eq!(
-            device.mac_address, mac_address,
+            device.mac_address, expected.mac_address,
             "Invalid MAC address for device {}",
             device.mac_address
         );
         assert_eq!(
-            device.device_type, device_type,
-            "Device type should be empty for device {}",
+            device.device_type, expected.device_type,
+            "Invalid device type for device {}",
             device.mac_address
         );
         assert_eq!(
-            device.ipv4_address, ipv4_address,
+            device.ipv4_address, expected.ipv4_address,
             "Invalid IP address for device {}",
             device.mac_address
         );
         assert_eq!(
-            device.is_registered, is_registered,
+            device.is_registered, expected.is_registered,
             "Invalid registration status for device {}",
             device.mac_address
         );
         assert_eq!(
-            device.last_seen, last_seen,
+            device.last_seen, expected.last_seen,
             "Invalid last_seen for device {}",
             device.mac_address
         );
         assert_eq!(
-            device.owner, owner,
+            device.owner, expected.owner,
             "Invalid owner for device {}",
             device.mac_address
         );
         assert_eq!(
-            device.vendor, vendor,
+            device.vendor, expected.vendor,
             "Invalid vendor for device {}",
+            device.mac_address
+        );
+        assert_eq!(
+            device.name, expected.name,
+            "Invalid name for device {}",
             device.mac_address
         );
     }
