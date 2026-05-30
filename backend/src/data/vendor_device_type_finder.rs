@@ -7,7 +7,7 @@ lazy_static! {
     static ref VENDOR_DEVICE_TYPE_DATABASE: HashMap<String, String> = {
         info!("Loading vendor device type database into memory");
 
-        let data = include_str!("../data/vendor-device-type.json");
+        let data = include_str!("../../data/vendor-device-type.json");
 
         let database: HashMap<String, String> = match serde_json::from_str(data) {
             Ok(value) => value,

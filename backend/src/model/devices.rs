@@ -24,6 +24,8 @@ pub struct Device {
     pub is_registered: bool,
     pub owner: String,
     pub device_type: String,
+    /// Hostname discovered via mDNS/Bonjour. None for devices found only via ARP.
+    pub name: Option<String>,
 }
 
 impl Device {
@@ -41,6 +43,7 @@ impl Device {
             is_registered: false,
             owner: "".to_string(),
             device_type: "".to_string(),
+            name: None,
         }
     }
 }
@@ -49,14 +52,15 @@ impl fmt::Display for Device {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "mac={}, ip={}, vendor={}, last_seen={}, is_registered={}, owner={}, device_type={}",
+            "mac={}, ip={}, vendor={}, last_seen={}, is_registered={}, owner={}, device_type={}, name={}",
             self.mac_address,
             self.ipv4_address,
             self.vendor,
             self.last_seen,
             self.is_registered,
             self.owner,
-            self.device_type
+            self.device_type,
+            self.name.as_deref().unwrap_or("")
         )
     }
 }

@@ -8,7 +8,10 @@ use log::{debug, error};
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-use crate::{db, model::devices::{Device, DeviceSummary}};
+use crate::{
+    db,
+    model::devices::{Device, DeviceSummary},
+};
 
 use crate::web_server::utils;
 
@@ -23,6 +26,8 @@ use crate::web_server::utils;
         ("owner" = Option<String>, Query, description = "Filter by owner"),
         ("device_type" = Option<String>, Query, description = "Filter by device type"),
         ("vendor" = Option<String>, Query, description = "Filter by vendor"),
+        ("page_offset" = Option<i64>, Query, description = "Pagination offset"),
+        ("page_limit" = Option<i64>, Query, description = "Maximum number of results to return"),
     ),
     responses(
         (status = 200, description = "List of devices", body = Vec<Device>),
@@ -40,6 +45,8 @@ pub async fn list(
     let owner: Option<String> = utils::parse_parameter_string(&params, "owner");
     let device_type: Option<String> = utils::parse_parameter_string(&params, "device_type");
     let vendor: Option<String> = utils::parse_parameter_string(&params, "vendor");
+    let page_offset: Option<i64> = utils::parse_parameter_int(&params, "page_offset");
+    let page_limit: Option<i64> = utils::parse_parameter_int(&params, "page_limit");
 
     match db::devices::list_devices(
         is_registered,
@@ -48,6 +55,8 @@ pub async fn list(
         owner,
         device_type,
         vendor,
+        page_offset,
+        page_limit,
     ) {
         Ok(value) => Ok(Json(value)),
         Err(err) => {
@@ -96,7 +105,7 @@ pub async fn register(Json(payload): Json<RegisterDevicePayload>) -> impl IntoRe
         payload.mac_address, payload.owner, payload.device_type
     );
 
-    let mut device = match db::devices::read(payload.mac_address) {
+    let device = match db::devices::read(payload.mac_address.clone()) {
         Some(value) => value,
         None => {
             return (
@@ -113,11 +122,7 @@ pub async fn register(Json(payload): Json<RegisterDevicePayload>) -> impl IntoRe
         );
     }
 
-    device.is_registered = true;
-    device.owner = payload.owner;
-    device.device_type = payload.device_type;
-
-    match db::devices::update(device) {
+    match db::devices::register(payload.mac_address, payload.owner, payload.device_type) {
         Ok(_) => (axum::http::StatusCode::CREATED, "Device registered"),
         Err(err) => {
             error!("Error registering device in the database: {}", err);
@@ -145,7 +150,7 @@ pub async fn register(Json(payload): Json<RegisterDevicePayload>) -> impl IntoRe
     security(("bearer_auth" = []))
 )]
 pub async fn unregister(Path(mac_address): Path<String>) -> impl IntoResponse {
-    let mut device = match db::devices::read(mac_address) {
+    let device = match db::devices::read(mac_address.clone()) {
         Some(value) => value,
         None => {
             return (
@@ -162,10 +167,7 @@ pub async fn unregister(Path(mac_address): Path<String>) -> impl IntoResponse {
         );
     }
 
-    device.is_registered = false;
-    device.owner = "".to_string();
-
-    match db::devices::update(device) {
+    match db::devices::unregister(mac_address) {
         Ok(_) => (axum::http::StatusCode::OK, "Device un-registered"),
         Err(err) => {
             error!("Error updating device in the database: {}", err);

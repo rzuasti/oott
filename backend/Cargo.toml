@@ -28,3 +28,5 @@ once_cell = "1.21.3"
 tower = "0.5.3"
 utoipa = { version = "5", features = ["axum_extras", "chrono"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
+simple-dns = "0.11.3"
+socket2 = "0.6.4"

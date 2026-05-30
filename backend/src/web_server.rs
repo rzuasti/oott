@@ -6,6 +6,8 @@ use crate::model::notifications::{Notification, NotificationType};
 use crate::settings::get_settings;
 use crate::web_server::arp_scanner::ArpScannerStatusResponse;
 use crate::web_server::devices::RegisterDevicePayload;
+use crate::web_server::mdns_scanner::MdnsScannerStatusResponse;
+use axum::Json;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::middleware::Next;
@@ -16,15 +18,15 @@ use log::{debug, error, info};
 use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
-use axum::Json;
+use utoipa::Modify;
 use utoipa::OpenApi;
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
-use utoipa::Modify;
 use utoipa_swagger_ui::SwaggerUi;
 
 pub mod arp_scanner;
 pub mod device_events;
 pub mod devices;
+pub mod mdns_scanner;
 pub mod notifications;
 pub mod utils;
 
@@ -49,6 +51,7 @@ pub mod utils;
         notifications::mark_all_as_old,
         device_events::list,
         arp_scanner::status,
+        mdns_scanner::status,
     ),
     components(schemas(
         Device,
@@ -59,6 +62,7 @@ pub mod utils;
         DeviceEvent,
         DeviceEventType,
         ArpScannerStatusResponse,
+        MdnsScannerStatusResponse,
     )),
     modifiers(&SecurityAddon),
     tags(
@@ -66,6 +70,7 @@ pub mod utils;
         (name = "notifications", description = "Notification management"),
         (name = "device_events", description = "Device event history"),
         (name = "arp_scanner", description = "ARP scanner process status"),
+        (name = "mdns_scanner", description = "mDNS/Bonjour scanner process status"),
     )
 )]
 struct ApiDoc;
@@ -77,11 +82,7 @@ impl Modify for SecurityAddon {
         let components = openapi.components.get_or_insert_with(Default::default);
         components.add_security_scheme(
             "bearer_auth",
-            SecurityScheme::Http(
-                HttpBuilder::new()
-                    .scheme(HttpAuthScheme::Bearer)
-                    .build(),
-            ),
+            SecurityScheme::Http(HttpBuilder::new().scheme(HttpAuthScheme::Bearer).build()),
         );
     }
 }
@@ -108,8 +109,12 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .route("/api/devices/summary", get(devices::summary))
         .route("/api/devices/{mac_address}", delete(devices::unregister))
         .route("/api/devices/{mac_address}", get(devices::read))
-        .route("/api/devices/{mac_address}/events", get(device_events::list))
+        .route(
+            "/api/devices/{mac_address}/events",
+            get(device_events::list),
+        )
         .route("/api/arp_scanner/status", get(arp_scanner::status))
+        .route("/api/mdns_scanner/status", get(mdns_scanner::status))
         .route("/api/notifications", get(notifications::list))
         .route(
             "/api/notifications/mark_all_as_old",

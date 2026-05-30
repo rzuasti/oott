@@ -19,7 +19,7 @@ lazy_static! {
         info!("Loading MAC vendor database into memory");
 
         let mut database = HashMap::new();
-        let data = include_str!("../data/mac-vendors-export.json");
+        let data = include_str!("../../data/mac-vendors-export.json");
 
         let json: Vec<MacRecord> = match serde_json::from_str(data) {
             Ok(value) => value,

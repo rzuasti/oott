@@ -4,11 +4,12 @@ use log::{LevelFilter, info};
 
 mod arp_scanner;
 mod arp_scanner_status;
+mod data;
 mod db;
 mod device_finders;
 mod events;
-mod mac_vendor_finder;
-mod vendor_device_type_finder;
+mod mdns_scanner;
+mod mdns_scanner_status;
 mod model;
 mod retention;
 mod settings;
@@ -59,9 +60,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize database
     db::init_db().await?;
 
-    // Initialize ARP scanner status tracking
+    // Initialize scanner status tracking
     arp_scanner_status::init();
+    mdns_scanner_status::init();
 
-    // Start the device scanner, web server, and retention cleaner in parallel
-    tokio::join!(arp_scanner::scan(), web_server::serve(), retention::run()).0
+    // Start the device scanners, web server, and retention cleaner in parallel
+    tokio::join!(
+        arp_scanner::scan(),
+        mdns_scanner::listen(),
+        web_server::serve(),
+        retention::run()
+    )
+    .0
 }

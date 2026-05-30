@@ -140,7 +140,7 @@ class _DeviceHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(device.ipv4Address, style: theme.textTheme.headlineSmall),
+              SelectableText(device.ipv4Address, style: theme.textTheme.headlineSmall),
               const SizedBox(height: 4),
               if (device.isRegistered)
                 StatusBadge(label: 'Registered', color: BadgeColor.success)
@@ -239,7 +239,7 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
+          Expanded(child: SelectableText(value, style: theme.textTheme.bodyMedium)),
         ],
       ),
     );

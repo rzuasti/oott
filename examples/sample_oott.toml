@@ -8,9 +8,12 @@ path = "./oott.db" # Database path. Make sure it's writeable for the user runnin
 level = "info" # off, error, warn, info, debug, trace
 
 [arp_scanner]
-wait_between_scans="10m" # Wait time between scans. This does not include the scan time
+wait_between_scans="30m" # Wait time between scans. This does not include the scan time
 sender_timeout="1m" # If the ARP sender process takes longer than this it will be stopped (for a class C network - 254 IPs - it should take less than a minute)
 scan_duration="10m" # How long to wait for response packets on each scan (5m to 10m is a good timeframe for a class B or C network)
+
+[mdns_scanner]
+probe_timeout="2s" # When an mDNS-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address
 
 [notifications]
 method="pushover" # For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)

@@ -14,6 +14,24 @@ use chrono::{Local, Utc};
 use duration_string::DurationString;
 use log::{debug, error, info, warn};
 
+// Device name for display in messages; falls back to "(unknown)" for devices with no
+// mDNS-discovered hostname (e.g. those found only via ARP).
+fn display_name(device: &Device) -> &str {
+    device
+        .name
+        .as_deref()
+        .filter(|name| !name.is_empty())
+        .unwrap_or("(unknown)")
+}
+
+// Whether a re-sighting represents a real vendor change. A scanner that cannot deduce a vendor
+// reports an empty string; that is not a change (db::devices::update keeps the known vendor), so
+// it must not raise a "vendor changed" notification either. Likewise, first deducing a vendor for a
+// device that previously had none is not a change worth notifying about.
+fn vendor_changed(existing: &str, new: &str) -> bool {
+    !existing.is_empty() && !new.is_empty() && existing != new
+}
+
 // Private helper function to deliver messages
 fn send_notification(notification: Notification) -> Result<(), Box<dyn Error>> {
     debug!("About to record notification in database");
@@ -43,7 +61,10 @@ pub fn trigger_new_device(device: Device) -> Result<(), Box<dyn Error>> {
         device.vendor.clone(),
     );
     if let Err(err) = db::device_events::insert(event) {
-        error!("Failed to record device event for {}: {}", device.mac_address, err);
+        error!(
+            "Failed to record device event for {}: {}",
+            device.mac_address, err
+        );
     }
 
     let notification = Notification::new(
@@ -51,8 +72,11 @@ pub fn trigger_new_device(device: Device) -> Result<(), Box<dyn Error>> {
         NotificationType::NewDeviceFound,
         "New device found in your network".to_string(),
         format!(
-            "A new device was found in your network:\n\nMAC address: {}\nIP address: {}\nVendor: {}",
-            device.mac_address, device.ipv4_address, device.vendor
+            "A new device was found in your network:\n\nName: {}\nMAC address: {}\nIP address: {}\nVendor: {}",
+            display_name(&device),
+            device.mac_address,
+            device.ipv4_address,
+            device.vendor
         ),
         true,
         Some(device.mac_address.clone()),
@@ -74,7 +98,10 @@ pub fn trigger_existing_device(
         new_device.vendor.clone(),
     );
     if let Err(err) = db::device_events::insert(event) {
-        error!("Failed to record device event for {}: {}", new_device.mac_address, err);
+        error!(
+            "Failed to record device event for {}: {}",
+            new_device.mac_address, err
+        );
     }
 
     // Notify if the device comes back online after not being seen for the configured period
@@ -90,7 +117,8 @@ pub fn trigger_existing_device(
             NotificationType::DeviceOnlineAfterTime,
             "A device came back online after a while".to_string(),
             format!(
-                "Device:\n\nMAC address: {}\nIP address: {}\nVendor: {}\n\ncame back online after {}.",
+                "Device:\n\nName: {}\nMAC address: {}\nIP address: {}\nVendor: {}\n\ncame back online after {}.",
+                display_name(&new_device),
                 new_device.mac_address,
                 new_device.ipv4_address,
                 new_device.vendor,
@@ -106,15 +134,17 @@ pub fn trigger_existing_device(
     }
 
     // Notify if the devices vendor and/or IP changed
-    if (existing_device.ipv4_address != new_device.ipv4_address)
-        && (existing_device.vendor != new_device.vendor)
-    {
+    let ip_changed = existing_device.ipv4_address != new_device.ipv4_address;
+    let vendor_changed = vendor_changed(&existing_device.vendor, &new_device.vendor);
+
+    if ip_changed && vendor_changed {
         let notification = Notification::new(
             Utc::now(),
             NotificationType::DeviceChanged,
             "Device changed vendor and IP address".to_string(),
             format!(
-                "Device with MAC address {} has changed:\nIP address from {} to {}\nVendor from {} to {}.",
+                "Device {} (MAC address {}) has changed:\nIP address from {} to {}\nVendor from {} to {}.",
+                display_name(&new_device),
                 existing_device.mac_address,
                 existing_device.ipv4_address,
                 new_device.ipv4_address,
@@ -126,13 +156,14 @@ pub fn trigger_existing_device(
         );
 
         send_notification(notification)?;
-    } else if existing_device.ipv4_address != new_device.ipv4_address {
+    } else if ip_changed {
         let notification = Notification::new(
             Utc::now(),
             NotificationType::DeviceChanged,
             "Device changed IP address".to_string(),
             format!(
-                "Device with MAC address {} ({}) has changed:\nIP address from {} to {}.",
+                "Device {} (MAC address {}, {}) has changed:\nIP address from {} to {}.",
+                display_name(&new_device),
                 existing_device.mac_address,
                 existing_device.vendor,
                 existing_device.ipv4_address,
@@ -143,13 +174,14 @@ pub fn trigger_existing_device(
         );
 
         send_notification(notification)?;
-    } else if existing_device.vendor != new_device.vendor {
+    } else if vendor_changed {
         let notification = Notification::new(
             Utc::now(),
             NotificationType::DeviceChanged,
             "Device changed vendor".to_string(),
             format!(
-                "Device with MAC address {} ({}) has changed:\nVendor from {} to {}.",
+                "Device {} (MAC address {}, {}) has changed:\nVendor from {} to {}.",
+                display_name(&new_device),
                 existing_device.mac_address,
                 existing_device.ipv4_address,
                 existing_device.vendor,
@@ -163,4 +195,29 @@ pub fn trigger_existing_device(
     };
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_new_vendor_is_not_a_change() {
+        assert!(!vendor_changed("Apple, Inc.", ""));
+    }
+
+    #[test]
+    fn different_non_empty_vendor_is_a_change() {
+        assert!(vendor_changed("Apple, Inc.", "Google, Inc."));
+    }
+
+    #[test]
+    fn same_vendor_is_not_a_change() {
+        assert!(!vendor_changed("Apple, Inc.", "Apple, Inc."));
+    }
+
+    #[test]
+    fn newly_deduced_vendor_from_empty_is_not_a_change() {
+        assert!(!vendor_changed("", "Apple, Inc."));
+    }
 }

@@ -5,6 +5,7 @@ import 'package:encrypter/encrypter/xor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:frontend/utils/pref_utils.dart';
 import '../model/arp_scanner_status.dart';
+import '../model/mdns_scanner_status.dart';
 import '../model/device.dart';
 import '../model/device_event.dart';
 import '../model/device_summary.dart';
@@ -98,6 +99,8 @@ class BackendAPI {
     bool? isRegistered,
     String? owner,
     DeviceType? deviceType,
+    int? offset,
+    int? limit,
   }) async {
     debugPrint('About to call /devices');
 
@@ -105,8 +108,13 @@ class BackendAPI {
     if (isRegistered != null) params['is_registered'] = isRegistered;
     if (owner != null && owner.isNotEmpty) params['owner'] = owner;
     if (deviceType != null) {
-      params['device_type'] =
-          deviceType == DeviceType.unknown ? '' : deviceType.apiName;
+      params['device_type'] = deviceType == DeviceType.unknown
+          ? ''
+          : deviceType.apiName;
+    }
+    if (offset != null) {
+      params['page_offset'] = offset;
+      params['page_limit'] = limit ?? _pageSize;
     }
 
     final response = await _dio.get('/devices', queryParameters: params);
@@ -170,6 +178,13 @@ class BackendAPI {
     final response = await _dio.get('/arp_scanner/status');
     debugPrint('Received: ${response.data}');
     return ArpScannerStatus.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<MdnsScannerStatus> getMdnsScannerStatus() async {
+    debugPrint('About to call GET /mdns_scanner/status');
+    final response = await _dio.get('/mdns_scanner/status');
+    debugPrint('Received: ${response.data}');
+    return MdnsScannerStatus.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<List<Notification>> listNotifications(

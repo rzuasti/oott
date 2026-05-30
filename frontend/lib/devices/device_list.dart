@@ -5,10 +5,13 @@ import 'package:go_router/go_router.dart';
 
 import '../model/device.dart';
 import '../model/device_type.dart';
+import '../navigation.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../widgets/status_badge.dart';
 import 'device_actions.dart';
+
+const _pageSize = 5;
 
 enum _DeviceFilter {
   newDevices('Not registered'),
@@ -27,7 +30,7 @@ class DeviceList extends StatefulWidget {
   State<DeviceList> createState() => _DeviceListState();
 }
 
-class _DeviceListState extends State<DeviceList> {
+class _DeviceListState extends State<DeviceList> with RouteAware {
   _DeviceFilter _filter = _DeviceFilter.newDevices;
   List<Device> _devices = [];
   bool _isLoading = true;
@@ -36,15 +39,33 @@ class _DeviceListState extends State<DeviceList> {
   DeviceType? _typeFilter;
   Timer? _ownerDebounce;
 
+  int _currentPage = 0;
+  bool _hasNextPage = false;
+
   @override
   void initState() {
     super.initState();
     _ownerController.addListener(_onOwnerChanged);
-    _loadDevices();
+    _fetchPage(0);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is ModalRoute<void>) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    _fetchPage(_currentPage);
   }
 
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _ownerDebounce?.cancel();
     _ownerController.dispose();
     super.dispose();
@@ -52,10 +73,13 @@ class _DeviceListState extends State<DeviceList> {
 
   void _onOwnerChanged() {
     _ownerDebounce?.cancel();
-    _ownerDebounce = Timer(const Duration(milliseconds: 500), _loadDevices);
+    _ownerDebounce = Timer(
+      const Duration(milliseconds: 500),
+      () => _fetchPage(0),
+    );
   }
 
-  Future<void> _loadDevices() async {
+  Future<void> _fetchPage(int page) async {
     setState(() {
       _isLoading = _devices.isEmpty;
       _error = null;
@@ -65,14 +89,18 @@ class _DeviceListState extends State<DeviceList> {
       if (_filter == _DeviceFilter.newDevices) isRegistered = false;
       if (_filter == _DeviceFilter.registered) isRegistered = true;
 
-      final devices = await BackendAPI.instance.listDevices(
+      final results = await BackendAPI.instance.listDevices(
         isRegistered: isRegistered,
         owner: _ownerController.text.isEmpty ? null : _ownerController.text,
         deviceType: _typeFilter,
+        offset: page * _pageSize,
+        limit: _pageSize + 1,
       );
       if (!mounted) return;
       setState(() {
-        _devices = devices;
+        _currentPage = page;
+        _hasNextPage = results.length > _pageSize;
+        _devices = _hasNextPage ? results.take(_pageSize).toList() : results;
         _isLoading = false;
       });
     } catch (e) {
@@ -103,14 +131,14 @@ class _DeviceListState extends State<DeviceList> {
         hasActiveFilters: _hasActiveDetailFilters,
         onTypeChanged: (value) {
           setState(() => _typeFilter = value);
-          _loadDevices();
+          _fetchPage(0);
         },
         onClear: () {
           setState(() {
             _ownerController.clear();
             _typeFilter = null;
           });
-          _loadDevices();
+          _fetchPage(0);
         },
       ),
     );
@@ -149,7 +177,7 @@ class _DeviceListState extends State<DeviceList> {
                     selected: _filter == f,
                     onSelected: (_) {
                       setState(() => _filter = f);
-                      _loadDevices();
+                      _fetchPage(0);
                     },
                   ),
                 )
@@ -175,19 +203,67 @@ class _DeviceListState extends State<DeviceList> {
         else
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _loadDevices,
-              child: ListView.builder(
+              onRefresh: () => _fetchPage(_currentPage),
+              child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: _devices.length,
-                itemBuilder: (context, index) => _DeviceCard(
-                  device: _devices[index],
-                  formatter: formatter,
-                  onRefresh: _loadDevices,
-                ),
+                slivers: [
+                  SliverList.builder(
+                    itemCount: _devices.length,
+                    itemBuilder: (context, index) => _DeviceCard(
+                      device: _devices[index],
+                      formatter: formatter,
+                      onRefresh: () => _fetchPage(_currentPage),
+                    ),
+                  ),
+                  if (_currentPage > 0 || _hasNextPage)
+                    _buildPaginationControls(context),
+                ],
               ),
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildPaginationControls(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton.outlined(
+              onPressed: _currentPage > 0 && !_isLoading
+                  ? () => _fetchPage(0)
+                  : null,
+              icon: const Icon(Icons.first_page),
+              tooltip: 'First page',
+            ),
+            const SizedBox(width: 8),
+            IconButton.outlined(
+              onPressed: _currentPage > 0 && !_isLoading
+                  ? () => _fetchPage(_currentPage - 1)
+                  : null,
+              icon: const Icon(Icons.chevron_left),
+              tooltip: 'Previous page',
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Page ${_currentPage + 1}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            IconButton.outlined(
+              onPressed: _hasNextPage && !_isLoading
+                  ? () => _fetchPage(_currentPage + 1)
+                  : null,
+              icon: const Icon(Icons.chevron_right),
+              tooltip: 'Next page',
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -280,6 +356,13 @@ class _DeviceCard extends StatelessWidget {
     required this.onRefresh,
   });
 
+  String get _registeredName {
+    final type = device.deviceType == DeviceType.unknown
+        ? 'Device'
+        : device.deviceType.label;
+    return "${device.owner}'s $type";
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -295,7 +378,12 @@ class _DeviceCard extends StatelessWidget {
         ),
         title: Row(
           children: [
-            Text(device.ipv4Address),
+            Flexible(
+              child: Text(
+                device.isRegistered ? _registeredName : device.ipv4Address,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             const SizedBox(width: 8),
             if (device.isRegistered)
               const StatusBadge(label: 'Registered', color: BadgeColor.success)
@@ -307,6 +395,7 @@ class _DeviceCard extends StatelessWidget {
           ],
         ),
         subtitle: Text(
+          '${device.isRegistered ? '${device.ipv4Address}\n' : ''}'
           '${device.vendor} · ${device.macAddress}\n'
           'Last seen: ${formatter.format(device.lastSeen)}',
         ),
@@ -314,7 +403,6 @@ class _DeviceCard extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (device.isRegistered) Text(device.owner),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: (value) async {

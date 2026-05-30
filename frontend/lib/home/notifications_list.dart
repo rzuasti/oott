@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../model/notification.dart' as oott_model;
+import '../navigation.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../utils/ui_snackbars.dart';
@@ -35,7 +36,7 @@ class NotificationsList extends StatefulWidget {
   State<NotificationsList> createState() => _NotificationsListState();
 }
 
-class _NotificationsListState extends State<NotificationsList> {
+class _NotificationsListState extends State<NotificationsList> with RouteAware {
   _NotificationFilter _filter = _NotificationFilter.newOnly;
   Timer? _notificationTimer;
 
@@ -55,7 +56,22 @@ class _NotificationsListState extends State<NotificationsList> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is ModalRoute<void>) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    _fetchPage(_currentPage);
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _notificationTimer?.cancel();
     super.dispose();
   }
@@ -234,6 +250,14 @@ class _NotificationsListState extends State<NotificationsList> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            IconButton.outlined(
+              onPressed: _currentPage > 0 && !_isLoading
+                  ? () => _fetchPage(0)
+                  : null,
+              icon: const Icon(Icons.first_page),
+              tooltip: 'First page',
+            ),
+            const SizedBox(width: 8),
             IconButton.outlined(
               onPressed: _currentPage > 0 && !_isLoading
                   ? () => _fetchPage(_currentPage - 1)

@@ -159,7 +159,10 @@ mod tests {
         ))
         .unwrap();
 
-        assert!(inserted_id >= 0, "Inserted device event id should be positive");
+        assert!(
+            inserted_id >= 0,
+            "Inserted device event id should be positive"
+        );
 
         let event = read(inserted_id).unwrap();
         assert_eq!(event.mac_address, "aa:aa:aa:aa:aa:aa");
@@ -252,9 +255,18 @@ mod tests {
         let cutoff = Utc::now() - chrono::TimeDelta::days(365);
         let purged = purge_older_than(cutoff).unwrap();
 
-        assert!(purged >= 1, "At least 1 device event should have been purged");
-        assert!(read(old_id).is_none(), "Old device event should have been purged");
-        assert!(read(recent_id).is_some(), "Recent device event should not have been purged");
+        assert!(
+            purged >= 1,
+            "At least 1 device event should have been purged"
+        );
+        assert!(
+            read(old_id).is_none(),
+            "Old device event should have been purged"
+        );
+        assert!(
+            read(recent_id).is_some(),
+            "Recent device event should not have been purged"
+        );
     }
 
     #[tokio::test]

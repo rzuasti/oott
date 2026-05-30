@@ -18,6 +18,17 @@
 - [ ] Display the device "name" in the list and details
 - [ ] When registering a device ask for the name
 - [ ] Add a device edit feature for registered devices
+- [x] Add an mDNS/Bonjour scanner
+- [x] Extract the select_interface method and interface logic from ARP scanner to a centralized utility file
+- [x] Figure out if we can univocally identify devices that mask their MAC address (like apple)
+- [ ] Add the scanner that triggered the event to the device_events table
+
+## Frontend
+
+- [x] Add a "go to first" and "go to last" buttons to paginations (notification list for now)
+- [x] Replace the ARP scanner widget in the home screen with a Scanning status widget that provides a one liner for each scanner
+- [x] Add pagination to the devices list screen - now you can't see all devices
+- [x] Add the mDNS/Bonjour scanner status to the Status and Home screens
 - [x] Change the notifications list so it has explicit paging (not infinite paging)
 - [x] List recorded devices
 - [x] Register a device

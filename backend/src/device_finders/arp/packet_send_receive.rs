@@ -1,5 +1,5 @@
-use crate::mac_vendor_finder;
-use crate::vendor_device_type_finder;
+use crate::data::mac_vendor_finder;
+use crate::data::vendor_device_type_finder;
 use crate::model::devices::Device;
 use chrono::Local;
 use duration_string::DurationString;
