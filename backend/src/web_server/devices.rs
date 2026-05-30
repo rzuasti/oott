@@ -26,6 +26,8 @@ use crate::web_server::utils;
         ("owner" = Option<String>, Query, description = "Filter by owner"),
         ("device_type" = Option<String>, Query, description = "Filter by device type"),
         ("vendor" = Option<String>, Query, description = "Filter by vendor"),
+        ("sort_by" = Option<String>, Query, description = "Column to sort by (name, owner, mac_address, ipv4_address, vendor, last_seen, is_registered, device_type)"),
+        ("sort_order" = Option<String>, Query, description = "Sort direction: asc or desc (default desc)"),
         ("page_offset" = Option<i64>, Query, description = "Pagination offset"),
         ("page_limit" = Option<i64>, Query, description = "Maximum number of results to return"),
     ),
@@ -45,6 +47,8 @@ pub async fn list(
     let owner: Option<String> = utils::parse_parameter_string(&params, "owner");
     let device_type: Option<String> = utils::parse_parameter_string(&params, "device_type");
     let vendor: Option<String> = utils::parse_parameter_string(&params, "vendor");
+    let sort_by: Option<String> = utils::parse_parameter_string(&params, "sort_by");
+    let sort_order: Option<String> = utils::parse_parameter_string(&params, "sort_order");
     let page_offset: Option<i64> = utils::parse_parameter_int(&params, "page_offset");
     let page_limit: Option<i64> = utils::parse_parameter_int(&params, "page_limit");
 
@@ -55,6 +59,8 @@ pub async fn list(
         owner,
         device_type,
         vendor,
+        sort_by,
+        sort_order,
         page_offset,
         page_limit,
     ) {
@@ -122,7 +128,12 @@ pub async fn register(Json(payload): Json<RegisterDevicePayload>) -> impl IntoRe
         );
     }
 
-    match db::devices::register(payload.mac_address, payload.owner, payload.device_type) {
+    match db::devices::register(
+        payload.mac_address,
+        payload.owner,
+        payload.device_type,
+        payload.name,
+    ) {
         Ok(_) => (axum::http::StatusCode::CREATED, "Device registered"),
         Err(err) => {
             error!("Error registering device in the database: {}", err);
@@ -264,6 +275,7 @@ pub struct RegisterDevicePayload {
     mac_address: String,
     owner: String,
     device_type: String,
+    name: Option<String>,
 }
 
 #[derive(Deserialize, ToSchema)]

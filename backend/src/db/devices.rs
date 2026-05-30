@@ -7,6 +7,28 @@ use crate::{
     model::devices::{Device, DeviceSummary},
 };
 
+// Whitelist of columns allowed for `sort_by`. Anything outside this list falls back to the
+// default. Kept here so the API handler doesn't have to know about SQL column names.
+fn resolve_sort_column(sort_by: Option<&str>) -> &'static str {
+    match sort_by.map(|s| s.to_ascii_lowercase()).as_deref() {
+        Some("name") => "name",
+        Some("owner") => "owner",
+        Some("mac_address") => "mac_address",
+        Some("ipv4_address") => "ipv4_address",
+        Some("vendor") => "vendor",
+        Some("is_registered") => "is_registered",
+        Some("device_type") => "device_type",
+        _ => "last_seen",
+    }
+}
+
+fn resolve_sort_direction(sort_order: Option<&str>) -> &'static str {
+    match sort_order.map(|s| s.to_ascii_lowercase()).as_deref() {
+        Some("asc") => "ASC",
+        _ => "DESC",
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn list_devices(
     is_registered: Option<bool>,
@@ -15,6 +37,8 @@ pub fn list_devices(
     owner: Option<String>,
     device_type: Option<String>,
     vendor: Option<String>,
+    sort_by: Option<String>,
+    sort_order: Option<String>,
     page_offset: Option<i64>,
     page_limit: Option<i64>,
 ) -> Result<Vec<Device>, DbError> {
@@ -55,8 +79,15 @@ pub fn list_devices(
         params.push(vendor.into());
     }
 
-    // List order
-    sql_statement.push_str("ORDER BY last_seen DESC ");
+    // List order — both column and direction are validated against a whitelist so user input
+    // is never interpolated raw. A secondary `mac_address ASC` keeps paging deterministic when
+    // the primary sort key ties.
+    let sort_column = resolve_sort_column(sort_by.as_deref());
+    let sort_direction = resolve_sort_direction(sort_order.as_deref());
+    sql_statement.push_str(&format!(
+        "ORDER BY {} {}, mac_address ASC ",
+        sort_column, sort_direction
+    ));
 
     // Paging
     if let (Some(page_offset), Some(page_limit)) = (page_offset, page_limit) {
@@ -262,13 +293,26 @@ pub fn update(
     }
 }
 
-pub fn register(mac_address: String, owner: String, device_type: String) -> Result<(), DbError> {
+pub fn register(
+    mac_address: String,
+    owner: String,
+    device_type: String,
+    name: Option<String>,
+) -> Result<(), DbError> {
     let conn = db::get_db_connection();
 
-    match conn.execute(
-        "UPDATE devices SET is_registered=1, owner=?1, device_type=?2 WHERE mac_address=?3",
-        params![owner, device_type, mac_address],
-    ) {
+    // Only write the name column when supplied, so a user registering without typing a name
+    // never wipes a hostname previously stored by the mDNS scanner.
+    let mut sql = "UPDATE devices SET is_registered=1, owner=?, device_type=?".to_string();
+    let mut params: Vec<rusqlite::types::Value> = vec![owner.into(), device_type.into()];
+    if let Some(name) = name {
+        sql.push_str(", name=?");
+        params.push(name.into());
+    }
+    sql.push_str(" WHERE mac_address=?");
+    params.push(mac_address.clone().into());
+
+    match conn.execute(sql.as_str(), params_from_iter(params.iter())) {
         Ok(_) => {
             debug!("Device registered in database: {mac_address}");
             Ok(())
@@ -311,7 +355,7 @@ mod tests {
 
         // List all devices
         let devices: Vec<Device> =
-            list_devices(None, None, None, None, None, None, None, None).unwrap();
+            list_devices(None, None, None, None, None, None, None, None, None, None).unwrap();
 
         assert!(devices.len() >= 3, "There should be at least 3 devices");
         // Validate 1 device data
@@ -335,7 +379,8 @@ mod tests {
 
         // List registered devices
         let devices: Vec<Device> =
-            list_devices(Some(true), None, None, None, None, None, None, None).unwrap();
+            list_devices(Some(true), None, None, None, None, None, None, None, None, None)
+                .unwrap();
 
         assert!(
             devices.len() >= 2,
@@ -386,6 +431,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
         )
         .unwrap();
 
@@ -416,6 +463,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
         )
         .unwrap();
 
@@ -429,17 +478,124 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_list_sorting() {
+        tests_common::setup().await;
+
+        // Sort by mac_address ascending — first result should have the smallest MAC.
+        let by_mac_asc = list_devices(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("mac_address".to_string()),
+            Some("asc".to_string()),
+            None,
+            None,
+        )
+        .unwrap();
+        assert!(by_mac_asc.len() >= 3);
+        let macs_asc: Vec<&str> = by_mac_asc.iter().map(|d| d.mac_address.as_str()).collect();
+        let mut sorted_macs = macs_asc.clone();
+        sorted_macs.sort();
+        assert_eq!(macs_asc, sorted_macs, "mac_address asc should be sorted");
+
+        // Sort by mac_address descending — same list, reversed.
+        let by_mac_desc = list_devices(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("mac_address".to_string()),
+            Some("desc".to_string()),
+            None,
+            None,
+        )
+        .unwrap();
+        let macs_desc: Vec<&str> = by_mac_desc.iter().map(|d| d.mac_address.as_str()).collect();
+        let mut sorted_macs_desc = macs_desc.clone();
+        sorted_macs_desc.sort_by(|a, b| b.cmp(a));
+        assert_eq!(macs_desc, sorted_macs_desc, "mac_address desc should be sorted reversed");
+
+        // Sort by owner ascending — empty-string owners (unregistered) come first lexically.
+        let by_owner_asc = list_devices(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("owner".to_string()),
+            Some("asc".to_string()),
+            None,
+            None,
+        )
+        .unwrap();
+        let owners: Vec<&str> = by_owner_asc.iter().map(|d| d.owner.as_str()).collect();
+        let mut sorted_owners = owners.clone();
+        sorted_owners.sort();
+        assert_eq!(owners, sorted_owners, "owner asc should be sorted");
+
+        // Invalid sort_by falls back to default (last_seen DESC).
+        let invalid = list_devices(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("drop_table".to_string()),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        let default_sorted = list_devices(None, None, None, None, None, None, None, None, None, None).unwrap();
+        let invalid_macs: Vec<&str> = invalid.iter().map(|d| d.mac_address.as_str()).collect();
+        let default_macs: Vec<&str> = default_sorted.iter().map(|d| d.mac_address.as_str()).collect();
+        assert_eq!(
+            invalid_macs, default_macs,
+            "invalid sort_by must fall back to the default ordering"
+        );
+    }
+
+    #[tokio::test]
     async fn test_list_pagination() {
         tests_common::setup().await;
 
         // First page with 2 devices
-        let first_page =
-            list_devices(None, None, None, None, None, None, Some(0), Some(2)).unwrap();
+        let first_page = list_devices(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(0),
+            Some(2),
+        )
+        .unwrap();
         assert_eq!(first_page.len(), 2, "First page should have 2 devices");
 
         // Second page with 2 devices, should have at least 1 (seed data has >= 3 devices)
-        let second_page =
-            list_devices(None, None, None, None, None, None, Some(2), Some(2)).unwrap();
+        let second_page = list_devices(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(2),
+            Some(2),
+        )
+        .unwrap();
         assert!(
             !second_page.is_empty(),
             "Second page should have at least 1 device"
@@ -475,6 +631,7 @@ mod tests {
             "uu:tt:tt:tt:tt:aa".to_string(),
             "Grace".to_string(),
             "Phone".to_string(),
+            None,
         )
         .unwrap();
 
@@ -643,6 +800,7 @@ mod tests {
             "pp:pp:pp:pp:pp:01".to_string(),
             "Grace".to_string(),
             "Laptop".to_string(),
+            None,
         )
         .unwrap();
 
@@ -716,6 +874,7 @@ mod tests {
             "rr:rr:rr:rr:rr:01".to_string(),
             "Grace".to_string(),
             "Phone".to_string(),
+            None,
         )
         .unwrap();
 
@@ -724,6 +883,35 @@ mod tests {
         assert_eq!(device.owner, "Grace".to_string());
         assert_eq!(device.device_type, "Phone".to_string());
         assert_eq!(device.vendor, "".to_string());
+
+        // Registering with Some(name) persists the supplied hostname.
+        insert(Device::new(
+            "rr:rr:rr:rr:rr:nm".to_string(),
+            "192.168.230.5".to_string(),
+            "".to_string(),
+            Utc::now(),
+        ))
+        .unwrap();
+        register(
+            "rr:rr:rr:rr:rr:nm".to_string(),
+            "Henry".to_string(),
+            "Laptop".to_string(),
+            Some("kitchen-laptop".to_string()),
+        )
+        .unwrap();
+        let device = read("rr:rr:rr:rr:rr:nm".to_string()).unwrap();
+        assert_eq!(device.name, Some("kitchen-laptop".to_string()));
+
+        // Re-registering with None must NOT clobber the previously stored name.
+        register(
+            "rr:rr:rr:rr:rr:nm".to_string(),
+            "Henry".to_string(),
+            "Laptop".to_string(),
+            None,
+        )
+        .unwrap();
+        let device = read("rr:rr:rr:rr:rr:nm".to_string()).unwrap();
+        assert_eq!(device.name, Some("kitchen-laptop".to_string()));
     }
 
     #[tokio::test]
@@ -743,6 +931,7 @@ mod tests {
             "rr:rr:rr:rr:rr:02".to_string(),
             "Grace".to_string(),
             "Phone".to_string(),
+            None,
         )
         .unwrap();
 

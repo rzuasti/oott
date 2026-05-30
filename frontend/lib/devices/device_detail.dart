@@ -166,6 +166,7 @@ class _DeviceInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final formatter = FriendlyDateFormatter();
     final rows = <(String, String)>[
+      ('Name', device.name == null || device.name!.isEmpty ? '—' : device.name!),
       ('MAC Address', device.macAddress),
       ('IP Address', device.ipv4Address),
       ('Vendor', device.vendor.isEmpty ? '—' : device.vendor),

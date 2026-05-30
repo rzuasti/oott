@@ -53,6 +53,7 @@ Future<void> showRegisterDeviceDialog(
 ) async {
   final formKey = GlobalKey<FormState>();
   String owner = '';
+  String name = device.name ?? '';
   DeviceType deviceType = device.deviceType;
 
   final saved = await showDialog<bool>(
@@ -81,6 +82,15 @@ Future<void> showRegisterDeviceDialog(
                       ? 'Owner is required'
                       : null,
                   onSaved: (value) => owner = value?.trim() ?? '',
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  initialValue: name,
+                  decoration: const InputDecoration(
+                    labelText: 'Name (optional)',
+                  ),
+                  onFieldSubmitted: (_) => save(),
+                  onSaved: (value) => name = value?.trim() ?? '',
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<DeviceType>(
@@ -128,6 +138,7 @@ Future<void> showRegisterDeviceDialog(
       device.macAddress,
       owner,
       deviceType.apiName,
+      name: name.isEmpty ? null : name,
     );
     if (!context.mounted) return;
     UISnackbars.showSuccess(context, 'Device registered');

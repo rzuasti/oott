@@ -99,6 +99,8 @@ class BackendAPI {
     bool? isRegistered,
     String? owner,
     DeviceType? deviceType,
+    String? sortBy,
+    bool? sortAscending,
     int? offset,
     int? limit,
   }) async {
@@ -111,6 +113,10 @@ class BackendAPI {
       params['device_type'] = deviceType == DeviceType.unknown
           ? ''
           : deviceType.apiName;
+    }
+    if (sortBy != null) params['sort_by'] = sortBy;
+    if (sortAscending != null) {
+      params['sort_order'] = sortAscending ? 'asc' : 'desc';
     }
     if (offset != null) {
       params['page_offset'] = offset;
@@ -129,8 +135,9 @@ class BackendAPI {
   Future<void> registerDevice(
     String macAddress,
     String owner,
-    String deviceType,
-  ) async {
+    String deviceType, {
+    String? name,
+  }) async {
     debugPrint('About to call PUT /devices');
     await _dio.put(
       '/devices',
@@ -138,6 +145,7 @@ class BackendAPI {
         'mac_address': macAddress,
         'owner': owner,
         'device_type': deviceType,
+        'name': ?name,
       },
     );
   }

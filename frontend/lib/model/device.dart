@@ -8,6 +8,7 @@ class Device {
   final bool isRegistered;
   final String owner;
   final DeviceType deviceType;
+  final String? name;
 
   Device({
     required this.macAddress,
@@ -17,6 +18,7 @@ class Device {
     required this.isRegistered,
     required this.owner,
     required this.deviceType,
+    this.name,
   });
 
   Device.fromJson(Map<String, dynamic> json)
@@ -26,5 +28,6 @@ class Device {
       lastSeen = DateTime.parse(json['last_seen'] as String),
       isRegistered = json['is_registered'] as bool,
       owner = json['owner'] as String,
-      deviceType = DeviceType.fromString(json['device_type'] as String);
+      deviceType = DeviceType.fromString(json['device_type'] as String),
+      name = json['name'] as String?;
 }
