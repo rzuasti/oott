@@ -4,8 +4,6 @@ use log::error;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::scanners::mdns::status as mdns_scanner_status;
-
 #[derive(Serialize, ToSchema)]
 pub struct MdnsScannerStatusResponse {
     pub is_listening: bool,
@@ -28,7 +26,7 @@ pub struct MdnsScannerStatusResponse {
     security(("bearer_auth" = []))
 )]
 pub async fn status() -> Result<Json<MdnsScannerStatusResponse>, StatusCode> {
-    let snapshot = match mdns_scanner_status::get() {
+    let snapshot = match crate::scanners::mdns::status::get() {
         Some(s) => s,
         None => {
             error!("mDNS scanner status not initialized");

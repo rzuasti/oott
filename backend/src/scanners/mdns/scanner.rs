@@ -4,8 +4,8 @@ use std::time::Duration;
 use chrono::Local;
 use log::{debug, error, info, warn};
 
-use super::finder as mdns;
-use super::status as mdns_scanner_status;
+use super::finder;
+use super::status;
 use crate::data::mac_vendor_finder;
 use crate::data::vendor_device_type_finder;
 use crate::db;
@@ -17,8 +17,8 @@ use crate::settings::get_settings;
 /// pipeline used by the ARP scanner (devices table + events + notifications).
 pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
     let interface = get_settings().networking.interface.clone();
-    let socket = mdns::open_socket(interface.clone())?;
-    mdns_scanner_status::set_listening();
+    let socket = finder::open_socket(interface.clone())?;
+    status::set_listening();
     info!("mDNS scanner listening for announcements");
 
     let probe_timeout = Duration::from(get_settings().mdns_scanner.probe_timeout);
@@ -38,7 +38,7 @@ pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
             IpAddr::V6(_) => continue, // the device model is IPv4-only
         };
 
-        let announcement = mdns::parse_announcement(&buf[..len]);
+        let announcement = finder::parse_announcement(&buf[..len]);
         let hostname = match announcement.hostnames.into_iter().next() {
             Some(host) => host,
             None => continue,
@@ -117,5 +117,5 @@ async fn process_announcement(
         }
     }
 
-    mdns_scanner_status::record_discovery();
+    status::record_discovery();
 }

@@ -4,8 +4,6 @@ use log::error;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::scanners::arp::status as arp_scanner_status;
-
 #[derive(Serialize, ToSchema)]
 pub struct ArpScannerStatusResponse {
     pub is_running: bool,
@@ -26,7 +24,7 @@ pub struct ArpScannerStatusResponse {
     security(("bearer_auth" = []))
 )]
 pub async fn status() -> Result<Json<ArpScannerStatusResponse>, StatusCode> {
-    let snapshot = match arp_scanner_status::get() {
+    let snapshot = match crate::scanners::arp::status::get() {
         Some(s) => s,
         None => {
             error!("ARP scanner status not initialized");
