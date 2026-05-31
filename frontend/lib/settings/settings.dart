@@ -71,6 +71,7 @@ class _SettingsState extends State<Settings> {
     if (!_formKey.currentState!.validate()) return;
     PrefUtil.setValue('base_url', _baseUrlController.text);
     PrefUtil.setValue('api_key', XOR().xorEncode(_apiKeyController.text));
+    BackendAPI.instance.reconfigureFromPrefs();
     context.read<AppState>().setTheme(_selectedTheme);
     UISnackbars.showSuccess(context, 'Settings saved successfully');
   }

@@ -57,6 +57,10 @@ class BackendAPI {
   static BackendAPI get instance => _instance;
 
   BackendAPI._internal() {
+    reconfigureFromPrefs();
+  }
+
+  void reconfigureFromPrefs() {
     _baseUrl =
         PrefUtil.getValue("base_url", "http://localhost:3000/api") as String;
     _apiKey = XOR().xorDecode(PrefUtil.getValue("api_key", "") as String);
