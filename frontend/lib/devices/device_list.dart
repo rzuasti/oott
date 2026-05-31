@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../model/device.dart';
@@ -35,6 +36,7 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
 
   int _currentPage = 0;
   bool _hasNextPage = false;
+  CancelToken? _fetchToken;
 
   @override
   void initState() {
@@ -61,6 +63,7 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
   void dispose() {
     routeObserver.unsubscribe(this);
     _ownerDebounce?.cancel();
+    _fetchToken?.cancel();
     _ownerController.dispose();
     super.dispose();
   }
@@ -74,6 +77,9 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
   }
 
   Future<void> _fetchPage(int page) async {
+    _fetchToken?.cancel();
+    final token = CancelToken();
+    _fetchToken = token;
     setState(() {
       _isLoading = _devices.isEmpty;
       _error = null;
@@ -91,8 +97,9 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
         sortAscending: _sortAscending,
         offset: page * _pageSize,
         limit: _pageSize + 1,
+        cancelToken: token,
       );
-      if (!mounted) return;
+      if (!mounted || token != _fetchToken) return;
       setState(() {
         _currentPage = page;
         _hasNextPage = results.length > _pageSize;
@@ -100,7 +107,8 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
         _isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || token != _fetchToken) return;
+      if (e is DioException && e.type == DioExceptionType.cancel) return;
       setState(() {
         _error = dioErrorToUserMessage(e);
         _isLoading = false;

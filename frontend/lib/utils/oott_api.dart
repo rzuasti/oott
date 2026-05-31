@@ -142,6 +142,7 @@ class BackendAPI {
     bool? sortAscending,
     int? offset,
     int? limit,
+    CancelToken? cancelToken,
   }) async {
     debugPrint('About to call /devices');
 
@@ -162,7 +163,11 @@ class BackendAPI {
       params['page_limit'] = limit ?? _pageSize;
     }
 
-    final response = await _dio.get('/devices', queryParameters: params);
+    final response = await _dio.get(
+      '/devices',
+      queryParameters: params,
+      cancelToken: cancelToken,
+    );
 
     debugPrint('Received: ${response.data}');
 
@@ -257,6 +262,7 @@ class BackendAPI {
     bool? isNew,
     int offset, {
     int? limit,
+    CancelToken? cancelToken,
   }) async {
     debugPrint('About to call /notifications');
 
@@ -268,6 +274,7 @@ class BackendAPI {
         'page_offset': offset,
         'page_limit': limit ?? _pageSize,
       },
+      cancelToken: cancelToken,
     );
 
     debugPrint('Received: ${response.data}');

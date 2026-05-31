@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../model/notification.dart' as oott_model;
@@ -45,6 +46,7 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
   bool _isLoading = false;
   bool _hasNextPage = false;
   String? _error;
+  CancelToken? _fetchToken;
 
   @override
   void initState() {
@@ -74,11 +76,14 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
   void dispose() {
     routeObserver.unsubscribe(this);
     _notificationTimer?.cancel();
+    _fetchToken?.cancel();
     super.dispose();
   }
 
   Future<void> _fetchPage(int page) async {
-    if (_isLoading) return;
+    _fetchToken?.cancel();
+    final token = CancelToken();
+    _fetchToken = token;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -88,8 +93,9 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
         _filter.isNew,
         page * _pageSize,
         limit: _pageSize + 1,
+        cancelToken: token,
       );
-      if (!mounted) return;
+      if (!mounted || token != _fetchToken) return;
       setState(() {
         _currentPage = page;
         _hasNextPage = results.length > _pageSize;
@@ -97,7 +103,8 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
         _isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || token != _fetchToken) return;
+      if (e is DioException && e.type == DioExceptionType.cancel) return;
       setState(() {
         _error = dioErrorToUserMessage(e);
         _isLoading = false;
