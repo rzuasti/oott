@@ -105,16 +105,20 @@ class BackendAPI {
         PrefUtil.getValue("base_url", "http://localhost:3000/api") as String;
     _apiKey = XOR().xorDecode(PrefUtil.getValue("api_key", "") as String);
 
+    final headers = <String, String>{
+      HttpHeaders.contentTypeHeader: 'application/json',
+    };
+    if (_apiKey.isNotEmpty) {
+      headers[HttpHeaders.authorizationHeader] = 'Bearer $_apiKey';
+    }
+
     _dio = Dio(
       BaseOptions(
         baseUrl: _baseUrl,
         connectTimeout: _connectTimeout,
         receiveTimeout: _receiveTimeout,
         sendTimeout: _sendTimeout,
-        headers: {
-          HttpHeaders.contentTypeHeader: 'application/json',
-          HttpHeaders.authorizationHeader: 'Bearer $_apiKey',
-        },
+        headers: headers,
       ),
     );
     _dio.interceptors.add(_buildRetryInterceptor(_dio));
@@ -127,16 +131,20 @@ class BackendAPI {
 
   // Returns null if the test was successful, and a String with a message about the issue if not
   static Future<String?> test(String baseUrl, String apiKey) async {
+    final headers = <String, String>{
+      HttpHeaders.contentTypeHeader: 'application/json',
+    };
+    if (apiKey.isNotEmpty) {
+      headers[HttpHeaders.authorizationHeader] = 'Bearer $apiKey';
+    }
+
     Dio dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
         connectTimeout: _connectTimeout,
         receiveTimeout: _receiveTimeout,
         sendTimeout: _sendTimeout,
-        headers: {
-          HttpHeaders.contentTypeHeader: 'application/json',
-          HttpHeaders.authorizationHeader: 'Bearer $apiKey',
-        },
+        headers: headers,
       ),
     );
     if (kDebugMode) {
