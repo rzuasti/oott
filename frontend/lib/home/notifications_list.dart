@@ -112,32 +112,41 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
     }
   }
 
-  Future<void> _markAllAsRead(BuildContext context) async {
-    await BackendAPI.instance.markAllNotificationsAsRead();
-    _fetchPage(_currentPage);
-    if (context.mounted) {
-      UISnackbars.showSuccess(context, 'All notifications marked as read');
+  Future<void> _markAllAsRead() async {
+    try {
+      await BackendAPI.instance.markAllNotificationsAsRead();
+    } catch (e) {
+      if (!mounted) return;
+      UISnackbars.showError(context, dioErrorToUserMessage(e));
+      return;
     }
+    if (!mounted) return;
+    _fetchPage(_currentPage);
+    UISnackbars.showSuccess(context, 'All notifications marked as read');
   }
 
-  Future<bool> _setRead(
-    BuildContext context,
-    oott_model.Notification item,
-    bool read,
-  ) async {
+  Future<bool> _setRead(oott_model.Notification item, bool read) async {
     if (item.isNew == !read) {
-      UISnackbars.showWarning(
-        context,
-        'Notification was already marked as ${read ? 'read' : 'unread'}',
-      );
+      if (mounted) {
+        UISnackbars.showWarning(
+          context,
+          'Notification was already marked as ${read ? 'read' : 'unread'}',
+        );
+      }
       return false;
     }
-    if (read) {
-      await BackendAPI.instance.markNotificationAsRead(item.id);
-    } else {
-      await BackendAPI.instance.markNotificationAsNew(item.id);
+    try {
+      if (read) {
+        await BackendAPI.instance.markNotificationAsRead(item.id);
+      } else {
+        await BackendAPI.instance.markNotificationAsNew(item.id);
+      }
+    } catch (e) {
+      if (!mounted) return false;
+      UISnackbars.showError(context, dioErrorToUserMessage(e));
+      return false;
     }
-    if (!context.mounted) return false;
+    if (!mounted) return false;
     UISnackbars.showSuccess(
       context,
       'Event marked as ${read ? 'read' : 'unread'}',
@@ -185,7 +194,7 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
             const Spacer(),
             if (_filter == _NotificationFilter.newOnly && _items.isNotEmpty)
               IconButton(
-                onPressed: () => _markAllAsRead(context),
+                onPressed: _markAllAsRead,
                 icon: const Icon(Icons.done_all),
                 tooltip: 'Mark all as read',
               ),
@@ -266,7 +275,7 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
         return NotificationCard(
           item: item,
           formatter: formatter,
-          onSetRead: (ctx, read) => _setRead(ctx, item, read),
+          onSetRead: (read) => _setRead(item, read),
         );
       },
     );

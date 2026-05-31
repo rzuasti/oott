@@ -7,7 +7,7 @@ import '../utils/friendly_date_formatter.dart';
 class NotificationCard extends StatelessWidget {
   final oott_model.Notification item;
   final FriendlyDateFormatter formatter;
-  final Future<bool> Function(BuildContext, bool read) onSetRead;
+  final Future<bool> Function(bool read) onSetRead;
 
   const NotificationCard({
     required this.item,
@@ -22,10 +22,9 @@ class NotificationCard extends StatelessWidget {
     return Card(
       color: item.isNew ? theme.colorScheme.secondaryContainer : null,
       child: Dismissible(
-        key: UniqueKey(),
-        confirmDismiss: (direction) => direction == DismissDirection.startToEnd
-            ? onSetRead(context, false)
-            : onSetRead(context, true),
+        key: ValueKey(item.id),
+        confirmDismiss: (direction) =>
+            onSetRead(direction != DismissDirection.startToEnd),
         background: Container(
           color: theme.colorScheme.tertiaryContainer,
           alignment: Alignment.centerLeft,
@@ -54,14 +53,14 @@ class NotificationCard extends StatelessWidget {
             icon: const Icon(Icons.more_vert),
             onSelected: (value) async {
               if (value == 'view_device') {
-                if (item.isNew) await onSetRead(context, true);
+                if (item.isNew) await onSetRead(true);
                 if (context.mounted) {
                   context.push('/devices/${item.macAddress}');
                 }
               } else if (value == 'mark_read') {
-                await onSetRead(context, true);
+                await onSetRead(true);
               } else if (value == 'mark_new') {
-                await onSetRead(context, false);
+                await onSetRead(false);
               }
             },
             itemBuilder: (context) => [
@@ -84,7 +83,7 @@ class NotificationCard extends StatelessWidget {
           ),
           onTap: item.macAddress != null
               ? () async {
-                  if (item.isNew) await onSetRead(context, true);
+                  if (item.isNew) await onSetRead(true);
                   if (context.mounted) {
                     context.push('/devices/${item.macAddress}');
                   }

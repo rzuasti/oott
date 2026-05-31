@@ -286,11 +286,13 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
               final device = _devices[index];
               return isWide
                   ? DeviceRowWide(
+                      key: ValueKey(device.macAddress),
                       device: device,
                       formatter: formatter,
                       onRefresh: () => _fetchPage(_currentPage),
                     )
                   : DeviceRowCompact(
+                      key: ValueKey(device.macAddress),
                       device: device,
                       formatter: formatter,
                       onRefresh: () => _fetchPage(_currentPage),
