@@ -42,7 +42,10 @@ Future<void> confirmForgetDevice(
     onRefresh();
   } catch (e) {
     if (!context.mounted) return;
-    UISnackbars.showError(context, 'Failed to forget device: $e');
+    UISnackbars.showError(
+      context,
+      'Failed to forget device. ${dioErrorToUserMessage(e)}',
+    );
   }
 }
 
@@ -157,7 +160,10 @@ Future<void> showEditDeviceDialog(
     onRefresh();
   } catch (e) {
     if (!context.mounted) return;
-    UISnackbars.showError(context, 'Failed to update device: $e');
+    UISnackbars.showError(
+      context,
+      'Failed to update device. ${dioErrorToUserMessage(e)}',
+    );
   }
 }
 
@@ -260,6 +266,9 @@ Future<void> showRegisterDeviceDialog(
     onRefresh();
   } catch (e) {
     if (!context.mounted) return;
-    UISnackbars.showError(context, 'Failed to register device: $e');
+    UISnackbars.showError(
+      context,
+      'Failed to register device. ${dioErrorToUserMessage(e)}',
+    );
   }
 }

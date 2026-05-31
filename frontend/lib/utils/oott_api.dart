@@ -12,6 +12,44 @@ import '../model/device_summary.dart';
 import '../model/device_type.dart';
 import '../model/notification.dart';
 
+const _connectTimeout = Duration(seconds: 5);
+const _receiveTimeout = Duration(seconds: 15);
+const _sendTimeout = Duration(seconds: 15);
+
+String dioErrorToUserMessage(Object error) {
+  if (error is! DioException) {
+    debugPrint('Non-Dio error from backend call: $error');
+    return 'Unexpected error.';
+  }
+  switch (error.type) {
+    case DioExceptionType.connectionTimeout:
+    case DioExceptionType.sendTimeout:
+    case DioExceptionType.receiveTimeout:
+      return 'Backend did not respond in time.';
+    case DioExceptionType.connectionError:
+      return 'Cannot reach backend. Check the base URL and your network.';
+    case DioExceptionType.badCertificate:
+      return 'Backend TLS certificate could not be verified.';
+    case DioExceptionType.cancel:
+      return 'Request canceled.';
+    case DioExceptionType.badResponse:
+      final status = error.response?.statusCode;
+      if (status == 401 || status == 403) {
+        return 'Authentication failed. Check your API key in Settings.';
+      }
+      if (status == 404) {
+        return 'Not found.';
+      }
+      if (status != null && status >= 500 && status < 600) {
+        return 'Backend error (status $status). Please try again.';
+      }
+      return 'Unexpected response from backend (status ${status ?? 'unknown'}).';
+    case DioExceptionType.unknown:
+      debugPrint('Unknown Dio error: ${error.message}');
+      return 'Unexpected error contacting backend.';
+  }
+}
+
 class BackendAPI {
   static final BackendAPI _instance = BackendAPI._internal();
   static const _pageSize = 5;
@@ -24,11 +62,14 @@ class BackendAPI {
     _apiKey = XOR().xorDecode(PrefUtil.getValue("api_key", "") as String);
 
     debugPrint('Base URL: $_baseUrl');
-    debugPrint('API KEY: $_apiKey');
+    debugPrint('API KEY: ${_apiKey.isEmpty ? "<empty>" : "<set>"}');
 
     _dio = Dio(
       BaseOptions(
         baseUrl: _baseUrl,
+        connectTimeout: _connectTimeout,
+        receiveTimeout: _receiveTimeout,
+        sendTimeout: _sendTimeout,
         headers: {
           HttpHeaders.contentTypeHeader: 'application/json',
           HttpHeaders.authorizationHeader: 'Bearer $_apiKey',
@@ -39,10 +80,13 @@ class BackendAPI {
 
   // Returns null if the test was successful, and a String with a message about the issue if not
   static Future<String?> test(String baseUrl, String apiKey) async {
-    debugPrint('About to test API with baseUrl=$baseUrl and apiKey=$apiKey');
+    debugPrint('About to test API with baseUrl=$baseUrl');
     Dio dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
+        connectTimeout: _connectTimeout,
+        receiveTimeout: _receiveTimeout,
+        sendTimeout: _sendTimeout,
         headers: {
           HttpHeaders.contentTypeHeader: 'application/json',
           HttpHeaders.authorizationHeader: 'Bearer $apiKey',
@@ -55,17 +99,8 @@ class BackendAPI {
       return response.toString().contains('OOTT_API_OK')
           ? null
           : "URL successfully called but didn't return the expected value. Check your URL and make sure it points to your OOTT backend base URL.";
-    } on DioException catch (e) {
-      if (e.response != null) {
-        if (e.response!.statusCode == 401) {
-          return "Authorization failed, check your API Key.";
-        } else {
-          return "Error querying the given URL (${e.response!.statusCode} - ${e.message ?? 'N/A'})";
-        }
-      } else {
-        // Response was null, something happened while sending the message
-        return "Error sending message to provided URL (${e.message ?? 'no message'})";
-      }
+    } catch (e) {
+      return dioErrorToUserMessage(e);
     }
   }
 

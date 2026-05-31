@@ -44,6 +44,7 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
   List<oott_model.Notification> _items = [];
   bool _isLoading = false;
   bool _hasNextPage = false;
+  String? _error;
 
   @override
   void initState() {
@@ -78,10 +79,16 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
 
   Future<void> _fetchPage(int page) async {
     if (_isLoading) return;
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
-      final results = await BackendAPI.instance
-          .listNotifications(_filter.isNew, page * _pageSize, limit: _pageSize + 1);
+      final results = await BackendAPI.instance.listNotifications(
+        _filter.isNew,
+        page * _pageSize,
+        limit: _pageSize + 1,
+      );
       if (!mounted) return;
       setState(() {
         _currentPage = page;
@@ -89,9 +96,12 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
         _items = _hasNextPage ? results.take(_pageSize).toList() : results;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _isLoading = false);
+      setState(() {
+        _error = dioErrorToUserMessage(e);
+        _isLoading = false;
+      });
     }
   }
 
@@ -202,6 +212,18 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
       return [
         const SliverFillRemaining(
           child: Center(child: CircularProgressIndicator()),
+        ),
+      ];
+    }
+    if (_error != null) {
+      return [
+        SliverFillRemaining(
+          child: Center(
+            child: Text(
+              'Error: $_error',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
         ),
       ];
     }

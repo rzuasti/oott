@@ -102,7 +102,7 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = dioErrorToUserMessage(e);
         _isLoading = false;
       });
     }
@@ -235,7 +235,12 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
-      return Center(child: Text('Error: $_error'));
+      return Center(
+        child: Text(
+          'Error: $_error',
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ),
+      );
     }
     if (_devices.isEmpty) {
       final theme = Theme.of(context);

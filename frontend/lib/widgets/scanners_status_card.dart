@@ -48,7 +48,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard> {
     try {
       arp = await BackendAPI.instance.getArpScannerStatus();
     } catch (e) {
-      arpError = e.toString();
+      arpError = dioErrorToUserMessage(e);
     }
 
     MdnsScannerStatus? mdns;
@@ -56,7 +56,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard> {
     try {
       mdns = await BackendAPI.instance.getMdnsScannerStatus();
     } catch (e) {
-      mdnsError = e.toString();
+      mdnsError = dioErrorToUserMessage(e);
     }
 
     if (!mounted) return;
@@ -99,9 +99,9 @@ class _ScannersStatusCardState extends State<ScannersStatusCard> {
             children: [
               Text('Status', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
-              _scannerRow(context, arpColor, 'ARP', arpText),
+              _scannerRow(context, arpColor, 'ARP', arpText, _arpError),
               const SizedBox(height: 8),
-              _scannerRow(context, mdnsColor, 'mDNS', mdnsText),
+              _scannerRow(context, mdnsColor, 'mDNS', mdnsText, _mdnsError),
             ],
           ),
         ),
@@ -114,10 +114,15 @@ class _ScannersStatusCardState extends State<ScannersStatusCard> {
     Color color,
     String name,
     String statusText,
+    String? errorMessage,
   ) {
+    Widget dot = Icon(Icons.circle, color: color, size: 12);
+    if (errorMessage != null) {
+      dot = Tooltip(message: errorMessage, child: dot);
+    }
     return Row(
       children: [
-        Icon(Icons.circle, color: color, size: 12),
+        dot,
         const SizedBox(width: 10),
         Expanded(
           child: Text(name, style: Theme.of(context).textTheme.bodyMedium),
