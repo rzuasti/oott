@@ -16,6 +16,16 @@ const _connectTimeout = Duration(seconds: 5);
 const _receiveTimeout = Duration(seconds: 15);
 const _sendTimeout = Duration(seconds: 15);
 
+LogInterceptor _buildLogInterceptor() => LogInterceptor(
+  request: true,
+  requestHeader: false,
+  requestBody: false,
+  responseHeader: false,
+  responseBody: false,
+  error: true,
+  logPrint: (obj) => debugPrint(obj.toString()),
+);
+
 String dioErrorToUserMessage(Object error) {
   if (error is! DioException) {
     debugPrint('Non-Dio error from backend call: $error');
@@ -65,9 +75,6 @@ class BackendAPI {
         PrefUtil.getValue("base_url", "http://localhost:3000/api") as String;
     _apiKey = XOR().xorDecode(PrefUtil.getValue("api_key", "") as String);
 
-    debugPrint('Base URL: $_baseUrl');
-    debugPrint('API KEY: ${_apiKey.isEmpty ? "<empty>" : "<set>"}');
-
     _dio = Dio(
       BaseOptions(
         baseUrl: _baseUrl,
@@ -80,11 +87,13 @@ class BackendAPI {
         },
       ),
     );
+    if (kDebugMode) {
+      _dio.interceptors.add(_buildLogInterceptor());
+    }
   }
 
   // Returns null if the test was successful, and a String with a message about the issue if not
   static Future<String?> test(String baseUrl, String apiKey) async {
-    debugPrint('About to test API with baseUrl=$baseUrl');
     Dio dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
@@ -97,6 +106,9 @@ class BackendAPI {
         },
       ),
     );
+    if (kDebugMode) {
+      dio.interceptors.add(_buildLogInterceptor());
+    }
 
     try {
       Response response = await dio.get('/test');
@@ -113,24 +125,19 @@ class BackendAPI {
   late Dio _dio;
 
   Future<void> markNotificationAsRead(int id) async {
-    debugPrint('About to call /notifications/$id');
     await _dio.get('/notifications/$id');
   }
 
   Future<void> markNotificationAsNew(int id) async {
-    debugPrint('About to call /notifications/$id/mark_as_new');
     await _dio.post('/notifications/$id/mark_as_new');
   }
 
   Future<void> markAllNotificationsAsRead() async {
-    debugPrint('About to call /notifications/mark_all_as_old');
     await _dio.post('/notifications/mark_all_as_old');
   }
 
   Future<Device> getDevice(String macAddress) async {
-    debugPrint('About to call GET /devices/$macAddress');
     final response = await _dio.get('/devices/$macAddress');
-    debugPrint('Received: ${response.data}');
     return Device.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -144,8 +151,6 @@ class BackendAPI {
     int? limit,
     CancelToken? cancelToken,
   }) async {
-    debugPrint('About to call /devices');
-
     final params = <String, dynamic>{};
     if (isRegistered != null) params['is_registered'] = isRegistered;
     if (owner != null && owner.isNotEmpty) params['owner'] = owner;
@@ -169,8 +174,6 @@ class BackendAPI {
       cancelToken: cancelToken,
     );
 
-    debugPrint('Received: ${response.data}');
-
     return (response.data as List)
         .map((item) => Device.fromJson(item as Map<String, dynamic>))
         .toList();
@@ -182,7 +185,6 @@ class BackendAPI {
     String deviceType, {
     String? name,
   }) async {
-    debugPrint('About to call PUT /devices');
     await _dio.put(
       '/devices',
       data: {
@@ -201,7 +203,6 @@ class BackendAPI {
     String vendor, {
     String? name,
   }) async {
-    debugPrint('About to call PUT /devices/$macAddress');
     await _dio.put(
       '/devices/$macAddress',
       data: {
@@ -214,7 +215,6 @@ class BackendAPI {
   }
 
   Future<void> forgetDevice(String macAddress) async {
-    debugPrint('About to call DELETE /devices/$macAddress');
     await _dio.delete('/devices/$macAddress');
   }
 
@@ -222,7 +222,6 @@ class BackendAPI {
     String macAddress, {
     DateTime? createdFrom,
   }) async {
-    debugPrint('About to call GET /devices/$macAddress/events');
     final queryParams = <String, dynamic>{};
     if (createdFrom != null) {
       queryParams['created_from'] = createdFrom.toUtc().toIso8601String();
@@ -231,30 +230,23 @@ class BackendAPI {
       '/devices/$macAddress/events',
       queryParameters: queryParams.isEmpty ? null : queryParams,
     );
-    debugPrint('Received: ${response.data}');
     return (response.data as List)
         .map((item) => DeviceEvent.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 
   Future<DeviceSummary> getDeviceSummary() async {
-    debugPrint('About to call GET /devices/summary');
     final response = await _dio.get('/devices/summary');
-    debugPrint('Received: ${response.data}');
     return DeviceSummary.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<ArpScannerStatus> getArpScannerStatus() async {
-    debugPrint('About to call GET /arp_scanner/status');
     final response = await _dio.get('/arp_scanner/status');
-    debugPrint('Received: ${response.data}');
     return ArpScannerStatus.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<MdnsScannerStatus> getMdnsScannerStatus() async {
-    debugPrint('About to call GET /mdns_scanner/status');
     final response = await _dio.get('/mdns_scanner/status');
-    debugPrint('Received: ${response.data}');
     return MdnsScannerStatus.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -264,10 +256,7 @@ class BackendAPI {
     int? limit,
     CancelToken? cancelToken,
   }) async {
-    debugPrint('About to call /notifications');
-
-    Response response;
-    response = await _dio.get(
+    final response = await _dio.get(
       '/notifications',
       queryParameters: {
         'is_new': isNew ?? '',
@@ -277,17 +266,9 @@ class BackendAPI {
       cancelToken: cancelToken,
     );
 
-    debugPrint('Received: ${response.data}');
-
-    List<dynamic> list = response.data;
-    debugPrint('List contains ${list.length} items');
-
-    List<Notification> events = List<Notification>.from(
+    final list = response.data as List<dynamic>;
+    return List<Notification>.from(
       list.map((item) => Notification.fromJson(item)),
     );
-
-    debugPrint('Parsed ${events.length} events');
-
-    return events;
   }
 }
