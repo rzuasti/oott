@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:dio_smart_retry/dio_smart_retry.dart';
 import 'package:encrypter/encrypter/xor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:frontend/utils/pref_utils.dart';
@@ -15,6 +16,25 @@ import '../model/notification.dart';
 const _connectTimeout = Duration(seconds: 5);
 const _receiveTimeout = Duration(seconds: 15);
 const _sendTimeout = Duration(seconds: 15);
+
+const _retryableStatuses = {408, 429, 500, 502, 503, 504};
+
+RetryInterceptor _buildRetryInterceptor(Dio dio) => RetryInterceptor(
+  dio: dio,
+  retries: 2,
+  retryDelays: const [Duration(seconds: 1), Duration(seconds: 3)],
+  logPrint: kDebugMode ? (msg) => debugPrint(msg.toString()) : null,
+  retryEvaluator: (error, attempt) {
+    if (error.requestOptions.method != 'GET') return false;
+    if (error.type == DioExceptionType.cancel) return false;
+    if (error.error is FormatException) return false;
+    if (error.type == DioExceptionType.badResponse) {
+      final status = error.response?.statusCode;
+      return status != null && _retryableStatuses.contains(status);
+    }
+    return true;
+  },
+);
 
 LogInterceptor _buildLogInterceptor() => LogInterceptor(
   request: true,
@@ -87,6 +107,7 @@ class BackendAPI {
         },
       ),
     );
+    _dio.interceptors.add(_buildRetryInterceptor(_dio));
     if (kDebugMode) {
       _dio.interceptors.add(_buildLogInterceptor());
     }
