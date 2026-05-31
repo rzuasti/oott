@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/theme/catppuccin_mocha_theme.dart';
 import 'package:frontend/utils/pref_utils.dart';
@@ -5,10 +8,32 @@ import 'package:provider/provider.dart';
 import 'navigation.dart';
 import 'theme/gruvbox_theme.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await PrefUtil.init();
-  runApp(const MainApp());
+void main() {
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        debugPrint('FlutterError: ${details.exceptionAsString()}');
+      };
+      PlatformDispatcher.instance.onError = (error, stack) {
+        debugPrint('Uncaught platform error: $error\n$stack');
+        return true;
+      };
+
+      try {
+        await PrefUtil.init();
+      } catch (e, stack) {
+        debugPrint('PrefUtil.init failed, continuing with defaults: $e\n$stack');
+      }
+
+      runApp(const MainApp());
+    },
+    (error, stack) {
+      debugPrint('Uncaught zone error: $error\n$stack');
+    },
+  );
 }
 
 final class MainApp extends StatelessWidget {

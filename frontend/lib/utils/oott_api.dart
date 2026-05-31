@@ -59,6 +59,10 @@ LogInterceptor _buildLogInterceptor() => LogInterceptor(
 );
 
 String dioErrorToUserMessage(Object error) {
+  if (error is TypeError || error is FormatException) {
+    debugPrint('Backend response shape error: $error');
+    return 'Unexpected response shape from backend.';
+  }
   if (error is! DioException) {
     debugPrint('Non-Dio error from backend call: $error');
     return 'Unexpected error.';
