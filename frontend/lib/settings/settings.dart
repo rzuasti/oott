@@ -89,8 +89,9 @@ class _SettingsState extends State<Settings> {
         UISnackbars.showError(context, 'Failed to save settings');
       }
     } catch (e) {
+      debugPrint('Failed to save settings: $e');
       if (!mounted) return;
-      UISnackbars.showError(context, 'Failed to save settings: $e');
+      UISnackbars.showError(context, 'Failed to save settings');
     }
   }
 
