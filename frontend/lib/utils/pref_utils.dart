@@ -10,15 +10,18 @@ class PrefUtil {
     return preferences;
   }
 
-  static void setValue(String key, Object value) {
+  static Future<bool> setValue(String key, Object value) {
     switch (value) {
       case String s:
-        preferences.setString(key, s);
+        return preferences.setString(key, s);
       case bool b:
-        preferences.setBool(key, b);
+        return preferences.setBool(key, b);
       case int i:
-        preferences.setInt(key, i);
+        return preferences.setInt(key, i);
       default:
+        throw ArgumentError(
+          'Unsupported pref value type: ${value.runtimeType}',
+        );
     }
   }
 

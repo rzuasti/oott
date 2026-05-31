@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -42,8 +43,9 @@ class _DeviceDetailState extends State<DeviceDetail> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (e is DioException && e.type == DioExceptionType.cancel) return;
       setState(() {
-        _error = e.toString();
+        _error = dioErrorToUserMessage(e);
         _isLoading = false;
       });
     }
@@ -140,7 +142,10 @@ class _DeviceHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SelectableText(device.ipv4Address, style: theme.textTheme.headlineSmall),
+              SelectableText(
+                device.ipv4Address,
+                style: theme.textTheme.headlineSmall,
+              ),
               const SizedBox(height: 4),
               if (device.isRegistered)
                 StatusBadge(label: 'Registered', color: BadgeColor.success)
@@ -166,7 +171,10 @@ class _DeviceInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final formatter = FriendlyDateFormatter();
     final rows = <(String, String)>[
-      ('Name', device.name == null || device.name!.isEmpty ? '—' : device.name!),
+      (
+        'Name',
+        device.name == null || device.name!.isEmpty ? '—' : device.name!,
+      ),
       ('MAC Address', device.macAddress),
       ('IP Address', device.ipv4Address),
       ('Vendor', device.vendor.isEmpty ? '—' : device.vendor),
@@ -251,7 +259,9 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(child: SelectableText(value, style: theme.textTheme.bodyMedium)),
+          Expanded(
+            child: SelectableText(value, style: theme.textTheme.bodyMedium),
+          ),
         ],
       ),
     );

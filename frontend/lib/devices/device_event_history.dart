@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -98,8 +99,9 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (e is DioException && e.type == DioExceptionType.cancel) return;
       setState(() {
-        _error = e.toString();
+        _error = dioErrorToUserMessage(e);
         _isLoading = false;
       });
     }
@@ -115,9 +117,9 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
     }
 
     if (_error != null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
-        child: Center(child: Text('Failed to load event history')),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: Text('Failed to load event history: $_error')),
       );
     }
 

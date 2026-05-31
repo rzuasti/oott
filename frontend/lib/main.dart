@@ -44,10 +44,11 @@ class AppState extends ChangeNotifier {
   String get themeKey => _themeKey;
   ThemeData get theme => _themes[_themeKey]!;
 
-  void setTheme(String key) {
-    if (!_themes.containsKey(key) || key == _themeKey) return;
+  Future<bool> setTheme(String key) async {
+    if (!_themes.containsKey(key)) return false;
+    if (key == _themeKey) return true;
     _themeKey = key;
-    PrefUtil.setValue('theme', key);
     notifyListeners();
+    return PrefUtil.setValue('theme', key);
   }
 }
