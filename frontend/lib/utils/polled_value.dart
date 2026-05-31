@@ -13,12 +13,14 @@ class PolledValue<T> extends ChangeNotifier {
     required Duration pollInterval,
     required Duration staleErrorAfter,
   }) : _fetch = fetch,
+       _pollInterval = pollInterval,
        _staleErrorAfter = staleErrorAfter {
     _load();
     _pollTimer = Timer.periodic(pollInterval, (_) => _load());
   }
 
   final Future<T> Function({CancelToken? cancelToken}) _fetch;
+  final Duration _pollInterval;
   final Duration _staleErrorAfter;
   Timer? _pollTimer;
   CancelToken? _cancelToken;
@@ -64,6 +66,18 @@ class PolledValue<T> extends ChangeNotifier {
       _everCompleted = true;
       notifyListeners();
     }
+  }
+
+  void pause() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _cancelToken?.cancel();
+  }
+
+  void resume() {
+    if (_disposed) return;
+    _load();
+    _pollTimer = Timer.periodic(_pollInterval, (_) => _load());
   }
 
   @override

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../model/arp_scanner_status.dart';
 import '../model/mdns_scanner_status.dart';
+import '../navigation.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/oott_api.dart';
 import '../utils/polled_value.dart';
@@ -17,7 +18,8 @@ class ScannersStatusCard extends StatefulWidget {
   State<ScannersStatusCard> createState() => _ScannersStatusCardState();
 }
 
-class _ScannersStatusCardState extends State<ScannersStatusCard> {
+class _ScannersStatusCardState extends State<ScannersStatusCard>
+    with RouteAware, WidgetsBindingObserver {
   late final PolledValue<ArpScannerStatus> _arp;
   late final PolledValue<MdnsScannerStatus> _mdns;
   Timer? _tickTimer;
@@ -25,6 +27,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _arp = PolledValue<ArpScannerStatus>(
       fetch: ({cancelToken}) =>
           BackendAPI.instance.getArpScannerStatus(cancelToken: cancelToken),
@@ -43,7 +46,52 @@ class _ScannersStatusCardState extends State<ScannersStatusCard> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is ModalRoute<void>) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPushNext() {
+    _pausePolling();
+  }
+
+  @override
+  void didPopNext() {
+    _resumePolling();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _pausePolling();
+    } else if (state == AppLifecycleState.resumed) {
+      _resumePolling();
+    }
+  }
+
+  void _pausePolling() {
+    _arp.pause();
+    _mdns.pause();
+    _tickTimer?.cancel();
+    _tickTimer = null;
+  }
+
+  void _resumePolling() {
+    _arp.resume();
+    _mdns.resume();
+    _tickTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    routeObserver.unsubscribe(this);
     _tickTimer?.cancel();
     _arp.dispose();
     _mdns.dispose();

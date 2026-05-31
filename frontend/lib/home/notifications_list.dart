@@ -37,7 +37,8 @@ class NotificationsList extends StatefulWidget {
   State<NotificationsList> createState() => _NotificationsListState();
 }
 
-class _NotificationsListState extends State<NotificationsList> with RouteAware {
+class _NotificationsListState extends State<NotificationsList>
+    with RouteAware, WidgetsBindingObserver {
   _NotificationFilter _filter = _NotificationFilter.newOnly;
   Timer? _notificationTimer;
 
@@ -51,11 +52,9 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _fetchPage(0);
-    _notificationTimer = Timer.periodic(
-      const Duration(minutes: 1),
-      (_) => _fetchPage(_currentPage),
-    );
+    _startTimer();
   }
 
   @override
@@ -68,12 +67,39 @@ class _NotificationsListState extends State<NotificationsList> with RouteAware {
   }
 
   @override
+  void didPushNext() {
+    _notificationTimer?.cancel();
+    _notificationTimer = null;
+  }
+
+  @override
   void didPopNext() {
     _fetchPage(_currentPage);
+    _startTimer();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _notificationTimer?.cancel();
+      _notificationTimer = null;
+    } else if (state == AppLifecycleState.resumed) {
+      _fetchPage(_currentPage);
+      _startTimer();
+    }
+  }
+
+  void _startTimer() {
+    _notificationTimer?.cancel();
+    _notificationTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _fetchPage(_currentPage),
+    );
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     routeObserver.unsubscribe(this);
     _notificationTimer?.cancel();
     _fetchToken?.cancel();
