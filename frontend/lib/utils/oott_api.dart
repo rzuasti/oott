@@ -82,8 +82,6 @@ String dioErrorToUserMessage(Object error) {
 
 class BackendAPI {
   static final BackendAPI _instance = BackendAPI._internal();
-  static const _pageSize = 5;
-
   static BackendAPI get instance => _instance;
 
   BackendAPI._internal() {
@@ -162,14 +160,14 @@ class BackendAPI {
     return Device.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<List<Device>> listDevices({
+  Future<({List<Device> items, bool hasNextPage})> listDevices({
     bool? isRegistered,
     String? owner,
     DeviceType? deviceType,
     String? sortBy,
     bool? sortAscending,
-    int? offset,
-    int? limit,
+    int page = 0,
+    int perPage = 10,
     CancelToken? cancelToken,
   }) async {
     final params = <String, dynamic>{};
@@ -184,10 +182,8 @@ class BackendAPI {
     if (sortAscending != null) {
       params['sort_order'] = sortAscending ? 'asc' : 'desc';
     }
-    if (offset != null) {
-      params['page_offset'] = offset;
-      params['page_limit'] = limit ?? _pageSize;
-    }
+    params['page_offset'] = page * perPage;
+    params['page_limit'] = perPage + 1;
 
     final response = await _dio.get(
       '/devices',
@@ -195,9 +191,14 @@ class BackendAPI {
       cancelToken: cancelToken,
     );
 
-    return (response.data as List)
+    final results = (response.data as List)
         .map((item) => Device.fromJson(item as Map<String, dynamic>))
         .toList();
+    final hasNextPage = results.length > perPage;
+    return (
+      items: hasNextPage ? results.take(perPage).toList() : results,
+      hasNextPage: hasNextPage,
+    );
   }
 
   Future<void> registerDevice(
@@ -284,25 +285,29 @@ class BackendAPI {
     return MdnsScannerStatus.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<List<Notification>> listNotifications(
-    bool? isNew,
-    int offset, {
-    int? limit,
+  Future<({List<Notification> items, bool hasNextPage})> listNotifications(
+    bool? isNew, {
+    int page = 0,
+    int perPage = 5,
     CancelToken? cancelToken,
   }) async {
     final response = await _dio.get(
       '/notifications',
       queryParameters: {
         'is_new': isNew ?? '',
-        'page_offset': offset,
-        'page_limit': limit ?? _pageSize,
+        'page_offset': page * perPage,
+        'page_limit': perPage + 1,
       },
       cancelToken: cancelToken,
     );
 
-    final list = response.data as List<dynamic>;
-    return List<Notification>.from(
-      list.map((item) => Notification.fromJson(item)),
+    final results = (response.data as List<dynamic>)
+        .map((item) => Notification.fromJson(item))
+        .toList();
+    final hasNextPage = results.length > perPage;
+    return (
+      items: hasNextPage ? results.take(perPage).toList() : results,
+      hasNextPage: hasNextPage,
     );
   }
 }

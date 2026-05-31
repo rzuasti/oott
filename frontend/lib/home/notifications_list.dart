@@ -115,17 +115,17 @@ class _NotificationsListState extends State<NotificationsList>
       _error = null;
     });
     try {
-      final results = await BackendAPI.instance.listNotifications(
+      final result = await BackendAPI.instance.listNotifications(
         _filter.isNew,
-        page * _pageSize,
-        limit: _pageSize + 1,
+        page: page,
+        perPage: _pageSize,
         cancelToken: token,
       );
       if (!mounted || token != _fetchToken) return;
       setState(() {
         _currentPage = page;
-        _hasNextPage = results.length > _pageSize;
-        _items = _hasNextPage ? results.take(_pageSize).toList() : results;
+        _hasNextPage = result.hasNextPage;
+        _items = result.items;
         _isLoading = false;
       });
     } catch (e) {

@@ -89,21 +89,21 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
       if (_filter == DeviceFilter.newDevices) isRegistered = false;
       if (_filter == DeviceFilter.registered) isRegistered = true;
 
-      final results = await BackendAPI.instance.listDevices(
+      final result = await BackendAPI.instance.listDevices(
         isRegistered: isRegistered,
         owner: _ownerController.text.isEmpty ? null : _ownerController.text,
         deviceType: _typeFilter,
         sortBy: _sortColumn.apiName,
         sortAscending: _sortAscending,
-        offset: page * _pageSize,
-        limit: _pageSize + 1,
+        page: page,
+        perPage: _pageSize,
         cancelToken: token,
       );
       if (!mounted || token != _fetchToken) return;
       setState(() {
         _currentPage = page;
-        _hasNextPage = results.length > _pageSize;
-        _devices = _hasNextPage ? results.take(_pageSize).toList() : results;
+        _hasNextPage = result.hasNextPage;
+        _devices = result.items;
         _isLoading = false;
       });
     } catch (e) {
