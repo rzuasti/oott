@@ -153,7 +153,7 @@ class BackendAPI {
 
     try {
       Response response = await dio.get('/test');
-      return response.toString().contains('OOTT_API_OK')
+      return response.data == 'OOTT_API_OK'
           ? null
           : "URL successfully called but didn't return the expected value. Check your URL and make sure it points to your OOTT backend base URL.";
     } catch (e) {
