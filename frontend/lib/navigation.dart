@@ -8,6 +8,7 @@ import 'devices/device_list.dart';
 import 'home/home_screen.dart';
 import 'status/status_screen.dart';
 import 'utils/pref_utils.dart';
+import 'widgets/offline_banner.dart';
 
 // M3 window size class breakpoints
 const _mediumBreakpoint = 600.0;
@@ -109,9 +110,19 @@ class MainShell extends StatelessWidget {
         if (width < _mediumBreakpoint) {
           return Scaffold(
             appBar: _buildAppBar(context),
-            body: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: child,
+            body: Column(
+              children: [
+                const OfflineBanner(),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: child,
+                  ),
+                ),
+              ],
             ),
             bottomNavigationBar: NavigationBar(
               selectedIndex: selectedIndex,
@@ -156,9 +167,18 @@ class MainShell extends StatelessWidget {
               ),
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.all(20),
                   color: Theme.of(context).colorScheme.surface,
-                  child: child,
+                  child: Column(
+                    children: [
+                      const OfflineBanner(),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: child,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

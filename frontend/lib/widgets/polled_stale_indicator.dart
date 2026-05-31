@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../utils/backend_reachability.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/polled_value.dart';
 
@@ -39,9 +40,15 @@ class _PolledStaleIndicatorState extends State<PolledStaleIndicator> {
             DateTime.now().difference(lastSuccessAt).inSeconds.toDouble(),
           )
         : 'a while';
-    final message = widget.polled.lastErrorMessage != null
-        ? 'Last updated $ago ago — ${widget.polled.lastErrorMessage}'
-        : 'Last updated $ago ago';
+    final isOffline = !BackendReachability.instance.isOnline;
+    final String message;
+    if (isOffline) {
+      message = 'Offline — last updated $ago ago';
+    } else if (widget.polled.lastErrorMessage != null) {
+      message = 'Last updated $ago ago — ${widget.polled.lastErrorMessage}';
+    } else {
+      message = 'Last updated $ago ago';
+    }
     return Tooltip(
       message: message,
       child: Icon(

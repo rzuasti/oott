@@ -3,9 +3,26 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import 'backend_reachability.dart';
 import 'oott_api.dart';
 
 enum PolledFreshness { initialLoading, fresh, stale, error }
+
+enum PolledPauseReason { manual, unreachable }
+
+/// Returns the freshness of [polled] downgraded to [PolledFreshness.stale]
+/// when the backend is known to be unreachable and a previous value exists.
+/// This avoids showing per-card error chrome while the global offline banner
+/// is already communicating the connectivity issue.
+PolledFreshness effectiveFreshness(PolledValue polled) {
+  final base = polled.freshness;
+  if (base == PolledFreshness.error &&
+      polled.value != null &&
+      !BackendReachability.instance.isOnline) {
+    return PolledFreshness.stale;
+  }
+  return base;
+}
 
 class PolledValue<T> extends ChangeNotifier {
   PolledValue({
@@ -15,13 +32,23 @@ class PolledValue<T> extends ChangeNotifier {
   }) : _fetch = fetch,
        _pollInterval = pollInterval,
        _staleErrorAfter = staleErrorAfter {
-    _load();
-    _pollTimer = Timer.periodic(pollInterval, (_) => _load());
+    _reachability = BackendReachability.instance;
+    _reachability.addListener(_onReachabilityChanged);
+    if (!_reachability.isOnline) {
+      _pauseReasons.add(PolledPauseReason.unreachable);
+    }
+    if (_pauseReasons.isEmpty) {
+      _load();
+      _startPolling();
+    }
   }
 
   final Future<T> Function({CancelToken? cancelToken}) _fetch;
   final Duration _pollInterval;
   final Duration _staleErrorAfter;
+  final Set<PolledPauseReason> _pauseReasons = {};
+  late final BackendReachability _reachability;
+
   Timer? _pollTimer;
   CancelToken? _cancelToken;
   bool _disposed = false;
@@ -68,23 +95,49 @@ class PolledValue<T> extends ChangeNotifier {
     }
   }
 
-  void pause() {
+  void _startPolling() {
+    _pollTimer ??= Timer.periodic(_pollInterval, (_) => _load());
+  }
+
+  void _stopPolling() {
     _pollTimer?.cancel();
     _pollTimer = null;
     _cancelToken?.cancel();
   }
 
-  void resume() {
+  void pauseFor(PolledPauseReason reason) {
+    final added = _pauseReasons.add(reason);
+    if (added && _pauseReasons.length == 1) {
+      _stopPolling();
+    }
+  }
+
+  void resumeFor(PolledPauseReason reason) {
     if (_disposed) return;
-    _load();
-    _pollTimer = Timer.periodic(_pollInterval, (_) => _load());
+    final removed = _pauseReasons.remove(reason);
+    if (removed && _pauseReasons.isEmpty) {
+      _load();
+      _startPolling();
+    }
+  }
+
+  void pause() => pauseFor(PolledPauseReason.manual);
+
+  void resume() => resumeFor(PolledPauseReason.manual);
+
+  void _onReachabilityChanged() {
+    if (_reachability.isOnline) {
+      resumeFor(PolledPauseReason.unreachable);
+    } else {
+      pauseFor(PolledPauseReason.unreachable);
+    }
   }
 
   @override
   void dispose() {
     _disposed = true;
-    _pollTimer?.cancel();
-    _cancelToken?.cancel();
+    _reachability.removeListener(_onReachabilityChanged);
+    _stopPolling();
     super.dispose();
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../model/device_summary.dart';
+import '../utils/backend_reachability.dart';
 import '../utils/oott_api.dart';
 import '../utils/polled_value.dart';
 import 'polled_stale_indicator.dart';
@@ -42,8 +43,12 @@ class _DeviceSummaryCardState extends State<DeviceSummaryCard> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: ListenableBuilder(
-            listenable: _polled,
+            listenable: Listenable.merge([
+              _polled,
+              BackendReachability.instance,
+            ]),
             builder: (context, _) {
+              final freshness = effectiveFreshness(_polled);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -53,14 +58,14 @@ class _DeviceSummaryCardState extends State<DeviceSummaryCard> {
                         'Devices',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      if (_polled.freshness == PolledFreshness.stale) ...[
+                      if (freshness == PolledFreshness.stale) ...[
                         const SizedBox(width: 6),
                         PolledStaleIndicator(polled: _polled),
                       ],
                     ],
                   ),
                   const SizedBox(height: 12),
-                  ..._buildBody(context),
+                  ..._buildBody(context, freshness),
                 ],
               );
             },
@@ -70,8 +75,8 @@ class _DeviceSummaryCardState extends State<DeviceSummaryCard> {
     );
   }
 
-  List<Widget> _buildBody(BuildContext context) {
-    switch (_polled.freshness) {
+  List<Widget> _buildBody(BuildContext context, PolledFreshness freshness) {
+    switch (freshness) {
       case PolledFreshness.initialLoading:
         return const [Center(child: CircularProgressIndicator())];
       case PolledFreshness.error:

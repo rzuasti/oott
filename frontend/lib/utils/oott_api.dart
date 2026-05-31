@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:dio_smart_retry/dio_smart_retry.dart';
 import 'package:encrypter/encrypter/xor.dart';
 import 'package:flutter/foundation.dart';
+import 'package:frontend/utils/backend_reachability.dart';
 import 'package:frontend/utils/pref_utils.dart';
 import '../model/arp_scanner_status.dart';
 import '../model/mdns_scanner_status.dart';
@@ -33,6 +34,17 @@ RetryInterceptor _buildRetryInterceptor(Dio dio) => RetryInterceptor(
       return status != null && _retryableStatuses.contains(status);
     }
     return true;
+  },
+);
+
+InterceptorsWrapper _buildReachabilityInterceptor() => InterceptorsWrapper(
+  onResponse: (response, handler) {
+    BackendReachability.instance.recordSuccess();
+    handler.next(response);
+  },
+  onError: (error, handler) {
+    BackendReachability.instance.recordFailure(error);
+    handler.next(error);
   },
 );
 
@@ -106,9 +118,11 @@ class BackendAPI {
       ),
     );
     _dio.interceptors.add(_buildRetryInterceptor(_dio));
+    _dio.interceptors.add(_buildReachabilityInterceptor());
     if (kDebugMode) {
       _dio.interceptors.add(_buildLogInterceptor());
     }
+    BackendReachability.instance.setProber(() => _dio.get('/test'));
   }
 
   // Returns null if the test was successful, and a String with a message about the issue if not

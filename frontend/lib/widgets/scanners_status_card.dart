@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../model/arp_scanner_status.dart';
 import '../model/mdns_scanner_status.dart';
 import '../navigation.dart';
+import '../utils/backend_reachability.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/oott_api.dart';
 import '../utils/polled_value.dart';
@@ -101,10 +102,16 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_arp, _mdns]),
+      listenable: Listenable.merge([
+        _arp,
+        _mdns,
+        BackendReachability.instance,
+      ]),
       builder: (context, _) {
-        if (_arp.freshness == PolledFreshness.initialLoading ||
-            _mdns.freshness == PolledFreshness.initialLoading) {
+        final arpFreshness = effectiveFreshness(_arp);
+        final mdnsFreshness = effectiveFreshness(_mdns);
+        if (arpFreshness == PolledFreshness.initialLoading ||
+            mdnsFreshness == PolledFreshness.initialLoading) {
           return const Card(
             child: Padding(
               padding: EdgeInsets.all(16),
@@ -113,8 +120,8 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
           );
         }
 
-        final (arpColor, arpText) = _resolveArp();
-        final (mdnsColor, mdnsText) = _resolveMdns();
+        final (arpColor, arpText) = _resolveArp(arpFreshness);
+        final (mdnsColor, mdnsText) = _resolveMdns(mdnsFreshness);
 
         return Card(
           clipBehavior: Clip.antiAlias,
@@ -130,9 +137,23 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 12),
-                  _scannerRow(context, arpColor, 'ARP', arpText, _arp),
+                  _scannerRow(
+                    context,
+                    arpColor,
+                    'ARP',
+                    arpText,
+                    _arp,
+                    arpFreshness,
+                  ),
                   const SizedBox(height: 8),
-                  _scannerRow(context, mdnsColor, 'mDNS', mdnsText, _mdns),
+                  _scannerRow(
+                    context,
+                    mdnsColor,
+                    'mDNS',
+                    mdnsText,
+                    _mdns,
+                    mdnsFreshness,
+                  ),
                 ],
               ),
             ),
@@ -148,9 +169,10 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     String name,
     String statusText,
     PolledValue polled,
+    PolledFreshness freshness,
   ) {
     Widget dot = Icon(Icons.circle, color: color, size: 12);
-    if (polled.freshness == PolledFreshness.error) {
+    if (freshness == PolledFreshness.error) {
       dot = Tooltip(message: polled.lastErrorMessage ?? 'Error', child: dot);
     }
     return Row(
@@ -161,7 +183,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
           child: Row(
             children: [
               Text(name, style: Theme.of(context).textTheme.bodyMedium),
-              if (polled.freshness == PolledFreshness.stale) ...[
+              if (freshness == PolledFreshness.stale) ...[
                 const SizedBox(width: 6),
                 PolledStaleIndicator(polled: polled),
               ],
@@ -179,8 +201,8 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     );
   }
 
-  (Color, String) _resolveArp() {
-    if (_arp.freshness == PolledFreshness.error) {
+  (Color, String) _resolveArp(PolledFreshness freshness) {
+    if (freshness == PolledFreshness.error) {
       return (Colors.red, 'Error');
     }
     final status = _arp.value!;
@@ -202,8 +224,8 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     return (Colors.grey, 'Not yet started');
   }
 
-  (Color, String) _resolveMdns() {
-    if (_mdns.freshness == PolledFreshness.error) {
+  (Color, String) _resolveMdns(PolledFreshness freshness) {
+    if (freshness == PolledFreshness.error) {
       return (Colors.red, 'Error');
     }
     final status = _mdns.value!;

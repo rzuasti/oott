@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../model/arp_scanner_status.dart';
+import '../utils/backend_reachability.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/oott_api.dart';
 import '../utils/polled_value.dart';
@@ -44,9 +45,10 @@ class _ArpScannerCardState extends State<ArpScannerCard> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _polled,
+      listenable: Listenable.merge([_polled, BackendReachability.instance]),
       builder: (context, _) {
-        if (_polled.freshness == PolledFreshness.initialLoading) {
+        final freshness = effectiveFreshness(_polled);
+        if (freshness == PolledFreshness.initialLoading) {
           return const Card(
             child: Padding(
               padding: EdgeInsets.all(16),
@@ -55,8 +57,8 @@ class _ArpScannerCardState extends State<ArpScannerCard> {
           );
         }
 
-        final (color, label, sublabel) = _resolveState();
-        final isStale = _polled.freshness == PolledFreshness.stale;
+        final (color, label, sublabel) = _resolveState(freshness);
+        final isStale = freshness == PolledFreshness.stale;
 
         return Card(
           clipBehavior: Clip.antiAlias,
@@ -111,8 +113,8 @@ class _ArpScannerCardState extends State<ArpScannerCard> {
     );
   }
 
-  (Color, String, String?) _resolveState() {
-    if (_polled.freshness == PolledFreshness.error) {
+  (Color, String, String?) _resolveState(PolledFreshness freshness) {
+    if (freshness == PolledFreshness.error) {
       return (
         Colors.red,
         'Error',
