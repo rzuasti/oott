@@ -1,10 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../model/device_summary.dart';
 import '../utils/oott_api.dart';
+import '../utils/polled_value.dart';
+import 'polled_stale_indicator.dart';
 
 class DeviceSummaryCard extends StatefulWidget {
   const DeviceSummaryCard({super.key});
@@ -14,40 +14,23 @@ class DeviceSummaryCard extends StatefulWidget {
 }
 
 class _DeviceSummaryCardState extends State<DeviceSummaryCard> {
-  DeviceSummary? _summary;
-  bool _isLoading = true;
-  String? _error;
-  Timer? _timer;
+  late final PolledValue<DeviceSummary> _polled;
 
   @override
   void initState() {
     super.initState();
-    _load();
-    _timer = Timer.periodic(const Duration(minutes: 1), (_) => _load());
+    _polled = PolledValue<DeviceSummary>(
+      fetch: ({cancelToken}) =>
+          BackendAPI.instance.getDeviceSummary(cancelToken: cancelToken),
+      pollInterval: const Duration(minutes: 1),
+      staleErrorAfter: const Duration(minutes: 3),
+    );
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _polled.dispose();
     super.dispose();
-  }
-
-  Future<void> _load() async {
-    try {
-      final summary = await BackendAPI.instance.getDeviceSummary();
-      if (!mounted) return;
-      setState(() {
-        _summary = summary;
-        _error = null;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
   }
 
   @override
@@ -58,63 +41,90 @@ class _DeviceSummaryCardState extends State<DeviceSummaryCard> {
         onTap: () => context.go('/devices'),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Devices', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              if (_isLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (_error != null)
-                Text(
-                  'Error loading device summary',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                )
-              else if (_summary != null) ...[
-                _SummaryRow(
-                  label: 'Registered in the system',
-                  value: '${_summary!.totalRegistered}',
-                ),
-                const Divider(height: 20),
-                Text(
-                  'Seen in the last 24 hours',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
+          child: ListenableBuilder(
+            listenable: _polled,
+            builder: (context, _) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Devices',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      if (_polled.freshness == PolledFreshness.stale) ...[
+                        const SizedBox(width: 6),
+                        PolledStaleIndicator(polled: _polled),
+                      ],
+                    ],
                   ),
-                ),
-                const SizedBox(height: 6),
-                _SummaryRow(
-                  label: 'Registered',
-                  value: '${_summary!.seenLastDayRegistered}',
-                ),
-                _SummaryRow(
-                  label: 'Unregistered',
-                  value: '${_summary!.seenLastDayUnregistered}',
-                ),
-                const Divider(height: 20),
-                Text(
-                  'Seen in the last 7 days',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                _SummaryRow(
-                  label: 'Registered',
-                  value: '${_summary!.seenLastWeekRegistered}',
-                ),
-                _SummaryRow(
-                  label: 'Unregistered',
-                  value: '${_summary!.seenLastWeekUnregistered}',
-                ),
-              ],
-            ],
+                  const SizedBox(height: 12),
+                  ..._buildBody(context),
+                ],
+              );
+            },
           ),
         ),
       ),
     );
+  }
+
+  List<Widget> _buildBody(BuildContext context) {
+    switch (_polled.freshness) {
+      case PolledFreshness.initialLoading:
+        return const [Center(child: CircularProgressIndicator())];
+      case PolledFreshness.error:
+        return [
+          Text(
+            _polled.lastErrorMessage ?? 'Error loading device summary',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ];
+      case PolledFreshness.fresh:
+      case PolledFreshness.stale:
+        final summary = _polled.value!;
+        return [
+          _SummaryRow(
+            label: 'Registered in the system',
+            value: '${summary.totalRegistered}',
+          ),
+          const Divider(height: 20),
+          Text(
+            'Seen in the last 24 hours',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _SummaryRow(
+            label: 'Registered',
+            value: '${summary.seenLastDayRegistered}',
+          ),
+          _SummaryRow(
+            label: 'Unregistered',
+            value: '${summary.seenLastDayUnregistered}',
+          ),
+          const Divider(height: 20),
+          Text(
+            'Seen in the last 7 days',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _SummaryRow(
+            label: 'Registered',
+            value: '${summary.seenLastWeekRegistered}',
+          ),
+          _SummaryRow(
+            label: 'Unregistered',
+            value: '${summary.seenLastWeekUnregistered}',
+          ),
+        ];
+    }
   }
 }
 

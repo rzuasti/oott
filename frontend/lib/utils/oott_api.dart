@@ -235,18 +235,31 @@ class BackendAPI {
         .toList();
   }
 
-  Future<DeviceSummary> getDeviceSummary() async {
-    final response = await _dio.get('/devices/summary');
+  Future<DeviceSummary> getDeviceSummary({CancelToken? cancelToken}) async {
+    final response = await _dio.get(
+      '/devices/summary',
+      cancelToken: cancelToken,
+    );
     return DeviceSummary.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<ArpScannerStatus> getArpScannerStatus() async {
-    final response = await _dio.get('/arp_scanner/status');
+  Future<ArpScannerStatus> getArpScannerStatus({
+    CancelToken? cancelToken,
+  }) async {
+    final response = await _dio.get(
+      '/arp_scanner/status',
+      cancelToken: cancelToken,
+    );
     return ArpScannerStatus.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<MdnsScannerStatus> getMdnsScannerStatus() async {
-    final response = await _dio.get('/mdns_scanner/status');
+  Future<MdnsScannerStatus> getMdnsScannerStatus({
+    CancelToken? cancelToken,
+  }) async {
+    final response = await _dio.get(
+      '/mdns_scanner/status',
+      cancelToken: cancelToken,
+    );
     return MdnsScannerStatus.fromJson(response.data as Map<String, dynamic>);
   }
 

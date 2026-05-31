@@ -7,6 +7,8 @@ import '../model/arp_scanner_status.dart';
 import '../model/mdns_scanner_status.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/oott_api.dart';
+import '../utils/polled_value.dart';
+import 'polled_stale_indicator.dart';
 
 class ScannersStatusCard extends StatefulWidget {
   const ScannersStatusCard({super.key});
@@ -16,20 +18,25 @@ class ScannersStatusCard extends StatefulWidget {
 }
 
 class _ScannersStatusCardState extends State<ScannersStatusCard> {
-  ArpScannerStatus? _arpStatus;
-  String? _arpError;
-  MdnsScannerStatus? _mdnsStatus;
-  String? _mdnsError;
-  DateTime? _statusReceivedAt;
-  bool _isLoading = true;
-  Timer? _refreshTimer;
+  late final PolledValue<ArpScannerStatus> _arp;
+  late final PolledValue<MdnsScannerStatus> _mdns;
   Timer? _tickTimer;
 
   @override
   void initState() {
     super.initState();
-    _load();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) => _load());
+    _arp = PolledValue<ArpScannerStatus>(
+      fetch: ({cancelToken}) =>
+          BackendAPI.instance.getArpScannerStatus(cancelToken: cancelToken),
+      pollInterval: const Duration(seconds: 5),
+      staleErrorAfter: const Duration(seconds: 30),
+    );
+    _mdns = PolledValue<MdnsScannerStatus>(
+      fetch: ({cancelToken}) =>
+          BackendAPI.instance.getMdnsScannerStatus(cancelToken: cancelToken),
+      pollInterval: const Duration(seconds: 5),
+      staleErrorAfter: const Duration(seconds: 30),
+    );
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -37,75 +44,53 @@ class _ScannersStatusCardState extends State<ScannersStatusCard> {
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     _tickTimer?.cancel();
+    _arp.dispose();
+    _mdns.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    ArpScannerStatus? arp;
-    String? arpError;
-    try {
-      arp = await BackendAPI.instance.getArpScannerStatus();
-    } catch (e) {
-      arpError = dioErrorToUserMessage(e);
-    }
-
-    MdnsScannerStatus? mdns;
-    String? mdnsError;
-    try {
-      mdns = await BackendAPI.instance.getMdnsScannerStatus();
-    } catch (e) {
-      mdnsError = dioErrorToUserMessage(e);
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _arpStatus = arp;
-      _arpError = arpError;
-      _mdnsStatus = mdns;
-      _mdnsError = mdnsError;
-      _statusReceivedAt = DateTime.now();
-      _isLoading = false;
-    });
-  }
-
-  double get _elapsed => _statusReceivedAt != null
-      ? DateTime.now().difference(_statusReceivedAt!).inSeconds.toDouble()
-      : 0.0;
-
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
+    return ListenableBuilder(
+      listenable: Listenable.merge([_arp, _mdns]),
+      builder: (context, _) {
+        if (_arp.freshness == PolledFreshness.initialLoading ||
+            _mdns.freshness == PolledFreshness.initialLoading) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
 
-    final (arpColor, arpText) = _resolveArp();
-    final (mdnsColor, mdnsText) = _resolveMdns();
+        final (arpColor, arpText) = _resolveArp();
+        final (mdnsColor, mdnsText) = _resolveMdns();
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.go('/status'),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Status', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 12),
-              _scannerRow(context, arpColor, 'ARP', arpText, _arpError),
-              const SizedBox(height: 8),
-              _scannerRow(context, mdnsColor, 'mDNS', mdnsText, _mdnsError),
-            ],
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => context.go('/status'),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Status',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  _scannerRow(context, arpColor, 'ARP', arpText, _arp),
+                  const SizedBox(height: 8),
+                  _scannerRow(context, mdnsColor, 'mDNS', mdnsText, _mdns),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -114,18 +99,26 @@ class _ScannersStatusCardState extends State<ScannersStatusCard> {
     Color color,
     String name,
     String statusText,
-    String? errorMessage,
+    PolledValue polled,
   ) {
     Widget dot = Icon(Icons.circle, color: color, size: 12);
-    if (errorMessage != null) {
-      dot = Tooltip(message: errorMessage, child: dot);
+    if (polled.freshness == PolledFreshness.error) {
+      dot = Tooltip(message: polled.lastErrorMessage ?? 'Error', child: dot);
     }
     return Row(
       children: [
         dot,
         const SizedBox(width: 10),
         Expanded(
-          child: Text(name, style: Theme.of(context).textTheme.bodyMedium),
+          child: Row(
+            children: [
+              Text(name, style: Theme.of(context).textTheme.bodyMedium),
+              if (polled.freshness == PolledFreshness.stale) ...[
+                const SizedBox(width: 6),
+                PolledStaleIndicator(polled: polled),
+              ],
+            ],
+          ),
         ),
         const SizedBox(width: 8),
         Text(
@@ -139,15 +132,20 @@ class _ScannersStatusCardState extends State<ScannersStatusCard> {
   }
 
   (Color, String) _resolveArp() {
-    if (_arpError != null || _arpStatus == null) {
+    if (_arp.freshness == PolledFreshness.error) {
       return (Colors.red, 'Error');
     }
-    if (_arpStatus!.isRunning) {
-      final secs = (_arpStatus!.runningForSeconds ?? 0) + _elapsed;
+    final status = _arp.value!;
+    final elapsed = DateTime.now()
+        .difference(_arp.lastSuccessAt!)
+        .inSeconds
+        .toDouble();
+    if (status.isRunning) {
+      final secs = (status.runningForSeconds ?? 0) + elapsed;
       return (Colors.green, 'Running for ${formatSeconds(secs)}');
     }
-    if (_arpStatus!.nextRunInSeconds != null) {
-      final remaining = (_arpStatus!.nextRunInSeconds! - _elapsed).clamp(
+    if (status.nextRunInSeconds != null) {
+      final remaining = (status.nextRunInSeconds! - elapsed).clamp(
         0.0,
         double.infinity,
       );
@@ -157,12 +155,17 @@ class _ScannersStatusCardState extends State<ScannersStatusCard> {
   }
 
   (Color, String) _resolveMdns() {
-    if (_mdnsError != null || _mdnsStatus == null) {
+    if (_mdns.freshness == PolledFreshness.error) {
       return (Colors.red, 'Error');
     }
-    if (_mdnsStatus!.isListening) {
-      if (_mdnsStatus!.lastDeviceSeenSecondsAgo != null) {
-        final secs = _mdnsStatus!.lastDeviceSeenSecondsAgo! + _elapsed;
+    final status = _mdns.value!;
+    final elapsed = DateTime.now()
+        .difference(_mdns.lastSuccessAt!)
+        .inSeconds
+        .toDouble();
+    if (status.isListening) {
+      if (status.lastDeviceSeenSecondsAgo != null) {
+        final secs = status.lastDeviceSeenSecondsAgo! + elapsed;
         return (Colors.green, 'Last device seen ${formatSeconds(secs)} ago');
       }
       return (Colors.green, 'No devices seen yet');

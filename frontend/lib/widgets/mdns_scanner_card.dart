@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../model/mdns_scanner_status.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/oott_api.dart';
+import '../utils/polled_value.dart';
+import 'polled_stale_indicator.dart';
 
 class MdnsScannerCard extends StatefulWidget {
   const MdnsScannerCard({super.key});
@@ -15,18 +17,18 @@ class MdnsScannerCard extends StatefulWidget {
 }
 
 class _MdnsScannerCardState extends State<MdnsScannerCard> {
-  MdnsScannerStatus? _status;
-  DateTime? _statusReceivedAt;
-  bool _isLoading = true;
-  String? _error;
-  Timer? _refreshTimer;
+  late final PolledValue<MdnsScannerStatus> _polled;
   Timer? _tickTimer;
 
   @override
   void initState() {
     super.initState();
-    _load();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) => _load());
+    _polled = PolledValue<MdnsScannerStatus>(
+      fetch: ({cancelToken}) =>
+          BackendAPI.instance.getMdnsScannerStatus(cancelToken: cancelToken),
+      pollInterval: const Duration(seconds: 5),
+      staleErrorAfter: const Duration(seconds: 30),
+    );
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -34,109 +36,112 @@ class _MdnsScannerCardState extends State<MdnsScannerCard> {
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     _tickTimer?.cancel();
+    _polled.dispose();
     super.dispose();
-  }
-
-  Future<void> _load() async {
-    try {
-      final status = await BackendAPI.instance.getMdnsScannerStatus();
-      if (!mounted) return;
-      setState(() {
-        _status = status;
-        _statusReceivedAt = DateTime.now();
-        _error = null;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
+    return ListenableBuilder(
+      listenable: _polled,
+      builder: (context, _) {
+        if (_polled.freshness == PolledFreshness.initialLoading) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
 
-    final (color, label, sublabels) = _resolveState(context);
+        final (color, label, sublabels) = _resolveState();
+        final isStale = _polled.freshness == PolledFreshness.stale;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.go('/status'),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(Icons.circle, color: color, size: 14),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'mDNS Scanner',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(label, style: Theme.of(context).textTheme.bodyMedium),
-                    for (final sublabel in sublabels) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        sublabel,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => context.go('/status'),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.circle, color: color, size: 14),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'mDNS Scanner',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            if (isStale) ...[
+                              const SizedBox(width: 6),
+                              PolledStaleIndicator(polled: _polled),
+                            ],
+                          ],
                         ),
-                      ),
-                    ],
-                  ],
-                ),
+                        const SizedBox(height: 2),
+                        Text(
+                          label,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        for (final sublabel in sublabels) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            sublabel,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  (Color, String, List<String>) _resolveState(BuildContext context) {
-    if (_error != null || _status == null) {
+  (Color, String, List<String>) _resolveState() {
+    if (_polled.freshness == PolledFreshness.error) {
       return (
         Colors.red,
         'Error',
         [
-          'Unable to reach the server or a server-side error occurred. Check the logs for details.',
+          _polled.lastErrorMessage ??
+              'Unable to reach the server. Check the logs for details.',
         ],
       );
     }
 
-    final elapsed = _statusReceivedAt != null
-        ? DateTime.now().difference(_statusReceivedAt!).inSeconds.toDouble()
-        : 0.0;
+    final status = _polled.value!;
+    final lastSuccessAt = _polled.lastSuccessAt!;
+    final elapsed = DateTime.now()
+        .difference(lastSuccessAt)
+        .inSeconds
+        .toDouble();
 
-    if (_status!.isListening) {
+    if (status.isListening) {
       final sublabels = <String>[];
-      if (_status!.listeningForSeconds != null) {
+      if (status.listeningForSeconds != null) {
         sublabels.add(
-          'Listening for ${formatSeconds(_status!.listeningForSeconds! + elapsed)} · ${_status!.devicesSeen} devices seen',
+          'Listening for ${formatSeconds(status.listeningForSeconds! + elapsed)} · ${status.devicesSeen} devices seen',
         );
       } else {
-        sublabels.add('${_status!.devicesSeen} devices seen');
+        sublabels.add('${status.devicesSeen} devices seen');
       }
-      if (_status!.lastDeviceSeenSecondsAgo != null) {
+      if (status.lastDeviceSeenSecondsAgo != null) {
         sublabels.add(
-          'Last device ${formatSeconds(_status!.lastDeviceSeenSecondsAgo! + elapsed)} ago',
+          'Last device ${formatSeconds(status.lastDeviceSeenSecondsAgo! + elapsed)} ago',
         );
       }
       return (Colors.green, 'Listening', sublabels);

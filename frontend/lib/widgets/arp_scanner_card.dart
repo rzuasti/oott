@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../model/arp_scanner_status.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/oott_api.dart';
+import '../utils/polled_value.dart';
+import 'polled_stale_indicator.dart';
 
 class ArpScannerCard extends StatefulWidget {
   const ArpScannerCard({super.key});
@@ -15,18 +17,18 @@ class ArpScannerCard extends StatefulWidget {
 }
 
 class _ArpScannerCardState extends State<ArpScannerCard> {
-  ArpScannerStatus? _status;
-  DateTime? _statusReceivedAt;
-  bool _isLoading = true;
-  String? _error;
-  Timer? _refreshTimer;
+  late final PolledValue<ArpScannerStatus> _polled;
   Timer? _tickTimer;
 
   @override
   void initState() {
     super.initState();
-    _load();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) => _load());
+    _polled = PolledValue<ArpScannerStatus>(
+      fetch: ({cancelToken}) =>
+          BackendAPI.instance.getArpScannerStatus(cancelToken: cancelToken),
+      pollInterval: const Duration(seconds: 5),
+      staleErrorAfter: const Duration(seconds: 30),
+    );
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -34,103 +36,106 @@ class _ArpScannerCardState extends State<ArpScannerCard> {
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     _tickTimer?.cancel();
+    _polled.dispose();
     super.dispose();
-  }
-
-  Future<void> _load() async {
-    try {
-      final status = await BackendAPI.instance.getArpScannerStatus();
-      if (!mounted) return;
-      setState(() {
-        _status = status;
-        _statusReceivedAt = DateTime.now();
-        _error = null;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
+    return ListenableBuilder(
+      listenable: _polled,
+      builder: (context, _) {
+        if (_polled.freshness == PolledFreshness.initialLoading) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
 
-    final (color, label, sublabel) = _resolveState(context);
+        final (color, label, sublabel) = _resolveState();
+        final isStale = _polled.freshness == PolledFreshness.stale;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.go('/status'),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(Icons.circle, color: color, size: 14),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'ARP Scanner',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(label, style: Theme.of(context).textTheme.bodyMedium),
-                    if (sublabel != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        sublabel,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => context.go('/status'),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.circle, color: color, size: 14),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'ARP Scanner',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            if (isStale) ...[
+                              const SizedBox(width: 6),
+                              PolledStaleIndicator(polled: _polled),
+                            ],
+                          ],
                         ),
-                      ),
-                    ],
-                  ],
-                ),
+                        const SizedBox(height: 2),
+                        Text(
+                          label,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        if (sublabel != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            sublabel,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  (Color, String, String?) _resolveState(BuildContext context) {
-    if (_error != null || _status == null) {
+  (Color, String, String?) _resolveState() {
+    if (_polled.freshness == PolledFreshness.error) {
       return (
         Colors.red,
         'Error',
-        'Unable to reach the server or a server-side error occurred. Check the logs for details.',
+        _polled.lastErrorMessage ??
+            'Unable to reach the server. Check the logs for details.',
       );
     }
 
-    final elapsed = _statusReceivedAt != null
-        ? DateTime.now().difference(_statusReceivedAt!).inSeconds.toDouble()
-        : 0.0;
+    final status = _polled.value!;
+    final lastSuccessAt = _polled.lastSuccessAt!;
+    final elapsed = DateTime.now()
+        .difference(lastSuccessAt)
+        .inSeconds
+        .toDouble();
 
-    if (_status!.isRunning) {
-      final sub = _status!.runningForSeconds != null
-          ? 'Running for ${formatSeconds(_status!.runningForSeconds! + elapsed)}'
+    if (status.isRunning) {
+      final sub = status.runningForSeconds != null
+          ? 'Running for ${formatSeconds(status.runningForSeconds! + elapsed)}'
           : null;
       return (Colors.green, 'Running', sub);
     }
-    if (_status!.nextRunInSeconds != null) {
-      final remaining = (_status!.nextRunInSeconds! - elapsed).clamp(
+    if (status.nextRunInSeconds != null) {
+      final remaining = (status.nextRunInSeconds! - elapsed).clamp(
         0.0,
         double.infinity,
       );
