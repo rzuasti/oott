@@ -1,1 +1,1 @@
-ALTER TABLE notifications ADD COLUMN mac_address TEXT;
+ALTER TABLE notifications ADD COLUMN mac_address TEXT COLLATE NOCASE;

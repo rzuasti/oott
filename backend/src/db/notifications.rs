@@ -5,6 +5,7 @@ use log::{debug, error};
 use rusqlite::{params, params_from_iter};
 
 use crate::model::notifications::Notification;
+use crate::utils::network::normalize_mac;
 
 pub fn list(
     is_new: Option<bool>,
@@ -63,10 +64,11 @@ pub fn list(
 
 pub fn insert(notification: Notification) -> Result<i64, DbError> {
     let conn = db::get_db_connection();
+    let mac_address = notification.mac_address.as_deref().map(normalize_mac);
 
     match conn.execute(
             "INSERT INTO notifications (created_on, notification_type, title, body, is_new, mac_address) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![notification.created_on.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false), notification.notification_type, notification.title, notification.body, notification.is_new, notification.mac_address]) {
+            params![notification.created_on.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false), notification.notification_type, notification.title, notification.body, notification.is_new, mac_address]) {
                 Ok(_) => {
                     debug!("Notification inserted into database: {}", notification);
                     Ok(conn.last_insert_rowid())

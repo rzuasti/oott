@@ -138,6 +138,13 @@ fn probe_mac(target_ip: Ipv4Addr, interface: Option<String>, timeout: Duration) 
     None
 }
 
+/// Normalize a MAC address to a canonical lowercase form so DB rows and lookups are
+/// case-insensitive in practice (the `mac_address` column is NOCASE, but we still store a single
+/// representation so callers comparing strings outside SQL see consistent values).
+pub fn normalize_mac(mac: &str) -> String {
+    mac.to_ascii_lowercase()
+}
+
 /// Return whether a MAC address is locally administered, i.e. the second-least-significant bit of
 /// its first octet is set. Randomized/private MACs (e.g. Apple "Private WiFi Address") are locally
 /// administered and have no real OUI. Returns `false` for malformed input.
@@ -272,5 +279,13 @@ mod tests {
     fn test_malformed_mac_is_not_locally_administered() {
         assert!(!is_locally_administered(""));
         assert!(!is_locally_administered("zz:00:00:00:00:00"));
+    }
+
+    #[test]
+    fn test_normalize_mac_lowercases_input() {
+        assert_eq!(normalize_mac("AA:BB:CC:DD:EE:FF"), "aa:bb:cc:dd:ee:ff");
+        assert_eq!(normalize_mac("aa:bb:cc:dd:ee:ff"), "aa:bb:cc:dd:ee:ff");
+        assert_eq!(normalize_mac("Aa:Bb:Cc:Dd:Ee:Ff"), "aa:bb:cc:dd:ee:ff");
+        assert_eq!(normalize_mac(""), "");
     }
 }

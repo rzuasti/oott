@@ -5,14 +5,16 @@ use log::{debug, error};
 use rusqlite::{params, params_from_iter};
 
 use crate::model::device_events::DeviceEvent;
+use crate::utils::network::normalize_mac;
 
 pub fn insert(event: DeviceEvent) -> Result<i64, DbError> {
     let conn = db::get_db_connection();
+    let mac_address = normalize_mac(&event.mac_address);
 
     match conn.execute(
         "INSERT INTO device_events (mac_address, created_on, event_type, ipv4_address, vendor) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![
-            event.mac_address,
+            mac_address,
             event.created_on.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false),
             event.event_type,
             event.ipv4_address,
@@ -46,6 +48,7 @@ pub fn list(
     let mut params: Vec<rusqlite::types::Value> = Vec::new();
 
     if let Some(mac) = mac_address {
+        let mac = normalize_mac(&mac);
         debug!("Adding filter mac_address={}", mac);
         sql_statement.push_str(" AND mac_address=?");
         params.push(mac.into());

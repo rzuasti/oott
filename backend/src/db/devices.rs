@@ -5,6 +5,7 @@ use rusqlite::{params, params_from_iter};
 use crate::{
     db::{self, error::DbError},
     model::devices::{Device, DeviceSummary},
+    utils::network::normalize_mac,
 };
 
 // Whitelist of columns allowed for `sort_by`. Anything outside this list falls back to the
@@ -124,6 +125,7 @@ pub fn list_devices(
 // Read device from its MAC address
 pub fn read(mac_address: String) -> Option<Device> {
     let conn = db::get_db_connection();
+    let mac_address = normalize_mac(&mac_address);
 
     let result: Result<Device, rusqlite::Error> = conn.query_one(
         "SELECT mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type, name FROM devices WHERE mac_address=?1",
@@ -158,10 +160,11 @@ pub fn read(mac_address: String) -> Option<Device> {
 
 pub fn insert(device: Device) -> Result<(), DbError> {
     let conn = db::get_db_connection();
+    let mac_address = normalize_mac(&device.mac_address);
 
     match conn.execute(
         "INSERT INTO devices (mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type, name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![device.mac_address, device.ipv4_address, device.vendor, device.last_seen.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false), device.is_registered, device.owner, device.device_type, device.name]) {
+        params![mac_address, device.ipv4_address, device.vendor, device.last_seen.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false), device.is_registered, device.owner, device.device_type, device.name]) {
             Ok(_) => {
                 debug!("Device inserted into database: {}", device);
                 Ok(())
@@ -225,6 +228,7 @@ pub fn seen(
     name: Option<String>,
 ) -> Result<(), DbError> {
     let conn = db::get_db_connection();
+    let mac_address = normalize_mac(&mac_address);
 
     let mut sql = "UPDATE devices SET ipv4_address=?, last_seen=?".to_string();
     let mut params: Vec<rusqlite::types::Value> = vec![
@@ -278,6 +282,7 @@ pub fn update(
     name: Option<String>,
 ) -> Result<(), DbError> {
     let conn = db::get_db_connection();
+    let mac_address = normalize_mac(&mac_address);
 
     match conn.execute(
         "UPDATE devices SET owner=?1, device_type=?2, vendor=?3, name=?4 WHERE mac_address=?5",
@@ -301,6 +306,7 @@ pub fn register(
     name: Option<String>,
 ) -> Result<(), DbError> {
     let conn = db::get_db_connection();
+    let mac_address = normalize_mac(&mac_address);
 
     // Only write the name column when supplied, so a user registering without typing a name
     // never wipes a hostname previously stored by the mDNS scanner.
@@ -327,6 +333,7 @@ pub fn register(
 
 pub fn unregister(mac_address: String) -> Result<(), DbError> {
     let conn = db::get_db_connection();
+    let mac_address = normalize_mac(&mac_address);
 
     match conn.execute(
         "UPDATE devices SET is_registered=0, owner='' WHERE mac_address=?1",
@@ -1173,6 +1180,189 @@ mod tests {
             device.name, expected.name,
             "Invalid name for device {}",
             device.mac_address
+        );
+    }
+
+    // Case-insensitive sorting: with NOCASE on the `name` column, mixed-case values must sort
+    // as if they were all the same case.
+    #[tokio::test]
+    async fn test_list_sorting_is_case_insensitive() {
+        tests_common::setup().await;
+
+        let now = Utc::now();
+        let mut a = Device::new(
+            "10:00:00:00:00:01".to_string(),
+            "10.0.0.1".to_string(),
+            "Vendor".to_string(),
+            now,
+        );
+        a.name = Some("iPad".to_string());
+        a.owner = "alice".to_string();
+        a.device_type = "phone".to_string();
+        insert(a).unwrap();
+
+        let mut b = Device::new(
+            "10:00:00:00:00:02".to_string(),
+            "10.0.0.2".to_string(),
+            "Vendor".to_string(),
+            now,
+        );
+        b.name = Some("Lutron".to_string());
+        b.owner = "Bob".to_string();
+        b.device_type = "Light".to_string();
+        insert(b).unwrap();
+
+        let mut c = Device::new(
+            "10:00:00:00:00:03".to_string(),
+            "10.0.0.3".to_string(),
+            "Vendor".to_string(),
+            now,
+        );
+        c.name = Some("apple-tv".to_string());
+        c.owner = "carol".to_string();
+        c.device_type = "TV".to_string();
+        insert(c).unwrap();
+
+        let mut d = Device::new(
+            "10:00:00:00:00:04".to_string(),
+            "10.0.0.4".to_string(),
+            "Vendor".to_string(),
+            now,
+        );
+        d.name = Some("Zebra".to_string());
+        d.owner = "Dave".to_string();
+        d.device_type = "printer".to_string();
+        insert(d).unwrap();
+
+        let extract_names = |list: &[Device]| -> Vec<String> {
+            list.iter()
+                .filter_map(|item| item.name.clone())
+                .filter(|name| ["iPad", "Lutron", "apple-tv", "Zebra"].contains(&name.as_str()))
+                .collect()
+        };
+
+        let by_name_asc = list_devices(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("name".to_string()),
+            Some("asc".to_string()),
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            extract_names(&by_name_asc),
+            vec!["apple-tv", "iPad", "Lutron", "Zebra"],
+            "name asc should be case-insensitive"
+        );
+
+        let by_name_desc = list_devices(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("name".to_string()),
+            Some("desc".to_string()),
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            extract_names(&by_name_desc),
+            vec!["Zebra", "Lutron", "iPad", "apple-tv"],
+            "name desc should be case-insensitive"
+        );
+
+        let extract_owners = |list: &[Device]| -> Vec<String> {
+            list.iter()
+                .map(|item| item.owner.clone())
+                .filter(|owner| ["alice", "Bob", "carol", "Dave"].contains(&owner.as_str()))
+                .collect()
+        };
+        let by_owner_asc = list_devices(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("owner".to_string()),
+            Some("asc".to_string()),
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            extract_owners(&by_owner_asc),
+            vec!["alice", "Bob", "carol", "Dave"],
+            "owner asc should be case-insensitive"
+        );
+
+        let extract_types = |list: &[Device]| -> Vec<String> {
+            list.iter()
+                .map(|item| item.device_type.clone())
+                .filter(|t| ["phone", "Light", "TV", "printer"].contains(&t.as_str()))
+                .collect()
+        };
+        let by_type_asc = list_devices(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("device_type".to_string()),
+            Some("asc".to_string()),
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            extract_types(&by_type_asc),
+            vec!["Light", "phone", "printer", "TV"],
+            "device_type asc should be case-insensitive"
+        );
+    }
+
+    // MAC normalization: rows inserted with one casing are readable with any casing, and the
+    // stored value is canonical lowercase.
+    #[tokio::test]
+    async fn test_mac_address_is_normalized_to_lowercase() {
+        tests_common::setup().await;
+
+        insert(Device::new(
+            "20:AA:BB:CC:DD:01".to_string(),
+            "10.0.1.1".to_string(),
+            "Vendor".to_string(),
+            Utc::now(),
+        ))
+        .unwrap();
+
+        let by_upper = read("20:AA:BB:CC:DD:01".to_string()).unwrap();
+        assert_eq!(by_upper.mac_address, "20:aa:bb:cc:dd:01");
+
+        let by_lower = read("20:aa:bb:cc:dd:01".to_string()).unwrap();
+        assert_eq!(by_lower.mac_address, "20:aa:bb:cc:dd:01");
+
+        let by_mixed = read("20:Aa:Bb:Cc:Dd:01".to_string()).unwrap();
+        assert_eq!(by_mixed.mac_address, "20:aa:bb:cc:dd:01");
+
+        // Inserting the same MAC in different casing must conflict with the existing primary key.
+        let duplicate = insert(Device::new(
+            "20:aa:bb:cc:dd:01".to_string(),
+            "10.0.1.2".to_string(),
+            "Vendor".to_string(),
+            Utc::now(),
+        ));
+        assert!(
+            duplicate.is_err(),
+            "Insert with same MAC (different case) must fail the case-insensitive PK"
         );
     }
 }
