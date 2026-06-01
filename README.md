@@ -110,9 +110,9 @@ Finally, in your `configuration.nix` (or in an import file) enable and configure
     database.path = "/var/lib/oott.db";
     # networking.interface = "eth0"; # Optional: auto-detected if not set
     log.level = "info";
-    timings.wait_between_scans = "15m";
-    timings.arp_sender_timeout = "20m";
-    timings.arp_scan_duration = "30m";
+    arp_scanner.wait_between_scans = "15m";
+    arp_scanner.sender_timeout = "20m";
+    arp_scanner.scan_duration = "30m";
     notifications.method = "pushover";
     notifications.notify_when_not_seen_for = "1w";
     notifications.pushover.token = "YOUR API TOKEN GOES HERE";
@@ -135,9 +135,15 @@ If you are using Docker I recommend writing the config using TOML, [here](https:
 |`database.path`|`/var/lib/oott.db`|Location of the system database|
 |`networking.interface`|`eno1`|Network interface to use for scans. Optional — if not set, the first non-loopback connected interface is used automatically.|
 |`log.level`|`info`|Log level to use (trace, debug, info, warn, error)|
-|`timings.wait_between_scans`|`15m`|Time to wait between each network scan (you can express it in seconds, minutes, hours, etc. as a suffix - for example: 30s, 10m, 1h)|
-|`timings.arp_sender_timeout`|`1m`|If the ARP sender process takes longer than this it will be stopped (for a class C network - 254 IPs - it should take less than a minute)|
-|`timings.arp_scan_duration`|`10m`|How long to wait for response packets on each scan (5m to 10m is a good timeframe for a class B or C network)|
+|`arp_scanner.enabled`|`true`|Whether to run the ARP scanner. Defaults to enabled; set to `false` to turn it off.|
+|`arp_scanner.wait_between_scans`|`15m`|Time to wait between each network scan (you can express it in seconds, minutes, hours, etc. as a suffix - for example: 30s, 10m, 1h)|
+|`arp_scanner.sender_timeout`|`1m`|If the ARP sender process takes longer than this it will be stopped (for a class C network - 254 IPs - it should take less than a minute)|
+|`arp_scanner.scan_duration`|`10m`|How long to wait for response packets on each scan (5m to 10m is a good timeframe for a class B or C network)|
+|`mdns_scanner.enabled`|`true`|Whether to run the mDNS/Bonjour scanner. Defaults to enabled; set to `false` to turn it off.|
+|`mdns_scanner.probe_timeout`|`2s`|When an mDNS-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address|
+|`ssdp_scanner.enabled`|`true`|Whether to run the SSDP/UPnP scanner. Defaults to enabled; set to `false` to turn it off.|
+|`ssdp_scanner.probe_timeout`|`2s`|When an SSDP/UPnP-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address|
+|`dhcp_scanner.enabled`|`true`|Whether to run the DHCP scanner. Defaults to enabled; set to `false` to turn it off.|
 |`notifications.method`|`pushover`|For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)|
 |`notifications.notify_when_not_seen_for`|`1w`|Send a notification if a device comes back online after not being seen for this timeframe (you can use hours, weeks, etc.)|
 |`notifications.pushover.token`||Your pushover token goes here, just copy&paste from their website after creating the app|
@@ -168,7 +174,7 @@ OOTT stores a timestamped event in the database for every device detected on eve
 
 ## Estimates by network size
 
-The figures below assume a 1-minute scan duration (`arp_scan_duration = 1m`) with a 1-minute wait between scans (`wait_between_scans = 1m`), giving 720 scans per day, and a 365-day retention window. Assume all devices are continuously online (worst case).
+The figures below assume a 1-minute scan duration (`arp_scanner.scan_duration = 1m`) with a 1-minute wait between scans (`arp_scanner.wait_between_scans = 1m`), giving 720 scans per day, and a 365-day retention window. Assume all devices are continuously online (worst case).
 
 | Network size | Active devices | Storage / year |
 |---|---|---|
@@ -189,7 +195,7 @@ where `145 bytes` covers the database row and its index entry, and `scans_per_da
 
 Storage is directly proportional to scan frequency and retention window. The two main levers are:
 
-**Scan interval** — `timings.wait_between_scans` is the most effective knob. Increasing it reduces scans per day linearly:
+**Scan interval** — `arp_scanner.wait_between_scans` is the most effective knob. Increasing it reduces scans per day linearly:
 
 | `wait_between_scans` | Scans/day (with 1m scan) | Storage vs. 1m+1m |
 |---|---|---|

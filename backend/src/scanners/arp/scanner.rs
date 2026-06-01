@@ -9,6 +9,11 @@ use log::{debug, info};
 use tokio::time::{Duration, sleep};
 
 pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
+    if !get_settings().arp_scanner.enabled {
+        info!("ARP scanner disabled in configuration; not starting");
+        return Ok(());
+    }
+
     loop {
         status::set_running();
 

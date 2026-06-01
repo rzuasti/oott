@@ -6,6 +6,10 @@ use serde::Deserialize;
 // -----------------------------------------------------------
 // Configuration structure
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Database {
     pub path: String,
@@ -23,6 +27,8 @@ pub struct Log {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ArpScanner {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
     pub wait_between_scans: DurationString,
     pub sender_timeout: DurationString,
     pub scan_duration: DurationString,
@@ -30,12 +36,15 @@ pub struct ArpScanner {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct MdnsScanner {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
     pub probe_timeout: DurationString,
 }
 
 impl Default for MdnsScanner {
     fn default() -> Self {
         MdnsScanner {
+            enabled: true,
             probe_timeout: DurationString::try_from("2s".to_string()).unwrap(),
         }
     }
@@ -43,14 +52,29 @@ impl Default for MdnsScanner {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SsdpScanner {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
     pub probe_timeout: DurationString,
 }
 
 impl Default for SsdpScanner {
     fn default() -> Self {
         SsdpScanner {
+            enabled: true,
             probe_timeout: DurationString::try_from("2s".to_string()).unwrap(),
         }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct DhcpScanner {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+impl Default for DhcpScanner {
+    fn default() -> Self {
+        DhcpScanner { enabled: true }
     }
 }
 
@@ -101,6 +125,8 @@ pub struct Settings {
     pub mdns_scanner: MdnsScanner,
     #[serde(default)]
     pub ssdp_scanner: SsdpScanner,
+    #[serde(default)]
+    pub dhcp_scanner: DhcpScanner,
 }
 // End configuration structure
 // -----------------------------------------------------------
@@ -137,4 +163,76 @@ pub fn get_settings() -> &'static Settings {
 
 pub fn init(config_path: String) {
     let _ = SETTINGS.set(Settings::new(config_path).unwrap());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use config::{Config, FileFormat};
+
+    fn parse(toml: &str) -> Settings {
+        Config::builder()
+            .add_source(config::File::from_str(toml, FileFormat::Toml))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap()
+    }
+
+    const BASE_CONFIG: &str = r#"
+        [database]
+        path = "./oott.db"
+        [networking]
+        [log]
+        level = "info"
+        [arp_scanner]
+        wait_between_scans = "1m"
+        sender_timeout = "1m"
+        scan_duration = "2m"
+        [notifications]
+        method = "none"
+        notify_when_not_seen_for = "1w"
+        [notifications.pushover]
+        token = ""
+        user_key = ""
+        [web_server]
+        ip_address = "0.0.0.0"
+        port = 3000
+        api_key = "test"
+    "#;
+
+    #[test]
+    fn scanners_enabled_by_default_when_flag_omitted() {
+        let settings = parse(BASE_CONFIG);
+        assert!(settings.arp_scanner.enabled);
+        assert!(settings.mdns_scanner.enabled);
+        assert!(settings.ssdp_scanner.enabled);
+        assert!(settings.dhcp_scanner.enabled);
+    }
+
+    #[test]
+    fn scanners_can_be_disabled() {
+        let toml = format!(
+            "{BASE_CONFIG}
+            [mdns_scanner]
+            enabled = false
+            probe_timeout = \"2s\"
+            [ssdp_scanner]
+            enabled = false
+            probe_timeout = \"2s\"
+            [dhcp_scanner]
+            enabled = false
+            "
+        );
+        // Disable the ARP scanner via its existing section too.
+        let toml = toml.replace(
+            "wait_between_scans = \"1m\"",
+            "enabled = false\n        wait_between_scans = \"1m\"",
+        );
+        let settings = parse(&toml);
+        assert!(!settings.arp_scanner.enabled);
+        assert!(!settings.mdns_scanner.enabled);
+        assert!(!settings.ssdp_scanner.enabled);
+        assert!(!settings.dhcp_scanner.enabled);
+    }
 }

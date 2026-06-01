@@ -9,12 +9,18 @@ use crate::db;
 use crate::events;
 use crate::model::device_events::DeviceEventScanner;
 use crate::model::devices::Device;
+use crate::settings::get_settings;
 
 /// Passively snoop DHCP DISCOVER/REQUEST broadcasts and feed discovered devices into the
 /// same pipeline used by the ARP, mDNS and SSDP scanners (devices table + events +
 /// notifications). Because a device must request an address before doing almost anything
 /// else, this catches new devices very early — often before they have an IP.
 pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
+    if !get_settings().dhcp_scanner.enabled {
+        info!("DHCP scanner disabled in configuration; not starting");
+        return Ok(());
+    }
+
     let socket = finder::open_socket()?;
     status::set_listening();
     info!("DHCP scanner listening for client requests");

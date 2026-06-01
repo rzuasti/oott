@@ -17,6 +17,11 @@ use crate::settings::get_settings;
 /// Passively listen for mDNS/Bonjour announcements and feed discovered devices into the same
 /// pipeline used by the ARP scanner (devices table + events + notifications).
 pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
+    if !get_settings().mdns_scanner.enabled {
+        info!("mDNS scanner disabled in configuration; not starting");
+        return Ok(());
+    }
+
     let interface = get_settings().networking.interface.clone();
     let socket = finder::open_socket(interface.clone())?;
     status::set_listening();

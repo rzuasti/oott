@@ -31,6 +31,11 @@ in {
       description = "Log level for the oott service";
       default = "info";
     };
+    arp_scanner.enabled = mkOption {
+      type = types.bool;
+      description = "Whether to run the ARP scanner.";
+      default = true;
+    };
     arp_scanner.wait_between_scans = mkOption {
       type = types.str;
       description = "Wait time between scans. This does not include the scan time.";
@@ -46,15 +51,30 @@ in {
       description = "How long to wait for response packets on each scan (5m to 10m is a good timeframe for a class B or C network).";
       default = "10m";
     };
+    mdns_scanner.enabled = mkOption {
+      type = types.bool;
+      description = "Whether to run the mDNS/Bonjour scanner.";
+      default = true;
+    };
     mdns_scanner.probe_timeout = mkOption {
       type = types.str;
       description = "When an mDNS-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address.";
       default = "2s";
     };
+    ssdp_scanner.enabled = mkOption {
+      type = types.bool;
+      description = "Whether to run the SSDP/UPnP scanner.";
+      default = true;
+    };
     ssdp_scanner.probe_timeout = mkOption {
       type = types.str;
       description = "When an SSDP/UPnP-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address.";
       default = "2s";
+    };
+    dhcp_scanner.enabled = mkOption {
+      type = types.bool;
+      description = "Whether to run the DHCP scanner.";
+      default = true;
     };
     notifications.method = mkOption {
       type = types.str;
