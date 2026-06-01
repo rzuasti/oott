@@ -7,6 +7,7 @@ use crate::settings::get_settings;
 use crate::web_server::arp_scanner::ArpScannerStatusResponse;
 use crate::web_server::devices::{RegisterDevicePayload, UpdateDevicePayload};
 use crate::web_server::mdns_scanner::MdnsScannerStatusResponse;
+use crate::web_server::ssdp_scanner::SsdpScannerStatusResponse;
 use axum::Json;
 use axum::extract::Request;
 use axum::http::StatusCode;
@@ -28,6 +29,7 @@ pub mod device_events;
 pub mod devices;
 pub mod mdns_scanner;
 pub mod notifications;
+pub mod ssdp_scanner;
 pub mod utils;
 
 #[derive(OpenApi)]
@@ -53,6 +55,7 @@ pub mod utils;
         device_events::list,
         arp_scanner::status,
         mdns_scanner::status,
+        ssdp_scanner::status,
     ),
     components(schemas(
         Device,
@@ -66,6 +69,7 @@ pub mod utils;
         DeviceEventScanner,
         ArpScannerStatusResponse,
         MdnsScannerStatusResponse,
+        SsdpScannerStatusResponse,
     )),
     modifiers(&SecurityAddon),
     tags(
@@ -74,6 +78,7 @@ pub mod utils;
         (name = "device_events", description = "Device event history"),
         (name = "arp_scanner", description = "ARP scanner process status"),
         (name = "mdns_scanner", description = "mDNS/Bonjour scanner process status"),
+        (name = "ssdp_scanner", description = "SSDP/UPnP scanner process status"),
     )
 )]
 struct ApiDoc;
@@ -119,6 +124,7 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         )
         .route("/api/arp_scanner/status", get(arp_scanner::status))
         .route("/api/mdns_scanner/status", get(mdns_scanner::status))
+        .route("/api/ssdp_scanner/status", get(ssdp_scanner::status))
         .route("/api/notifications", get(notifications::list))
         .route(
             "/api/notifications/mark_all_as_old",

@@ -118,6 +118,7 @@ impl FromSql for DeviceEventType {
 pub enum DeviceEventScanner {
     Arp,
     Mdns,
+    Ssdp,
 }
 
 impl fmt::Display for DeviceEventScanner {
@@ -125,6 +126,7 @@ impl fmt::Display for DeviceEventScanner {
         match self {
             Self::Arp => write!(f, "ARP"),
             Self::Mdns => write!(f, "mDNS"),
+            Self::Ssdp => write!(f, "SSDP"),
         }
     }
 }
@@ -147,6 +149,7 @@ impl FromStr for DeviceEventScanner {
         match s {
             "ARP" => Ok(DeviceEventScanner::Arp),
             "mDNS" => Ok(DeviceEventScanner::Mdns),
+            "SSDP" => Ok(DeviceEventScanner::Ssdp),
             _ => Err(DeviceEventScannerParseError),
         }
     }

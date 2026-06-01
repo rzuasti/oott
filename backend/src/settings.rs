@@ -42,6 +42,19 @@ impl Default for MdnsScanner {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct SsdpScanner {
+    pub probe_timeout: DurationString,
+}
+
+impl Default for SsdpScanner {
+    fn default() -> Self {
+        SsdpScanner {
+            probe_timeout: DurationString::try_from("2s".to_string()).unwrap(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Pushover {
     pub token: String,
     pub user_key: String,
@@ -86,6 +99,8 @@ pub struct Settings {
     pub retention: Retention,
     #[serde(default)]
     pub mdns_scanner: MdnsScanner,
+    #[serde(default)]
+    pub ssdp_scanner: SsdpScanner,
 }
 // End configuration structure
 // -----------------------------------------------------------

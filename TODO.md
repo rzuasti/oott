@@ -7,7 +7,9 @@
 - [x] Add the scanner that triggered the event to the device_events table
 - [x] Improve notifications layout/text
 - [ ] Implement the pushover API call directly to support HTML content and review notification text to use it
-- [ ] Add uPNP scanner
+- [x] Add SSDP/uPNP scanner
+  - [ ] Make sure the new config options are in the TOML files and Nix module
+  - [ ] Document in README.md the port needs/bindings
 - [ ] Add DHCP scanner
 
 ## Frontend
