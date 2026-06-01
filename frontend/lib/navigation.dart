@@ -43,7 +43,7 @@ final RouteObserver<ModalRoute<void>> routeObserver =
 
 // Routes definitions
 final GoRouter router = GoRouter(
-  initialLocation: '/notifications',
+  initialLocation: '/',
   routes: [
     ShellRoute(
       observers: [routeObserver],
@@ -52,8 +52,8 @@ final GoRouter router = GoRouter(
       },
       routes: [
         GoRoute(
-          path: '/notifications',
-          name: 'notifications',
+          path: '/',
+          name: 'home',
           builder: (context, state) => const HomeScreen(),
           redirect: (context, state) => _redirectToSettings(),
         ),
@@ -218,7 +218,7 @@ String? _redirectToSettings() {
 
 int _calculateSelectedIndex(BuildContext context) {
   final location = GoRouterState.of(context).uri.path;
-  if (location.startsWith('/notifications')) return 0;
+  if (location == '/') return 0;
   if (location.startsWith('/devices')) return 1;
   if (location.startsWith('/status')) return 2;
   if (location.startsWith('/settings')) return 3;
@@ -229,7 +229,7 @@ int _calculateSelectedIndex(BuildContext context) {
 void _onDestinationSelected(int index, BuildContext context) {
   switch (index) {
     case 0:
-      context.go('/notifications');
+      context.go('/');
       break;
     case 1:
       context.go('/devices');
