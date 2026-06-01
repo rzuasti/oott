@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../model/device.dart';
 import '../model/device_type.dart';
+import '../theme/app_colors.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../widgets/status_badge.dart';
 import 'device_actions.dart';
@@ -11,6 +12,7 @@ import 'device_list_sort.dart';
 // Column layout shared between the header and data rows so cells line up.
 const double _iconWidth = 40;
 const double _trailingWidth = 48;
+const Duration _onlineThreshold = Duration(minutes: 10);
 
 class _ColumnSpec {
   final DeviceSortColumn column;
@@ -249,10 +251,18 @@ Widget _cellContent(
         style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
       );
     case DeviceSortColumn.lastSeen:
-      return Text(
-        formatter.format(device.lastSeen),
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodyMedium,
+      return Row(
+        children: [
+          _StatusDot(lastSeen: device.lastSeen),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              formatter.format(device.lastSeen),
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+        ],
       );
     case DeviceSortColumn.vendor:
       return Text(
@@ -306,15 +316,57 @@ class DeviceRowCompact extends StatelessWidget {
               ),
           ],
         ),
-        subtitle: Text(
-          [
-            '${device.isRegistered ? (device.owner.isEmpty ? '—' : device.owner) : device.ipv4Address} · ${device.macAddress}',
-            if (!device.isRegistered && device.vendor.isNotEmpty) device.vendor,
-            'Last seen: ${formatter.format(device.lastSeen)}',
-          ].join('\n'),
+        subtitle: DefaultTextStyle.merge(
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${device.isRegistered ? (device.owner.isEmpty ? '—' : device.owner) : device.ipv4Address} · ${device.macAddress}',
+              ),
+              if (!device.isRegistered && device.vendor.isNotEmpty)
+                Text(device.vendor),
+              Row(
+                children: [
+                  _StatusDot(lastSeen: device.lastSeen),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Last seen: ${formatter.format(device.lastSeen)}',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
         isThreeLine: true,
         trailing: _DeviceActionsMenu(device: device, onRefresh: onRefresh),
+      ),
+    );
+  }
+}
+
+class _StatusDot extends StatelessWidget {
+  final DateTime lastSeen;
+
+  const _StatusDot({required this.lastSeen});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isOnline = DateTime.now().difference(lastSeen) < _onlineThreshold;
+    final color = isOnline
+        ? theme.extension<AppColorExtension>()!.success
+        : theme.colorScheme.outline;
+    return Tooltip(
+      message: isOnline ? 'Online' : 'Appears offline',
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }
