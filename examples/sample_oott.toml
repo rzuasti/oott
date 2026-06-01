@@ -15,6 +15,9 @@ scan_duration="10m" # How long to wait for response packets on each scan (5m to 
 [mdns_scanner]
 probe_timeout="2s" # When an mDNS-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address
 
+[ssdp_scanner]
+probe_timeout="2s" # When an SSDP/UPnP-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address
+
 [notifications]
 method="pushover" # For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)
 notify_when_not_seen_for="1w" # Send a notification if a device comes back online after not being seen for this timeframe
