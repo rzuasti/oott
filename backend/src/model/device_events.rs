@@ -119,6 +119,7 @@ pub enum DeviceEventScanner {
     Arp,
     Mdns,
     Ssdp,
+    Dhcp,
 }
 
 impl fmt::Display for DeviceEventScanner {
@@ -127,6 +128,7 @@ impl fmt::Display for DeviceEventScanner {
             Self::Arp => write!(f, "ARP"),
             Self::Mdns => write!(f, "mDNS"),
             Self::Ssdp => write!(f, "SSDP"),
+            Self::Dhcp => write!(f, "DHCP"),
         }
     }
 }
@@ -150,6 +152,7 @@ impl FromStr for DeviceEventScanner {
             "ARP" => Ok(DeviceEventScanner::Arp),
             "mDNS" => Ok(DeviceEventScanner::Mdns),
             "SSDP" => Ok(DeviceEventScanner::Ssdp),
+            "DHCP" => Ok(DeviceEventScanner::Dhcp),
             _ => Err(DeviceEventScannerParseError),
         }
     }
