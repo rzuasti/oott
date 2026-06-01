@@ -54,4 +54,5 @@ For Flutter/Dart code:
 - When adding a new API endpoint, ALWAYS wire it to the OpenAPI generation
 - When adding a significant chunk of new code (either Rust or Dart), run the corresponding linter
 - In the frontend, use the UISnackbars component to display messages to the user that do not require action on their part.
+- In the frontend, always use colors from the selected theme. Never hard code colors any other way. If a color is needed and it's not covered semantically by the theme, suggest an addition to the theme extension implemented in the project.
 - In the backend Rust code, avoid import aliases ("use ... as ...") unless necessary
