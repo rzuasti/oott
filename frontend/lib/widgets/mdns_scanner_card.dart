@@ -27,7 +27,7 @@ class MdnsScannerCard extends StatelessWidget {
     if (!status.isListening) {
       return (
         color: Theme.of(context).colorScheme.outline,
-        label: 'Not yet started',
+        label: 'Not started',
         sublabels: [],
       );
     }

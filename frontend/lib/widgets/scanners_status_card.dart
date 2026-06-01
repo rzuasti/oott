@@ -273,7 +273,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
       );
       return (neutralColor, 'Next run in ${formatSeconds(remaining)}');
     }
-    return (neutralColor, 'Not yet started');
+    return (neutralColor, 'Not started');
   }
 
   (Color, String) _resolveMdns(
@@ -298,7 +298,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
       }
       return (successColor, 'No devices seen yet');
     }
-    return (neutralColor, 'Not yet started');
+    return (neutralColor, 'Not started');
   }
 
   (Color, String) _resolveSsdp(
@@ -323,7 +323,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
       }
       return (successColor, 'No devices seen yet');
     }
-    return (neutralColor, 'Not yet started');
+    return (neutralColor, 'Not started');
   }
 
   (Color, String) _resolveDhcp(
@@ -348,6 +348,6 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
       }
       return (successColor, 'No devices seen yet');
     }
-    return (neutralColor, 'Not yet started');
+    return (neutralColor, 'Not started');
   }
 }

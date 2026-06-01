@@ -44,6 +44,6 @@ class ArpScannerCard extends StatelessWidget {
         sublabels: ['Next run in ${formatSeconds(remaining)}'],
       );
     }
-    return (color: neutralColor, label: 'Not yet started', sublabels: []);
+    return (color: neutralColor, label: 'Not started', sublabels: []);
   }
 }
