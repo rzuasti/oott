@@ -15,6 +15,7 @@ pub struct DeviceEvent {
     pub event_type: DeviceEventType,
     pub ipv4_address: String,
     pub vendor: String,
+    pub scanner: DeviceEventScanner,
 }
 
 impl DeviceEvent {
@@ -24,6 +25,7 @@ impl DeviceEvent {
         event_type: DeviceEventType,
         ipv4_address: String,
         vendor: String,
+        scanner: DeviceEventScanner,
     ) -> Self {
         Self {
             id: -1,
@@ -32,6 +34,7 @@ impl DeviceEvent {
             event_type,
             ipv4_address,
             vendor,
+            scanner,
         }
     }
 }
@@ -40,13 +43,14 @@ impl fmt::Display for DeviceEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "id={}, mac_address={}, created_on={}, event_type={}, ipv4_address={}, vendor={}",
+            "id={}, mac_address={}, created_on={}, event_type={}, ipv4_address={}, vendor={}, scanner={}",
             self.id,
             self.mac_address,
             self.created_on,
             self.event_type,
             self.ipv4_address,
             self.vendor,
+            self.scanner,
         )
     }
 }
@@ -102,6 +106,59 @@ impl ToSql for DeviceEventType {
 }
 
 impl FromSql for DeviceEventType {
+    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+        value
+            .as_str()?
+            .parse()
+            .map_err(|e| FromSqlError::Other(Box::new(e)))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+pub enum DeviceEventScanner {
+    Arp,
+    Mdns,
+}
+
+impl fmt::Display for DeviceEventScanner {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Arp => write!(f, "ARP"),
+            Self::Mdns => write!(f, "mDNS"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DeviceEventScannerParseError;
+
+impl fmt::Display for DeviceEventScannerParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Error parsing device event scanner")
+    }
+}
+
+impl Error for DeviceEventScannerParseError {}
+
+impl FromStr for DeviceEventScanner {
+    type Err = DeviceEventScannerParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ARP" => Ok(DeviceEventScanner::Arp),
+            "mDNS" => Ok(DeviceEventScanner::Mdns),
+            _ => Err(DeviceEventScannerParseError),
+        }
+    }
+}
+
+impl ToSql for DeviceEventScanner {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        Ok(self.to_string().into())
+    }
+}
+
+impl FromSql for DeviceEventScanner {
     fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
         value
             .as_str()?

@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::model::device_events::{DeviceEvent, DeviceEventType};
+use crate::model::device_events::{DeviceEvent, DeviceEventScanner, DeviceEventType};
 use crate::model::devices::{Device, DeviceSummary};
 use crate::model::notifications::{Notification, NotificationType};
 use crate::settings::get_settings;
@@ -63,6 +63,7 @@ pub mod utils;
         UpdateDevicePayload,
         DeviceEvent,
         DeviceEventType,
+        DeviceEventScanner,
         ArpScannerStatusResponse,
         MdnsScannerStatusResponse,
     )),

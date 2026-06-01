@@ -12,13 +12,14 @@ pub fn insert(event: DeviceEvent) -> Result<i64, DbError> {
     let mac_address = normalize_mac(&event.mac_address);
 
     match conn.execute(
-        "INSERT INTO device_events (mac_address, created_on, event_type, ipv4_address, vendor) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO device_events (mac_address, created_on, event_type, ipv4_address, vendor, scanner) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![
             mac_address,
             event.created_on.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false),
             event.event_type,
             event.ipv4_address,
-            event.vendor
+            event.vendor,
+            event.scanner
         ],
     ) {
         Ok(_) => {
@@ -42,7 +43,7 @@ pub fn list(
     let conn = db::get_db_connection();
 
     let mut sql_statement =
-        "SELECT id, mac_address, created_on, event_type, ipv4_address, vendor FROM device_events WHERE 1=1"
+        "SELECT id, mac_address, created_on, event_type, ipv4_address, vendor, scanner FROM device_events WHERE 1=1"
             .to_string();
 
     let mut params: Vec<rusqlite::types::Value> = Vec::new();
@@ -83,6 +84,7 @@ pub fn list(
                 event_type: row.get(3)?,
                 ipv4_address: row.get(4)?,
                 vendor: row.get(5)?,
+                scanner: row.get(6)?,
             })
         })?
         .collect::<Result<_, _>>()?;
@@ -113,7 +115,7 @@ fn read(id: i64) -> Option<DeviceEvent> {
     let conn = db::get_db_connection();
 
     let result: Result<DeviceEvent, rusqlite::Error> = conn.query_one(
-        "SELECT id, mac_address, created_on, event_type, ipv4_address, vendor FROM device_events WHERE id=?1",
+        "SELECT id, mac_address, created_on, event_type, ipv4_address, vendor, scanner FROM device_events WHERE id=?1",
         params![id],
         |row| {
             Ok(DeviceEvent {
@@ -123,6 +125,7 @@ fn read(id: i64) -> Option<DeviceEvent> {
                 event_type: row.get(3)?,
                 ipv4_address: row.get(4)?,
                 vendor: row.get(5)?,
+                scanner: row.get(6)?,
             })
         },
     );
@@ -146,7 +149,10 @@ mod tests {
     use chrono::Utc;
 
     use super::*;
-    use crate::{model::device_events::DeviceEventType, tests_common};
+    use crate::{
+        model::device_events::{DeviceEventScanner, DeviceEventType},
+        tests_common,
+    };
 
     #[tokio::test]
     async fn test_insert() {
@@ -159,6 +165,7 @@ mod tests {
             DeviceEventType::NewDevice,
             "192.168.0.1".to_string(),
             "Vendor 1".to_string(),
+            DeviceEventScanner::Arp,
         ))
         .unwrap();
 
@@ -173,6 +180,7 @@ mod tests {
         assert_eq!(event.event_type, DeviceEventType::NewDevice);
         assert_eq!(event.ipv4_address, "192.168.0.1");
         assert_eq!(event.vendor, "Vendor 1");
+        assert_eq!(event.scanner, DeviceEventScanner::Arp);
 
         let inserted_id = insert(DeviceEvent::new(
             "bb:bb:bb:bb:bb:bb".to_string(),
@@ -180,11 +188,13 @@ mod tests {
             DeviceEventType::DeviceSeen,
             "192.168.0.2".to_string(),
             "Vendor 2".to_string(),
+            DeviceEventScanner::Mdns,
         ))
         .unwrap();
 
         let event = read(inserted_id).unwrap();
         assert_eq!(event.event_type, DeviceEventType::DeviceSeen);
+        assert_eq!(event.scanner, DeviceEventScanner::Mdns);
     }
 
     #[tokio::test]
@@ -243,6 +253,7 @@ mod tests {
             DeviceEventType::NewDevice,
             "10.0.0.200".to_string(),
             "Old Vendor".to_string(),
+            DeviceEventScanner::Arp,
         ))
         .unwrap();
 
@@ -252,6 +263,7 @@ mod tests {
             DeviceEventType::DeviceSeen,
             "10.0.0.200".to_string(),
             "Old Vendor".to_string(),
+            DeviceEventScanner::Arp,
         ))
         .unwrap();
 
@@ -285,6 +297,7 @@ mod tests {
             DeviceEventType::NewDevice,
             "10.0.0.1".to_string(),
             "Vendor C".to_string(),
+            DeviceEventScanner::Arp,
         ))
         .unwrap();
         insert(DeviceEvent::new(
@@ -295,6 +308,7 @@ mod tests {
             DeviceEventType::DeviceSeen,
             "10.0.0.1".to_string(),
             "Vendor C".to_string(),
+            DeviceEventScanner::Arp,
         ))
         .unwrap();
         insert(DeviceEvent::new(
@@ -305,6 +319,7 @@ mod tests {
             DeviceEventType::DeviceSeen,
             "10.0.0.1".to_string(),
             "Vendor C".to_string(),
+            DeviceEventScanner::Arp,
         ))
         .unwrap();
 
@@ -337,6 +352,7 @@ mod tests {
             DeviceEventType::NewDevice,
             "10.0.0.1".to_string(),
             "Vendor F".to_string(),
+            DeviceEventScanner::Arp,
         ))
         .unwrap();
         insert(DeviceEvent::new(
@@ -347,6 +363,7 @@ mod tests {
             DeviceEventType::DeviceSeen,
             "10.0.0.1".to_string(),
             "Vendor F".to_string(),
+            DeviceEventScanner::Arp,
         ))
         .unwrap();
 
@@ -379,6 +396,7 @@ mod tests {
             DeviceEventType::NewDevice,
             "10.0.0.1".to_string(),
             "Vendor D".to_string(),
+            DeviceEventScanner::Arp,
         ))
         .unwrap();
         insert(DeviceEvent::new(
@@ -387,6 +405,7 @@ mod tests {
             DeviceEventType::DeviceSeen,
             "10.0.0.1".to_string(),
             "Vendor D".to_string(),
+            DeviceEventScanner::Arp,
         ))
         .unwrap();
 

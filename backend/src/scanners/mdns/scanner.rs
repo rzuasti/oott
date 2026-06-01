@@ -10,6 +10,7 @@ use crate::data::mac_vendor_finder;
 use crate::data::vendor_device_type_finder;
 use crate::db;
 use crate::events;
+use crate::model::device_events::DeviceEventScanner;
 use crate::model::devices::Device;
 use crate::settings::get_settings;
 
@@ -105,7 +106,7 @@ async fn process_announcement(
                 return;
             }
             // Ignoring errors: do not stop the listener if notification delivery fails
-            events::trigger_existing_device(recorded, device).ok();
+            events::trigger_existing_device(recorded, device, DeviceEventScanner::Mdns).ok();
         }
         None => {
             debug!("New device {mac} discovered via mDNS; inserting");
@@ -113,7 +114,7 @@ async fn process_announcement(
                 error!("Failed to insert mDNS device {mac}: {err}");
                 return;
             }
-            events::trigger_new_device(device).ok();
+            events::trigger_new_device(device, DeviceEventScanner::Mdns).ok();
         }
     }
 

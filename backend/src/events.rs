@@ -5,7 +5,7 @@ use std::error::Error;
 use std::time::Duration;
 
 use crate::db;
-use crate::model::device_events::{DeviceEvent, DeviceEventType};
+use crate::model::device_events::{DeviceEvent, DeviceEventScanner, DeviceEventType};
 use crate::model::devices::Device;
 use crate::model::notifications::Notification;
 use crate::model::notifications::NotificationType;
@@ -52,13 +52,17 @@ fn send_notification(notification: Notification) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn trigger_new_device(device: Device) -> Result<(), Box<dyn Error>> {
+pub fn trigger_new_device(
+    device: Device,
+    scanner: DeviceEventScanner,
+) -> Result<(), Box<dyn Error>> {
     let event = DeviceEvent::new(
         device.mac_address.clone(),
         Utc::now(),
         DeviceEventType::NewDevice,
         device.ipv4_address.clone(),
         device.vendor.clone(),
+        scanner,
     );
     if let Err(err) = db::device_events::insert(event) {
         error!(
@@ -89,6 +93,7 @@ pub fn trigger_new_device(device: Device) -> Result<(), Box<dyn Error>> {
 pub fn trigger_existing_device(
     existing_device: Device,
     new_device: Device,
+    scanner: DeviceEventScanner,
 ) -> Result<(), Box<dyn Error>> {
     let event = DeviceEvent::new(
         new_device.mac_address.clone(),
@@ -96,6 +101,7 @@ pub fn trigger_existing_device(
         DeviceEventType::DeviceSeen,
         new_device.ipv4_address.clone(),
         new_device.vendor.clone(),
+        scanner,
     );
     if let Err(err) = db::device_events::insert(event) {
         error!(

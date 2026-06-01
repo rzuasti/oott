@@ -2,6 +2,7 @@ use super::finder;
 use super::status;
 use crate::db;
 use crate::events;
+use crate::model::device_events::DeviceEventScanner;
 use crate::settings::get_settings;
 use chrono::Utc;
 use log::{debug, info};
@@ -38,7 +39,12 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
                         device.device_type.clone(),
                         device.name.clone(),
                     )?;
-                    events::trigger_existing_device(recorded_device, device.clone()).ok(); // Ignoring errors here, do not stop loop if notification delivery fails
+                    events::trigger_existing_device(
+                        recorded_device,
+                        device.clone(),
+                        DeviceEventScanner::Arp,
+                    )
+                    .ok(); // Ignoring errors here, do not stop loop if notification delivery fails
                 }
                 None => {
                     // If it doesn't exist insert it
@@ -48,7 +54,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
                     );
 
                     db::devices::insert(device.clone())?;
-                    events::trigger_new_device(device.clone()).ok(); // Ignoring errors here, do not stop loop if notification delivery fails
+                    events::trigger_new_device(device.clone(), DeviceEventScanner::Arp).ok(); // Ignoring errors here, do not stop loop if notification delivery fails
                 }
             };
         }
