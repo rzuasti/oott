@@ -5,6 +5,7 @@ class DeviceEvent {
   final String eventType;
   final String ipv4Address;
   final String vendor;
+  final String scanner;
 
   const DeviceEvent({
     required this.id,
@@ -13,6 +14,7 @@ class DeviceEvent {
     required this.eventType,
     required this.ipv4Address,
     required this.vendor,
+    required this.scanner,
   });
 
   factory DeviceEvent.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,13 @@ class DeviceEvent {
       eventType: json['event_type'] as String,
       ipv4Address: json['ipv4_address'] as String,
       vendor: json['vendor'] as String,
+      scanner: json['scanner'] as String,
     );
   }
+
+  String get scannerLabel => switch (scanner) {
+    'Arp' => 'ARP',
+    'Mdns' => 'mDNS',
+    _ => scanner,
+  };
 }

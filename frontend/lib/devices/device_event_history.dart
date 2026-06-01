@@ -257,9 +257,10 @@ class _EventChart extends StatelessWidget {
               final event = events[idx];
               final dt = event.createdOn.toLocal();
               final dateStr = DateFormat('MMM d, yyyy HH:mm').format(dt);
-              final typeLabel = event.eventType == 'NewDevice'
+              final baseLabel = event.eventType == 'NewDevice'
                   ? 'First seen'
                   : 'Device seen';
+              final typeLabel = '$baseLabel (${event.scannerLabel})';
 
               final diffs = <TextSpan>[];
               if (event.ipv4Address != device.ipv4Address) {
