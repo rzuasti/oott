@@ -8,6 +8,7 @@ import '../model/device_type.dart';
 import '../navigation.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
+import '../widgets/pagination_bar.dart';
 import 'device_list_filter.dart';
 import 'device_list_rows.dart';
 import 'device_list_sort.dart';
@@ -300,50 +301,16 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
             },
             separatorBuilder: (_, _) => const Divider(height: 1),
           ),
-          if (_currentPage > 0 || _hasNextPage) _buildPaginationControls(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaginationControls() {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton.outlined(
-              onPressed: _currentPage > 0 && !_isLoading
-                  ? () => _fetchPage(0)
-                  : null,
-              icon: const Icon(Icons.first_page),
-              tooltip: 'First page',
-            ),
-            const SizedBox(width: 8),
-            IconButton.outlined(
-              onPressed: _currentPage > 0 && !_isLoading
-                  ? () => _fetchPage(_currentPage - 1)
-                  : null,
-              icon: const Icon(Icons.chevron_left),
-              tooltip: 'Previous page',
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Page ${_currentPage + 1}',
-                style: Theme.of(context).textTheme.bodyMedium,
+          if (_currentPage > 0 || _hasNextPage)
+            SliverToBoxAdapter(
+              child: PaginationBar(
+                currentPage: _currentPage,
+                hasNextPage: _hasNextPage,
+                isLoading: _isLoading,
+                onPageChanged: _fetchPage,
               ),
             ),
-            IconButton.outlined(
-              onPressed: _hasNextPage && !_isLoading
-                  ? () => _fetchPage(_currentPage + 1)
-                  : null,
-              icon: const Icon(Icons.chevron_right),
-              tooltip: 'Next page',
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }

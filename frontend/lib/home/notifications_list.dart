@@ -8,6 +8,7 @@ import '../navigation.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../utils/ui_snackbars.dart';
+import '../widgets/pagination_bar.dart';
 import 'notification_card.dart';
 
 const _pageSize = 5;
@@ -288,7 +289,15 @@ class _NotificationsListState extends State<NotificationsList>
     }
     return [
       _buildNotificationSliver(),
-      if (_currentPage > 0 || _hasNextPage) _buildPaginationControls(context),
+      if (_currentPage > 0 || _hasNextPage)
+        SliverToBoxAdapter(
+          child: PaginationBar(
+            currentPage: _currentPage,
+            hasNextPage: _hasNextPage,
+            isLoading: _isLoading,
+            onPageChanged: _fetchPage,
+          ),
+        ),
     ];
   }
 
@@ -304,48 +313,6 @@ class _NotificationsListState extends State<NotificationsList>
           onSetRead: (read) => _setRead(item, read),
         );
       },
-    );
-  }
-
-  Widget _buildPaginationControls(BuildContext context) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton.outlined(
-              onPressed: _currentPage > 0 && !_isLoading
-                  ? () => _fetchPage(0)
-                  : null,
-              icon: const Icon(Icons.first_page),
-              tooltip: 'First page',
-            ),
-            const SizedBox(width: 8),
-            IconButton.outlined(
-              onPressed: _currentPage > 0 && !_isLoading
-                  ? () => _fetchPage(_currentPage - 1)
-                  : null,
-              icon: const Icon(Icons.chevron_left),
-              tooltip: 'Previous page',
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Page ${_currentPage + 1}',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-            IconButton.outlined(
-              onPressed: _hasNextPage && !_isLoading
-                  ? () => _fetchPage(_currentPage + 1)
-                  : null,
-              icon: const Icon(Icons.chevron_right),
-              tooltip: 'Next page',
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

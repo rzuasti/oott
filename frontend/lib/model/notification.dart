@@ -43,7 +43,7 @@ class Notification {
   Map<String, dynamic> toJson() => {
     'id': id,
     'created_on': createdOn.toUtc().toIso8601String(),
-    'notification_type': notificationType.toString,
+    'notification_type': notificationType.name,
     'title': title,
     'body': body,
     'is_new': isNew,
