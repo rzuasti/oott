@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../model/arp_scanner_status.dart';
+import '../theme/app_colors.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/oott_api.dart';
 import 'scanner_status_card.dart';
@@ -18,12 +19,19 @@ class ArpScannerCard extends StatelessWidget {
     );
   }
 
-  static ScannerStatus _resolve(ArpScannerStatus status, double elapsed) {
+  static ScannerStatus _resolve(
+    BuildContext context,
+    ArpScannerStatus status,
+    double elapsed,
+  ) {
+    final successColor =
+        Theme.of(context).extension<AppColorExtension>()!.success;
+    final neutralColor = Theme.of(context).colorScheme.outline;
     if (status.isRunning) {
       final sub = status.runningForSeconds != null
           ? ['Running for ${formatSeconds(status.runningForSeconds! + elapsed)}']
           : <String>[];
-      return (color: Colors.green, label: 'Running', sublabels: sub);
+      return (color: successColor, label: 'Running', sublabels: sub);
     }
     if (status.nextRunInSeconds != null) {
       final remaining = (status.nextRunInSeconds! - elapsed).clamp(
@@ -31,11 +39,11 @@ class ArpScannerCard extends StatelessWidget {
         double.infinity,
       );
       return (
-        color: Colors.grey,
+        color: neutralColor,
         label: 'Waiting for next run',
         sublabels: ['Next run in ${formatSeconds(remaining)}'],
       );
     }
-    return (color: Colors.grey, label: 'Not yet started', sublabels: []);
+    return (color: neutralColor, label: 'Not yet started', sublabels: []);
   }
 }

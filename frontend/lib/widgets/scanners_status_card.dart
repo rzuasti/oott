@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../model/arp_scanner_status.dart';
 import '../model/mdns_scanner_status.dart';
 import '../navigation.dart';
+import '../theme/app_colors.dart';
 import '../utils/backend_reachability.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/oott_api.dart';
@@ -120,8 +121,8 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
           );
         }
 
-        final (arpColor, arpText) = _resolveArp(arpFreshness);
-        final (mdnsColor, mdnsText) = _resolveMdns(mdnsFreshness);
+        final (arpColor, arpText) = _resolveArp(context, arpFreshness);
+        final (mdnsColor, mdnsText) = _resolveMdns(context, mdnsFreshness);
 
         return Card(
           clipBehavior: Clip.antiAlias,
@@ -201,9 +202,12 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     );
   }
 
-  (Color, String) _resolveArp(PolledFreshness freshness) {
+  (Color, String) _resolveArp(BuildContext context, PolledFreshness freshness) {
+    final theme = Theme.of(context);
+    final successColor = theme.extension<AppColorExtension>()!.success;
+    final neutralColor = theme.colorScheme.outline;
     if (freshness == PolledFreshness.error) {
-      return (Colors.red, 'Error');
+      return (theme.colorScheme.error, 'Error');
     }
     final status = _arp.value!;
     final elapsed = DateTime.now()
@@ -212,21 +216,24 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
         .toDouble();
     if (status.isRunning) {
       final secs = (status.runningForSeconds ?? 0) + elapsed;
-      return (Colors.green, 'Running for ${formatSeconds(secs)}');
+      return (successColor, 'Running for ${formatSeconds(secs)}');
     }
     if (status.nextRunInSeconds != null) {
       final remaining = (status.nextRunInSeconds! - elapsed).clamp(
         0.0,
         double.infinity,
       );
-      return (Colors.grey, 'Next run in ${formatSeconds(remaining)}');
+      return (neutralColor, 'Next run in ${formatSeconds(remaining)}');
     }
-    return (Colors.grey, 'Not yet started');
+    return (neutralColor, 'Not yet started');
   }
 
-  (Color, String) _resolveMdns(PolledFreshness freshness) {
+  (Color, String) _resolveMdns(BuildContext context, PolledFreshness freshness) {
+    final theme = Theme.of(context);
+    final successColor = theme.extension<AppColorExtension>()!.success;
+    final neutralColor = theme.colorScheme.outline;
     if (freshness == PolledFreshness.error) {
-      return (Colors.red, 'Error');
+      return (theme.colorScheme.error, 'Error');
     }
     final status = _mdns.value!;
     final elapsed = DateTime.now()
@@ -236,10 +243,10 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     if (status.isListening) {
       if (status.lastDeviceSeenSecondsAgo != null) {
         final secs = status.lastDeviceSeenSecondsAgo! + elapsed;
-        return (Colors.green, 'Last device seen ${formatSeconds(secs)} ago');
+        return (successColor, 'Last device seen ${formatSeconds(secs)} ago');
       }
-      return (Colors.green, 'No devices seen yet');
+      return (successColor, 'No devices seen yet');
     }
-    return (Colors.grey, 'Not yet started');
+    return (neutralColor, 'Not yet started');
   }
 }

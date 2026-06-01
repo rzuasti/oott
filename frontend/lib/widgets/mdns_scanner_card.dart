@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../model/mdns_scanner_status.dart';
+import '../theme/app_colors.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/oott_api.dart';
 import 'scanner_status_card.dart';
@@ -18,9 +19,17 @@ class MdnsScannerCard extends StatelessWidget {
     );
   }
 
-  static ScannerStatus _resolve(MdnsScannerStatus status, double elapsed) {
+  static ScannerStatus _resolve(
+    BuildContext context,
+    MdnsScannerStatus status,
+    double elapsed,
+  ) {
     if (!status.isListening) {
-      return (color: Colors.grey, label: 'Not yet started', sublabels: []);
+      return (
+        color: Theme.of(context).colorScheme.outline,
+        label: 'Not yet started',
+        sublabels: [],
+      );
     }
     final sublabels = <String>[
       status.listeningForSeconds != null
@@ -29,6 +38,10 @@ class MdnsScannerCard extends StatelessWidget {
       if (status.lastDeviceSeenSecondsAgo != null)
         'Last device ${formatSeconds(status.lastDeviceSeenSecondsAgo! + elapsed)} ago',
     ];
-    return (color: Colors.green, label: 'Listening', sublabels: sublabels);
+    return (
+      color: Theme.of(context).extension<AppColorExtension>()!.success,
+      label: 'Listening',
+      sublabels: sublabels,
+    );
   }
 }

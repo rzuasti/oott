@@ -11,7 +11,7 @@ import 'polled_stale_indicator.dart';
 typedef ScannerStatus = ({Color color, String label, List<String> sublabels});
 
 typedef ScannerStatusResolver<T> =
-    ScannerStatus Function(T value, double elapsedSeconds);
+    ScannerStatus Function(BuildContext context, T value, double elapsedSeconds);
 
 /// Generic card that polls a scanner status endpoint and renders the result
 /// using the provided [resolver]. The two scanner cards (ARP, mDNS) are thin
@@ -71,7 +71,7 @@ class _ScannerStatusCardState<T> extends State<ScannerStatusCard<T>> {
           );
         }
 
-        final status = _resolveStatus(freshness);
+        final status = _resolveStatus(context, freshness);
         final isStale = freshness == PolledFreshness.stale;
         final theme = Theme.of(context);
 
@@ -124,10 +124,10 @@ class _ScannerStatusCardState<T> extends State<ScannerStatusCard<T>> {
     );
   }
 
-  ScannerStatus _resolveStatus(PolledFreshness freshness) {
+  ScannerStatus _resolveStatus(BuildContext context, PolledFreshness freshness) {
     if (freshness == PolledFreshness.error) {
       return (
-        color: Colors.red,
+        color: Theme.of(context).colorScheme.error,
         label: 'Error',
         sublabels: [
           _polled.lastErrorMessage ??
@@ -139,6 +139,6 @@ class _ScannerStatusCardState<T> extends State<ScannerStatusCard<T>> {
         .difference(_polled.lastSuccessAt!)
         .inSeconds
         .toDouble();
-    return widget.resolver(_polled.value as T, elapsed);
+    return widget.resolver(context, _polled.value as T, elapsed);
   }
 }
