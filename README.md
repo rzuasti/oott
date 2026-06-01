@@ -9,6 +9,7 @@ Licensed under AGPL v3. See [LICENSE](LICENSE).
   * [Install OOTT using NixOS flakes](#install-oott-using-nixos-flakes)
   * [Configuration options](#configuration-options)
   * [Network ports](#network-ports)
+  * [Connecting the app to the backend](#connecting-the-app-to-the-backend)
 * [Storage considerations](#storage-considerations)
 
 ## What is it?
@@ -168,6 +169,23 @@ OOTT binds to the following ports on the host where it runs:
 > Port `67` is a privileged port, so OOTT must run with sufficient privileges to bind it (it already requires raw-socket access for the ARP scanner).
 >
 > When running under Docker these scanners require host networking (or an equivalent setup that exposes the host's multicast and broadcast traffic to the container); see the [sample compose file](https://github.com/rzuasti/oott/blob/main/examples/docker-compose.yml).
+
+## Connecting the app to the backend
+The OOTT app (web, desktop, iOS and Android) talks to the backend exclusively over its REST API (port `3000` by default). You point the app at your backend from the app's settings. There are two supported ways to expose the backend to the app:
+
+### Direct connection over HTTP (local network only)
+Point the app at the backend's address on your local network, for example `http://192.168.1.50:3000`. This is the simplest setup and needs no extra infrastructure, but only works while the device is on the same local network as the backend.
+
+> [!IMPORTANT]
+> On iOS this only works when you use the backend's **private-range IP address** (`192.168.x.x`, `10.x.x.x`, `172.16–31.x.x`) or a `*.local` (mDNS/Bonjour) name. A custom internal domain (e.g. `oott.mylan.com`) served over plain HTTP will be blocked by iOS App Transport Security, even when it resolves to a private IP — use the IP address directly, or HTTPS (see below), instead.
+
+### Behind a reverse proxy with HTTPS (recommended)
+Put the backend behind a reverse proxy (nginx, Caddy, Traefik, …) that terminates TLS with a **valid certificate from a trusted CA** (for example [Let's Encrypt](https://letsencrypt.org/)), and point the app at the HTTPS URL (e.g. `https://oott.example.com`). This works on all platforms — including iOS — with no further configuration, and is required for access from outside the local network.
+
+Connect using the **domain name the certificate is issued for** (not an IP address). Self-signed certificates are not supported unless they are manually trusted on the device.
+
+> [!NOTE]
+> The first time the iOS app reaches your backend on the local network, iOS shows a one-time "find devices on your local network" prompt. This is expected — tap Allow to continue.
 
 # Storage considerations
 OOTT stores a timestamped event in the database for every device detected on every scan. Storage therefore scales with three factors: number of active devices, scan frequency, and the retention window.
