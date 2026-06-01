@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../model/notification.dart' as oott_model;
 import '../utils/friendly_date_formatter.dart';
 
-class NotificationCard extends StatelessWidget {
+class NotificationCard extends StatefulWidget {
   final oott_model.Notification item;
   final FriendlyDateFormatter formatter;
   final Future<bool> Function(bool read) onSetRead;
@@ -17,14 +17,47 @@ class NotificationCard extends StatelessWidget {
   });
 
   @override
+  State<NotificationCard> createState() => _NotificationCardState();
+}
+
+class _NotificationCardState extends State<NotificationCard> {
+  bool _expanded = false;
+
+  Widget _buildActions(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      child: OverflowBar(
+        alignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed: () => widget.onSetRead(widget.item.isNew),
+            child: Text(widget.item.isNew ? 'Mark as read' : 'Mark as unread'),
+          ),
+          if (widget.item.macAddress != null)
+            TextButton.icon(
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('View device'),
+              onPressed: () async {
+                if (widget.item.isNew) await widget.onSetRead(true);
+                if (context.mounted) {
+                  context.push('/devices/${widget.item.macAddress}');
+                }
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      color: item.isNew ? theme.colorScheme.secondaryContainer : null,
+      color: widget.item.isNew ? theme.colorScheme.secondaryContainer : null,
       child: Dismissible(
-        key: ValueKey(item.id),
+        key: ValueKey(widget.item.id),
         confirmDismiss: (direction) =>
-            onSetRead(direction != DismissDirection.startToEnd),
+            widget.onSetRead(direction != DismissDirection.startToEnd),
         background: Container(
           color: theme.colorScheme.tertiaryContainer,
           alignment: Alignment.centerLeft,
@@ -37,59 +70,37 @@ class NotificationCard extends StatelessWidget {
           padding: const EdgeInsets.only(right: 16),
           child: const Icon(Icons.done),
         ),
-        child: ListTile(
-          leading: Icon(
-            item.notificationType.icon,
-            color: item.isNew ? theme.colorScheme.primary : null,
-          ),
-          title: Text(
-            '${formatter.format(item.createdOn)} - ${item.title}',
-            style: item.isNew
-                ? const TextStyle(fontWeight: FontWeight.bold)
-                : null,
-          ),
-          subtitle: Text(item.body, maxLines: 5),
-          trailing: PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) async {
-              if (value == 'view_device') {
-                if (item.isNew) await onSetRead(true);
-                if (context.mounted) {
-                  context.push('/devices/${item.macAddress}');
-                }
-              } else if (value == 'mark_read') {
-                await onSetRead(true);
-              } else if (value == 'mark_new') {
-                await onSetRead(false);
-              }
-            },
-            itemBuilder: (context) => [
-              if (item.macAddress != null)
-                const PopupMenuItem(
-                  value: 'view_device',
-                  child: Text('View device'),
-                ),
-              if (item.isNew)
-                const PopupMenuItem(
-                  value: 'mark_read',
-                  child: Text('Mark as read'),
-                ),
-              if (!item.isNew)
-                const PopupMenuItem(
-                  value: 'mark_new',
-                  child: Text('Mark as unread'),
-                ),
-            ],
-          ),
-          onTap: item.macAddress != null
-              ? () async {
-                  if (item.isNew) await onSetRead(true);
-                  if (context.mounted) {
-                    context.push('/devices/${item.macAddress}');
-                  }
-                }
-              : null,
-          isThreeLine: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              leading: Icon(
+                widget.item.notificationType.icon,
+                color:
+                    widget.item.isNew ? theme.colorScheme.primary : null,
+              ),
+              title: Text(
+                '${widget.formatter.format(widget.item.createdOn)} - ${widget.item.title}',
+                style: widget.item.isNew
+                    ? const TextStyle(fontWeight: FontWeight.bold)
+                    : null,
+              ),
+              subtitle: Text(
+                widget.item.body,
+                maxLines: _expanded ? null : 2,
+                overflow:
+                    _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              ),
+              onTap: () => setState(() => _expanded = !_expanded),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              child: _expanded
+                  ? _buildActions(context)
+                  : const SizedBox.shrink(),
+            ),
+          ],
         ),
       ),
     );
