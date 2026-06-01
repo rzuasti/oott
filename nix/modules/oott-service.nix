@@ -51,6 +51,11 @@ in {
       description = "When an mDNS-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address.";
       default = "2s";
     };
+    ssdp_scanner.probe_timeout = mkOption {
+      type = types.str;
+      description = "When an SSDP/UPnP-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address.";
+      default = "2s";
+    };
     notifications.method = mkOption {
       type = types.str;
       description = "For now just pushover, you can set this to none to avoid sending notifications (it will just log).";

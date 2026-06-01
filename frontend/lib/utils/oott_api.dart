@@ -8,6 +8,7 @@ import 'package:frontend/utils/backend_reachability.dart';
 import 'package:frontend/utils/pref_utils.dart';
 import '../model/arp_scanner_status.dart';
 import '../model/mdns_scanner_status.dart';
+import '../model/ssdp_scanner_status.dart';
 import '../model/device.dart';
 import '../model/device_event.dart';
 import '../model/device_summary.dart';
@@ -309,6 +310,16 @@ class BackendAPI {
       cancelToken: cancelToken,
     );
     return MdnsScannerStatus.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<SsdpScannerStatus> getSsdpScannerStatus({
+    CancelToken? cancelToken,
+  }) async {
+    final response = await _dio.get(
+      '/ssdp_scanner/status',
+      cancelToken: cancelToken,
+    );
+    return SsdpScannerStatus.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<({List<Notification> items, bool hasNextPage})> listNotifications(

@@ -8,6 +8,7 @@ Licensed under AGPL v3. See [LICENSE](LICENSE).
   * [Install OOTT using Docker](#install-oott-using-docker)
   * [Install OOTT using NixOS flakes](#install-oott-using-nixos-flakes)
   * [Configuration options](#configuration-options)
+  * [Network ports](#network-ports)
 * [Storage considerations](#storage-considerations)
 
 ## What is it?
@@ -142,6 +143,25 @@ If you are using Docker I recommend writing the config using TOML, [here](https:
 |`notifications.pushover.token`||Your pushover token goes here, just copy&paste from their website after creating the app|
 |`notifications.pushover.user_key`||User key goes here, this is the account wide code for pushover|
 |`retention.window`|`365d`|How long to retain device events and notifications. Records older than this are purged daily. Accepts duration strings (e.g. `90d`, `1y`, `6m`). Defaults to one year.|
+
+## Network ports
+OOTT binds to the following ports on the host where it runs:
+
+|Port|Protocol|Configurable|Used by|
+|----|--------|------------|-------|
+|`3000`|TCP|Yes (`web_server.port`)|REST API and web UI|
+|`5353`|UDP (multicast)|**No — fixed**|mDNS/Bonjour scanner|
+|`1900`|UDP (multicast)|**No — fixed**|SSDP/UPnP scanner|
+|`67`|UDP (broadcast)|**No — fixed**|DHCP scanner|
+
+> [!IMPORTANT]
+> The mDNS (UDP `5353`), SSDP (UDP `1900`) and DHCP (UDP `67`) ports are fixed by their respective protocols and **cannot be changed**. They must be available on the server where OOTT is installed.
+>
+> OOTT binds these sockets with address/port reuse, so it can run alongside other responders already listening on them (for example `avahi` on `5353`, `minidlna` on `1900`, or a DHCP server/relay on `67`). However, the ports must not be blocked by a host firewall, and the corresponding multicast/broadcast traffic must be allowed to reach the host — otherwise the scanners will not discover any devices.
+>
+> Port `67` is a privileged port, so OOTT must run with sufficient privileges to bind it (it already requires raw-socket access for the ARP scanner).
+>
+> When running under Docker these scanners require host networking (or an equivalent setup that exposes the host's multicast and broadcast traffic to the container); see the [sample compose file](https://github.com/rzuasti/oott/blob/main/examples/docker-compose.yml).
 
 # Storage considerations
 OOTT stores a timestamped event in the database for every device detected on every scan. Storage therefore scales with three factors: number of active devices, scan frequency, and the retention window.

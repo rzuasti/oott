@@ -23,7 +23,7 @@ For Flutter/Dart code:
 - `cd backend && ./run.sh` from the `backend/` folder - Run the backend
 - `cd frontend && ./run.sh` from the `frontend/` folder - Run the front-end for the web
 - `cd backend && ./run_tests.sh` - Run the backend tests
-- `cargo clippy` - Run the clippy linter for Rust code
+- `cd backend && ./lint.sh` - Run the clippy linter for Rust code
 - `dart analyze` - Run the Dart linter
 - `cd backend/data && ./update_mac_vendors --llm` - Update the MAC vendors list from the web and re-calculate the vedors -> device type list
 
