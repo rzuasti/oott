@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../widgets/arp_scanner_card.dart';
+import '../widgets/dhcp_scanner_card.dart';
 import '../widgets/mdns_scanner_card.dart';
 import '../widgets/ssdp_scanner_card.dart';
 
@@ -19,6 +20,8 @@ class StatusScreen extends StatelessWidget {
         const MdnsScannerCard(),
         const SizedBox(height: 8),
         const SsdpScannerCard(),
+        const SizedBox(height: 8),
+        const DhcpScannerCard(),
       ],
     );
   }

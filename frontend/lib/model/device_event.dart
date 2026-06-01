@@ -33,6 +33,7 @@ class DeviceEvent {
     'Arp' => 'ARP',
     'Mdns' => 'mDNS',
     'Ssdp' => 'SSDP/UPnP',
+    'Dhcp' => 'DHCP',
     _ => scanner,
   };
 }

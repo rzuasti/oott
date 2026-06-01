@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../model/arp_scanner_status.dart';
+import '../model/dhcp_scanner_status.dart';
 import '../model/mdns_scanner_status.dart';
 import '../model/ssdp_scanner_status.dart';
 import '../navigation.dart';
@@ -26,6 +27,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
   late final PolledValue<ArpScannerStatus> _arp;
   late final PolledValue<MdnsScannerStatus> _mdns;
   late final PolledValue<SsdpScannerStatus> _ssdp;
+  late final PolledValue<DhcpScannerStatus> _dhcp;
   Timer? _tickTimer;
 
   @override
@@ -47,6 +49,12 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     _ssdp = PolledValue<SsdpScannerStatus>(
       fetch: ({cancelToken}) =>
           BackendAPI.instance.getSsdpScannerStatus(cancelToken: cancelToken),
+      pollInterval: const Duration(seconds: 5),
+      staleErrorAfter: const Duration(seconds: 30),
+    );
+    _dhcp = PolledValue<DhcpScannerStatus>(
+      fetch: ({cancelToken}) =>
+          BackendAPI.instance.getDhcpScannerStatus(cancelToken: cancelToken),
       pollInterval: const Duration(seconds: 5),
       staleErrorAfter: const Duration(seconds: 30),
     );
@@ -87,6 +95,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     _arp.pause();
     _mdns.pause();
     _ssdp.pause();
+    _dhcp.pause();
     _tickTimer?.cancel();
     _tickTimer = null;
   }
@@ -95,6 +104,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     _arp.resume();
     _mdns.resume();
     _ssdp.resume();
+    _dhcp.resume();
     _tickTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -108,6 +118,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     _arp.dispose();
     _mdns.dispose();
     _ssdp.dispose();
+    _dhcp.dispose();
     super.dispose();
   }
 
@@ -118,15 +129,18 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
         _arp,
         _mdns,
         _ssdp,
+        _dhcp,
         BackendReachability.instance,
       ]),
       builder: (context, _) {
         final arpFreshness = effectiveFreshness(_arp);
         final mdnsFreshness = effectiveFreshness(_mdns);
         final ssdpFreshness = effectiveFreshness(_ssdp);
+        final dhcpFreshness = effectiveFreshness(_dhcp);
         if (arpFreshness == PolledFreshness.initialLoading ||
             mdnsFreshness == PolledFreshness.initialLoading ||
-            ssdpFreshness == PolledFreshness.initialLoading) {
+            ssdpFreshness == PolledFreshness.initialLoading ||
+            dhcpFreshness == PolledFreshness.initialLoading) {
           return const Card(
             child: Padding(
               padding: EdgeInsets.all(16),
@@ -138,6 +152,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
         final (arpColor, arpText) = _resolveArp(context, arpFreshness);
         final (mdnsColor, mdnsText) = _resolveMdns(context, mdnsFreshness);
         final (ssdpColor, ssdpText) = _resolveSsdp(context, ssdpFreshness);
+        final (dhcpColor, dhcpText) = _resolveDhcp(context, dhcpFreshness);
 
         return Card(
           clipBehavior: Clip.antiAlias,
@@ -178,6 +193,15 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
                     ssdpText,
                     _ssdp,
                     ssdpFreshness,
+                  ),
+                  const SizedBox(height: 8),
+                  _scannerRow(
+                    context,
+                    dhcpColor,
+                    'DHCP',
+                    dhcpText,
+                    _dhcp,
+                    dhcpFreshness,
                   ),
                 ],
               ),
@@ -290,6 +314,31 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     final status = _ssdp.value!;
     final elapsed = DateTime.now()
         .difference(_ssdp.lastSuccessAt!)
+        .inSeconds
+        .toDouble();
+    if (status.isListening) {
+      if (status.lastDeviceSeenSecondsAgo != null) {
+        final secs = status.lastDeviceSeenSecondsAgo! + elapsed;
+        return (successColor, 'Last device seen ${formatSeconds(secs)} ago');
+      }
+      return (successColor, 'No devices seen yet');
+    }
+    return (neutralColor, 'Not yet started');
+  }
+
+  (Color, String) _resolveDhcp(
+    BuildContext context,
+    PolledFreshness freshness,
+  ) {
+    final theme = Theme.of(context);
+    final successColor = theme.extension<AppColorExtension>()!.success;
+    final neutralColor = theme.colorScheme.outline;
+    if (freshness == PolledFreshness.error) {
+      return (theme.colorScheme.error, 'Error');
+    }
+    final status = _dhcp.value!;
+    final elapsed = DateTime.now()
+        .difference(_dhcp.lastSuccessAt!)
         .inSeconds
         .toDouble();
     if (status.isListening) {

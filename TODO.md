@@ -17,6 +17,7 @@
 ## Frontend
 
 - [x] Add the SSDP/UPnP status to the status screen and home screen
+- [x] Add the DHCP scanner status to the status screen and home screen
 - [x] In the notifications list, modify the behavior so that you can fully see the text of the notification before navigating to the device details
 - [ ] Can we add front-end tests?
 - [x] In the devices list, add a color dot to reflect the last seen status (less than 10 minutes green, otherwise grey)

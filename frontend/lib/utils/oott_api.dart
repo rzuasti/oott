@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:frontend/utils/backend_reachability.dart';
 import 'package:frontend/utils/pref_utils.dart';
 import '../model/arp_scanner_status.dart';
+import '../model/dhcp_scanner_status.dart';
 import '../model/mdns_scanner_status.dart';
 import '../model/ssdp_scanner_status.dart';
 import '../model/device.dart';
@@ -320,6 +321,16 @@ class BackendAPI {
       cancelToken: cancelToken,
     );
     return SsdpScannerStatus.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<DhcpScannerStatus> getDhcpScannerStatus({
+    CancelToken? cancelToken,
+  }) async {
+    final response = await _dio.get(
+      '/dhcp_scanner/status',
+      cancelToken: cancelToken,
+    );
+    return DhcpScannerStatus.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<({List<Notification> items, bool hasNextPage})> listNotifications(
