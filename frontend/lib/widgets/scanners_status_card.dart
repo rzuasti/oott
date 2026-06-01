@@ -219,7 +219,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
         0.0,
         double.infinity,
       );
-      return (Colors.amber, 'Next run in ${formatSeconds(remaining)}');
+      return (Colors.grey, 'Next run in ${formatSeconds(remaining)}');
     }
     return (Colors.grey, 'Not yet started');
   }

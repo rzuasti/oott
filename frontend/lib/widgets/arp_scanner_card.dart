@@ -31,7 +31,7 @@ class ArpScannerCard extends StatelessWidget {
         double.infinity,
       );
       return (
-        color: Colors.amber,
+        color: Colors.grey,
         label: 'Waiting for next run',
         sublabels: ['Next run in ${formatSeconds(remaining)}'],
       );
