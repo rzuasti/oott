@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../model/arp_scanner_status.dart';
 import '../model/mdns_scanner_status.dart';
+import '../model/ssdp_scanner_status.dart';
 import '../navigation.dart';
 import '../theme/app_colors.dart';
 import '../utils/backend_reachability.dart';
@@ -24,6 +25,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     with RouteAware, WidgetsBindingObserver {
   late final PolledValue<ArpScannerStatus> _arp;
   late final PolledValue<MdnsScannerStatus> _mdns;
+  late final PolledValue<SsdpScannerStatus> _ssdp;
   Timer? _tickTimer;
 
   @override
@@ -39,6 +41,12 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     _mdns = PolledValue<MdnsScannerStatus>(
       fetch: ({cancelToken}) =>
           BackendAPI.instance.getMdnsScannerStatus(cancelToken: cancelToken),
+      pollInterval: const Duration(seconds: 5),
+      staleErrorAfter: const Duration(seconds: 30),
+    );
+    _ssdp = PolledValue<SsdpScannerStatus>(
+      fetch: ({cancelToken}) =>
+          BackendAPI.instance.getSsdpScannerStatus(cancelToken: cancelToken),
       pollInterval: const Duration(seconds: 5),
       staleErrorAfter: const Duration(seconds: 30),
     );
@@ -78,6 +86,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
   void _pausePolling() {
     _arp.pause();
     _mdns.pause();
+    _ssdp.pause();
     _tickTimer?.cancel();
     _tickTimer = null;
   }
@@ -85,6 +94,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
   void _resumePolling() {
     _arp.resume();
     _mdns.resume();
+    _ssdp.resume();
     _tickTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -97,6 +107,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     _tickTimer?.cancel();
     _arp.dispose();
     _mdns.dispose();
+    _ssdp.dispose();
     super.dispose();
   }
 
@@ -106,13 +117,16 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
       listenable: Listenable.merge([
         _arp,
         _mdns,
+        _ssdp,
         BackendReachability.instance,
       ]),
       builder: (context, _) {
         final arpFreshness = effectiveFreshness(_arp);
         final mdnsFreshness = effectiveFreshness(_mdns);
+        final ssdpFreshness = effectiveFreshness(_ssdp);
         if (arpFreshness == PolledFreshness.initialLoading ||
-            mdnsFreshness == PolledFreshness.initialLoading) {
+            mdnsFreshness == PolledFreshness.initialLoading ||
+            ssdpFreshness == PolledFreshness.initialLoading) {
           return const Card(
             child: Padding(
               padding: EdgeInsets.all(16),
@@ -123,6 +137,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
 
         final (arpColor, arpText) = _resolveArp(context, arpFreshness);
         final (mdnsColor, mdnsText) = _resolveMdns(context, mdnsFreshness);
+        final (ssdpColor, ssdpText) = _resolveSsdp(context, ssdpFreshness);
 
         return Card(
           clipBehavior: Clip.antiAlias,
@@ -154,6 +169,15 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
                     mdnsText,
                     _mdns,
                     mdnsFreshness,
+                  ),
+                  const SizedBox(height: 8),
+                  _scannerRow(
+                    context,
+                    ssdpColor,
+                    'SSDP/UPnP',
+                    ssdpText,
+                    _ssdp,
+                    ssdpFreshness,
                   ),
                 ],
               ),
@@ -228,7 +252,10 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     return (neutralColor, 'Not yet started');
   }
 
-  (Color, String) _resolveMdns(BuildContext context, PolledFreshness freshness) {
+  (Color, String) _resolveMdns(
+    BuildContext context,
+    PolledFreshness freshness,
+  ) {
     final theme = Theme.of(context);
     final successColor = theme.extension<AppColorExtension>()!.success;
     final neutralColor = theme.colorScheme.outline;
@@ -238,6 +265,31 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     final status = _mdns.value!;
     final elapsed = DateTime.now()
         .difference(_mdns.lastSuccessAt!)
+        .inSeconds
+        .toDouble();
+    if (status.isListening) {
+      if (status.lastDeviceSeenSecondsAgo != null) {
+        final secs = status.lastDeviceSeenSecondsAgo! + elapsed;
+        return (successColor, 'Last device seen ${formatSeconds(secs)} ago');
+      }
+      return (successColor, 'No devices seen yet');
+    }
+    return (neutralColor, 'Not yet started');
+  }
+
+  (Color, String) _resolveSsdp(
+    BuildContext context,
+    PolledFreshness freshness,
+  ) {
+    final theme = Theme.of(context);
+    final successColor = theme.extension<AppColorExtension>()!.success;
+    final neutralColor = theme.colorScheme.outline;
+    if (freshness == PolledFreshness.error) {
+      return (theme.colorScheme.error, 'Error');
+    }
+    final status = _ssdp.value!;
+    final elapsed = DateTime.now()
+        .difference(_ssdp.lastSuccessAt!)
         .inSeconds
         .toDouble();
     if (status.isListening) {

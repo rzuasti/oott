@@ -32,6 +32,7 @@ class DeviceEvent {
   String get scannerLabel => switch (scanner) {
     'Arp' => 'ARP',
     'Mdns' => 'mDNS',
+    'Ssdp' => 'SSDP/UPnP',
     _ => scanner,
   };
 }
