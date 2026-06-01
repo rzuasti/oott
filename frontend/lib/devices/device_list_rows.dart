@@ -218,9 +218,8 @@ Widget _cellContent(
 ) {
   switch (column) {
     case DeviceSortColumn.name:
-      return Text(
-        _displayName(device),
-        overflow: TextOverflow.ellipsis,
+      return _OverflowTooltipText(
+        text: _displayName(device),
         style: theme.textTheme.bodyMedium,
       );
     case DeviceSortColumn.owner:
@@ -233,21 +232,18 @@ Widget _cellContent(
           ),
         );
       }
-      return Text(
-        device.owner.isEmpty ? '—' : device.owner,
-        overflow: TextOverflow.ellipsis,
+      return _OverflowTooltipText(
+        text: device.owner.isEmpty ? '—' : device.owner,
         style: theme.textTheme.bodyMedium,
       );
     case DeviceSortColumn.macAddress:
-      return Text(
-        device.macAddress,
-        overflow: TextOverflow.ellipsis,
+      return _OverflowTooltipText(
+        text: device.macAddress,
         style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
       );
     case DeviceSortColumn.ipAddress:
-      return Text(
-        device.ipv4Address,
-        overflow: TextOverflow.ellipsis,
+      return _OverflowTooltipText(
+        text: device.ipv4Address,
         style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
       );
     case DeviceSortColumn.lastSeen:
@@ -256,20 +252,48 @@ Widget _cellContent(
           _StatusDot(lastSeen: device.lastSeen),
           const SizedBox(width: 6),
           Flexible(
-            child: Text(
-              formatter.format(device.lastSeen),
-              overflow: TextOverflow.ellipsis,
+            child: _OverflowTooltipText(
+              text: formatter.format(device.lastSeen),
               style: theme.textTheme.bodyMedium,
             ),
           ),
         ],
       );
     case DeviceSortColumn.vendor:
-      return Text(
-        device.vendor.isEmpty ? '—' : device.vendor,
-        overflow: TextOverflow.ellipsis,
+      return _OverflowTooltipText(
+        text: device.vendor.isEmpty ? '—' : device.vendor,
         style: theme.textTheme.bodyMedium,
       );
+  }
+}
+
+class _OverflowTooltipText extends StatelessWidget {
+  final String text;
+  final TextStyle? style;
+
+  const _OverflowTooltipText({required this.text, this.style});
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveStyle = DefaultTextStyle.of(context).style.merge(style);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: text, style: effectiveStyle),
+          maxLines: 1,
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout(maxWidth: constraints.maxWidth);
+        final child = Text(
+          text,
+          overflow: TextOverflow.ellipsis,
+          style: style,
+        );
+        return painter.didExceedMaxLines
+            ? Tooltip(message: text, child: child)
+            : child;
+      },
+    );
   }
 }
 
@@ -301,10 +325,7 @@ class DeviceRowCompact extends StatelessWidget {
         title: Row(
           children: [
             Flexible(
-              child: Text(
-                _displayName(device),
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: _OverflowTooltipText(text: _displayName(device)),
             ),
             const SizedBox(width: 8),
             if (device.isRegistered)
@@ -323,18 +344,19 @@ class DeviceRowCompact extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${device.isRegistered ? (device.owner.isEmpty ? '—' : device.owner) : device.ipv4Address} · ${device.macAddress}',
+              _OverflowTooltipText(
+                text:
+                    '${device.isRegistered ? (device.owner.isEmpty ? '—' : device.owner) : device.ipv4Address} · ${device.macAddress}',
               ),
               if (!device.isRegistered && device.vendor.isNotEmpty)
-                Text(device.vendor),
+                _OverflowTooltipText(text: device.vendor),
               Row(
                 children: [
                   _StatusDot(lastSeen: device.lastSeen),
                   const SizedBox(width: 6),
                   Flexible(
-                    child: Text(
-                      'Last seen: ${formatter.format(device.lastSeen)}',
+                    child: _OverflowTooltipText(
+                      text: 'Last seen: ${formatter.format(device.lastSeen)}',
                     ),
                   ),
                 ],
