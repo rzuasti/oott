@@ -12,7 +12,7 @@
 
 ## Frontend
 
-- [ ] In the notifications list, modify the behavior so that you can fully see the text of the notification before navigating to the device details
+- [x] In the notifications list, modify the behavior so that you can fully see the text of the notification before navigating to the device details
 - [ ] Can we add front-end tests?
 - [x] In the devices list, add a color dot to reflect the last seen status (less than 10 minutes green, otherwise grey)
 - [x] Change the URI for the homepage from /notifications to /home
