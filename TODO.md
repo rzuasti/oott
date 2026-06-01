@@ -9,11 +9,12 @@
 - [ ] Implement the pushover API call directly to support HTML content and review notification text to use it
 - [x] Add SSDP/uPNP scanner
   - [x] Make sure the new config options are in the TOML files and Nix module
-  - [ ] Document in README.md the port needs/bindings
+  - [x] Document in README.md the port needs/bindings
 - [ ] Add DHCP scanner
 
 ## Frontend
 
+- [ ] Add the SSDP/UPnP status to the status screen and home screen
 - [x] In the notifications list, modify the behavior so that you can fully see the text of the notification before navigating to the device details
 - [ ] Can we add front-end tests?
 - [x] In the devices list, add a color dot to reflect the last seen status (less than 10 minutes green, otherwise grey)
