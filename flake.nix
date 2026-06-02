@@ -34,9 +34,20 @@
     # Development shell to test the app locally
     devShells = forEachSystem (system: let
       pythonEnv = pkgsBySystem.${system}.python3.withPackages (ps: [ps.anthropic]);
+
+      # Pin the Android SDK composition so the emulator system image is always
+      # available and reproducible across machines, instead of relying on the
+      # contents of the default androidPkgs bundle (which can drift over time).
+      androidComposition = pkgsBySystem.${system}.androidenv.composeAndroidPackages {
+        platformVersions = ["36"]; # matches Flutter 3.41 compileSdk/targetSdk
+        includeEmulator = true;
+        includeSystemImages = true;
+        systemImageTypes = ["google_apis"];
+        abiVersions = ["x86_64"];
+      };
     in {
       default = pkgsBySystem.${system}.mkShell rec {
-        androidSdk = pkgsBySystem.${system}.androidenv.androidPkgs.androidsdk;
+        androidSdk = androidComposition.androidsdk;
         ANDROID_SDK_ROOT = "${androidSdk}/libexec/android-sdk";
 
         nativeBuildInputs = with pkgsBySystem.${system}; [
@@ -60,6 +71,22 @@
         # fish > all
         shellHook = ''
           export PATH="${pythonEnv}/bin:$PATH"
+
+          # Create the reproducible Android emulator (AVD) on first entry.
+          # The system image is pinned by the flake, but an AVD is mutable state
+          # that lives in ~/.android/avd and cannot reside in the read-only Nix
+          # store, so we (re)create it here. Idempotent: a no-op once it exists.
+          export ANDROID_AVD_NAME="oott_api36"
+          if ! emulator -list-avds 2>/dev/null | grep -qx "$ANDROID_AVD_NAME"; then
+            echo "Creating Android emulator '$ANDROID_AVD_NAME'..."
+            echo no | avdmanager create avd \
+              --name "$ANDROID_AVD_NAME" \
+              --package "system-images;android-36;google_apis;x86_64" \
+              --device pixel_6 >/dev/null 2>&1 \
+              && echo "  Android emulator '$ANDROID_AVD_NAME' ready." \
+              || echo "  WARNING: failed to create Android emulator '$ANDROID_AVD_NAME'."
+          fi
+
           DEV_SHELL=oott exec fish
         '';
       };
