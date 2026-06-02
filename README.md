@@ -153,34 +153,36 @@ modules = [
 ### Full list of configuration options
 The system configuration lives in a single config file, which you can write in TOML, JSON or YAML. With Docker, TOML is recommended — the [full sample config](https://github.com/rzuasti/oott/blob/main/examples/sample_oott.toml) lists every supported option with comments. With the Nix flake, set the same options through the service definition (see above).
 
-|Option|Sample value|Description|
+Options marked **Required** have no built-in default and must be set in your config file. Everything else falls back to the default shown if you omit it.
+
+|Option|Default value|Description|
 |------|-------------|-----------|
-|`database.path`|`/var/lib/oott.db`|Location of the system database. Must be `/db/oott.db` when using the Docker image.|
-|`networking.interface`|`eno1`|Network interface to use for scans. Optional — if not set, the first non-loopback connected interface is used automatically.|
-|`log.level`|`info`|Log level to use (trace, debug, info, warn, error)|
-|`web_server.ip_address`|`0.0.0.0`|Address the API and web UI bind to. Use `0.0.0.0` to bind all interfaces.|
-|`web_server.port`|`3000`|Port the API and web UI listen on.|
-|`web_server.api_key`|`CHANGE_ME`|API key the app must present to use the backend. Always change this from the default.|
-|`arp_scanner.enabled`|`true`|Whether to run the ARP scanner. The whole `[arp_scanner]` section is optional; omit it to use the defaults below. Defaults to enabled; set to `false` to turn it off.|
+|`database.path`|**Required**|Location of the system database. Must be `/db/oott.db` when using the Docker image.|
+|`networking.interface`|auto-detected|Network interface to use for scans. Optional — if not set, the first non-loopback connected interface is used automatically.|
+|`log.level`|**Required**|Log level to use (trace, debug, info, warn, error)|
+|`web_server.ip_address`|**Required**|Address the API and web UI bind to. Use `0.0.0.0` to bind all interfaces.|
+|`web_server.port`|**Required**|Port the API and web UI listen on.|
+|`web_server.api_key`|**Required**|API key the app must present to use the backend.|
+|`arp_scanner.enabled`|`true`|Whether to run the ARP scanner. The whole `[arp_scanner]` section is optional; omit it to use the defaults below. Set to `false` to turn it off.|
 |`arp_scanner.wait_between_scans`|`30m`|Time to wait between each network scan (you can express it in seconds, minutes, hours, etc. as a suffix - for example: 30s, 10m, 1h)|
 |`arp_scanner.sender_timeout`|`1m`|If the ARP sender process takes longer than this it will be stopped (for a class C network - 254 IPs - it should take less than a minute)|
 |`arp_scanner.scan_duration`|`10m`|How long to wait for response packets on each scan (5m to 10m is a good timeframe for a class B or C network)|
-|`mdns_scanner.enabled`|`true`|Whether to run the mDNS/Bonjour scanner. Defaults to enabled; set to `false` to turn it off.|
+|`mdns_scanner.enabled`|`true`|Whether to run the mDNS/Bonjour scanner. Set to `false` to turn it off.|
 |`mdns_scanner.probe_timeout`|`2s`|When an mDNS-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address|
-|`ssdp_scanner.enabled`|`true`|Whether to run the SSDP/UPnP scanner. Defaults to enabled; set to `false` to turn it off.|
+|`ssdp_scanner.enabled`|`true`|Whether to run the SSDP/UPnP scanner. Set to `false` to turn it off.|
 |`ssdp_scanner.probe_timeout`|`2s`|When an SSDP/UPnP-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address|
-|`dhcp_scanner.enabled`|`true`|Whether to run the DHCP scanner. Defaults to enabled; set to `false` to turn it off.|
-|`snmp_scanner.enabled`|`true` when the section is present, otherwise off|Whether to run the SNMP scanner. The whole `[snmp_scanner]` section is optional and the scanner stays off unless you add it; within the section it defaults to enabled.|
-|`snmp_scanner.target`||SNMP agent to poll, as `host:port` (e.g. your gateway: `192.168.1.1:161`). The scanner reads the agent's ARP table over SNMPv2c — no local probing.|
-|`snmp_scanner.community`||SNMPv2c read-only community string. Use a read-only community and never commit a real secret.|
+|`dhcp_scanner.enabled`|`true`|Whether to run the DHCP scanner. Set to `false` to turn it off.|
+|`snmp_scanner.enabled`|`false`|Whether to run the SNMP scanner. The whole `[snmp_scanner]` section is optional and the scanner stays off unless you add it; once the section is present it defaults to `true`.|
+|`snmp_scanner.target`|**Required**|SNMP agent to poll, as `host:port` (e.g. your gateway: `192.168.1.1:161`). The scanner reads the agent's ARP table over SNMPv2c — no local probing. Required when the `[snmp_scanner]` section is present.|
+|`snmp_scanner.community`|**Required**|SNMPv2c read-only community string. Use a read-only community and never commit a real secret. Required when the `[snmp_scanner]` section is present.|
 |`snmp_scanner.wait_between_scans`|`10m`|Time to wait between polls. Keep it well under the agent's ARP cache timeout so active devices aren't missed.|
 |`snmp_scanner.timeout`|`5s`|Per-poll SNMP request timeout.|
-|`notifications.method`|`pushover`|For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)|
-|`notifications.notify_when_not_seen_for`|`1w`|Send a notification if a device comes back online after not being seen for this timeframe (you can use hours, weeks, etc.)|
-|`notifications.pushover.token`||Your pushover token goes here, just copy&paste from their website after creating the app|
-|`notifications.pushover.user_key`||User key goes here, this is the account wide code for pushover|
-|`retention.window`|`365d`|How long to retain device events and notifications. Records older than this are purged daily. Accepts duration strings (e.g. `90d`, `1y`, `6m`). Defaults to one year.|
-|`device_events.deduplication_window`|`1m`|Suppress duplicate device events: if the same scanner sees the same device (same MAC and IPv4) again within this window, only one event is recorded. Accepts duration strings (e.g. `30s`, `1m`, `5m`). Defaults to one minute.|
+|`notifications.method`|**Required**|For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)|
+|`notifications.notify_when_not_seen_for`|**Required**|Send a notification if a device comes back online after not being seen for this timeframe (you can use hours, weeks, etc.)|
+|`notifications.pushover.token`|**Required**|Your pushover token goes here, just copy&paste from their website after creating the app (may be left empty when `method` is `none`)|
+|`notifications.pushover.user_key`|**Required**|User key goes here, this is the account wide code for pushover (may be left empty when `method` is `none`)|
+|`retention.window`|`365d`|How long to retain device events and notifications. Records older than this are purged daily. Accepts duration strings (e.g. `90d`, `1y`, `6m`).|
+|`device_events.deduplication_window`|`1m`|Suppress duplicate device events: if the same scanner sees the same device (same MAC and IPv4) again within this window, only one event is recorded. Accepts duration strings (e.g. `30s`, `1m`, `5m`).|
 
 ### Using HTTPS and domain names with the mobile apps
 To reach the backend through a domain name, or from outside the local network, put it behind a reverse proxy (nginx, Caddy, Traefik, …) that terminates TLS with a **valid certificate from a trusted CA** (for example [Let's Encrypt](https://letsencrypt.org/)), then point the app at the HTTPS URL (e.g. `https://oott.example.com`). This works on every platform — including iOS — with no further configuration.
