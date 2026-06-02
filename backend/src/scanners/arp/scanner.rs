@@ -1,8 +1,7 @@
 use super::finder;
 use super::status;
-use crate::db;
-use crate::events;
 use crate::model::device_events::DeviceEventScanner;
+use crate::scanners::common::pipeline;
 use crate::settings::get_settings;
 use chrono::Utc;
 use log::{debug, info};
@@ -27,42 +26,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
         // Process found devices
         for device in devices.iter() {
             debug!("Online device found {}", device);
-
-            // Read device from database
-            let recorded_device_result = db::devices::read(device.mac_address.clone());
-
-            match recorded_device_result {
-                Some(recorded_device) => {
-                    // If it exists update its last seen date
-                    debug!(
-                        "Device found in database {}. Updating to {}.",
-                        recorded_device, device
-                    );
-                    db::devices::seen(
-                        device.mac_address.clone(),
-                        device.ipv4_address.clone(),
-                        device.vendor.clone(),
-                        device.device_type.clone(),
-                        device.name.clone(),
-                    )?;
-                    events::trigger_existing_device(
-                        recorded_device,
-                        device.clone(),
-                        DeviceEventScanner::Arp,
-                    )
-                    .ok(); // Ignoring errors here, do not stop loop if notification delivery fails
-                }
-                None => {
-                    // If it doesn't exist insert it
-                    debug!(
-                        "Device with MAC address {} not found in database. Inserting it.",
-                        device.mac_address
-                    );
-
-                    db::devices::insert(device.clone())?;
-                    events::trigger_new_device(device.clone(), DeviceEventScanner::Arp).ok(); // Ignoring errors here, do not stop loop if notification delivery fails
-                }
-            };
+            pipeline::record_sighting(device.clone(), DeviceEventScanner::Arp);
         }
 
         let wait = Duration::from(get_settings().arp_scanner.wait_between_scans);

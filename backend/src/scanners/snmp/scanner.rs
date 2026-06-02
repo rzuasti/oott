@@ -1,11 +1,10 @@
 use super::finder;
 use super::status;
-use crate::db;
-use crate::events;
 use crate::model::device_events::DeviceEventScanner;
+use crate::scanners::common::pipeline;
 use crate::settings::get_settings;
 use chrono::Utc;
-use log::{debug, error, info};
+use log::{error, info};
 use tokio::time::{Duration, sleep};
 
 /// Periodically poll an SNMP agent (typically the gateway) for its ARP/neighbour cache and feed
@@ -35,7 +34,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
                 info!("SNMP poll found {} devices in the ARP cache", devices.len());
                 status::record_scan(devices.len() as u64);
                 for device in devices.iter() {
-                    process_device(device);
+                    pipeline::record_sighting(device.clone(), DeviceEventScanner::Snmp);
                 }
             }
             Err(err) => error!("SNMP poll of {} failed: {err}", config.target),
@@ -49,37 +48,5 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
         );
         status::set_waiting(next_scan_at);
         sleep(wait).await;
-    }
-}
-
-fn process_device(device: &crate::model::devices::Device) {
-    match db::devices::read(device.mac_address.clone()) {
-        Some(recorded_device) => {
-            debug!("SNMP sighting of known device {}; updating", device.mac_address);
-            if let Err(err) = db::devices::seen(
-                device.mac_address.clone(),
-                device.ipv4_address.clone(),
-                device.vendor.clone(),
-                device.device_type.clone(),
-                device.name.clone(),
-            ) {
-                error!("Failed to update SNMP device {}: {err}", device.mac_address);
-                return;
-            }
-            // Ignoring errors: do not stop the loop if notification delivery fails.
-            events::trigger_existing_device(recorded_device, device.clone(), DeviceEventScanner::Snmp)
-                .ok();
-        }
-        None => {
-            debug!(
-                "New device {} discovered via SNMP; inserting",
-                device.mac_address
-            );
-            if let Err(err) = db::devices::insert(device.clone()) {
-                error!("Failed to insert SNMP device {}: {err}", device.mac_address);
-                return;
-            }
-            events::trigger_new_device(device.clone(), DeviceEventScanner::Snmp).ok();
-        }
     }
 }

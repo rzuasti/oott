@@ -1,17 +1,13 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
 
-use chrono::Local;
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 
 use super::finder;
 use super::status;
-use crate::data::mac_vendor_finder;
-use crate::data::vendor_device_type_finder;
-use crate::db;
-use crate::events;
 use crate::model::device_events::DeviceEventScanner;
-use crate::model::devices::Device;
+use crate::scanners::common::enrichment::build_device;
+use crate::scanners::common::pipeline;
 use crate::settings::get_settings;
 
 /// Passively listen for SSDP/UPnP NOTIFY announcements and feed discovered devices into the same
@@ -76,52 +72,10 @@ async fn process_announcement(
             }
         };
 
-    let mut vendor = mac_vendor_finder::find(mac.get(0..8).unwrap_or("").to_string());
-    // Privacy MACs are locally administered and have no real OUI, so the lookup above fails.
-    // Fall back to the vendor-specific service strings the device advertises (SSDP NT URNs
-    // typically won't match this lookup, but the call shape mirrors the mDNS scanner).
-    if vendor.is_empty() && crate::utils::network::is_locally_administered(&mac) {
-        vendor = crate::data::service_vendor_finder::find(&device_types);
-    }
-    let mut device = Device::new(
-        mac.clone(),
-        src_ip.to_string(),
-        vendor,
-        Local::now().to_utc(),
-    );
-    device.device_type = vendor_device_type_finder::find(&device.vendor);
-    device.name = server_hint;
+    // The advertised SSDP NT device-type URNs rarely match the vendor lookup, but the call shape
+    // mirrors the mDNS scanner so build_device can still deduce a vendor for privacy MACs.
+    let device = build_device(mac.clone(), src_ip.to_string(), &device_types, server_hint);
 
-    match db::devices::read(mac.clone()) {
-        Some(recorded) => {
-            debug!("SSDP sighting of known device {mac}; updating");
-            // Keep the previously stored name (likely a proper hostname from mDNS) rather than
-            // overwriting it with the SERVER header string.
-            if recorded.name.is_some() {
-                device.name = recorded.name.clone();
-            }
-            if let Err(err) = db::devices::seen(
-                device.mac_address.clone(),
-                device.ipv4_address.clone(),
-                device.vendor.clone(),
-                device.device_type.clone(),
-                device.name.clone(),
-            ) {
-                error!("Failed to update SSDP device {mac}: {err}");
-                return;
-            }
-            // Ignoring errors: do not stop the listener if notification delivery fails
-            events::trigger_existing_device(recorded, device, DeviceEventScanner::Ssdp).ok();
-        }
-        None => {
-            debug!("New device {mac} discovered via SSDP; inserting");
-            if let Err(err) = db::devices::insert(device.clone()) {
-                error!("Failed to insert SSDP device {mac}: {err}");
-                return;
-            }
-            events::trigger_new_device(device, DeviceEventScanner::Ssdp).ok();
-        }
-    }
-
+    pipeline::record_sighting(device, DeviceEventScanner::Ssdp);
     status::record_discovery(&mac);
 }

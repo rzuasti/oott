@@ -5,12 +5,10 @@ use crate::model::device_events::{DeviceEvent, DeviceEventScanner, DeviceEventTy
 use crate::model::devices::{Device, DeviceSummary};
 use crate::model::notifications::{Notification, NotificationType};
 use crate::settings::get_settings;
-use crate::web_server::arp_scanner::ArpScannerStatusResponse;
 use crate::web_server::devices::{RegisterDevicePayload, UpdateDevicePayload};
-use crate::web_server::dhcp_scanner::DhcpScannerStatusResponse;
-use crate::web_server::mdns_scanner::MdnsScannerStatusResponse;
-use crate::web_server::snmp_scanner::SnmpScannerStatusResponse;
-use crate::web_server::ssdp_scanner::SsdpScannerStatusResponse;
+use crate::web_server::scanner_status::{
+    ActiveScannerStatusResponse, PassiveScannerStatusResponse,
+};
 use axum::Json;
 use axum::extract::Request;
 use axum::http::StatusCode;
@@ -33,6 +31,7 @@ pub mod devices;
 pub mod dhcp_scanner;
 pub mod mdns_scanner;
 pub mod notifications;
+pub mod scanner_status;
 pub mod snmp_scanner;
 pub mod ssdp_scanner;
 pub mod utils;
@@ -74,11 +73,8 @@ pub mod utils;
         DeviceEvent,
         DeviceEventType,
         DeviceEventScanner,
-        ArpScannerStatusResponse,
-        MdnsScannerStatusResponse,
-        SsdpScannerStatusResponse,
-        DhcpScannerStatusResponse,
-        SnmpScannerStatusResponse,
+        ActiveScannerStatusResponse,
+        PassiveScannerStatusResponse,
     )),
     modifiers(&SecurityAddon),
     tags(

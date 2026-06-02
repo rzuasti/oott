@@ -1,7 +1,5 @@
-use crate::data::mac_vendor_finder;
-use crate::data::vendor_device_type_finder;
 use crate::model::devices::Device;
-use chrono::Local;
+use crate::scanners::common::enrichment::build_device;
 use duration_string::DurationString;
 use log::{debug, info, trace};
 use pnet::datalink::{DataLinkReceiver, DataLinkSender, NetworkInterface};
@@ -99,21 +97,10 @@ pub async fn listen_for_packets(
                 if arp_packet.get_target_proto_addr() == ipv4_net.ip() {
                     let packet_mac_address = arp_packet.get_sender_hw_addr().to_string();
                     let packet_ip_address = arp_packet.get_sender_proto_addr().to_string();
-                    let packet_vendor = mac_vendor_finder::find(
-                        packet_mac_address.get(0..8).unwrap_or("").to_string(),
-                    );
 
-                    debug!(
-                        "Found online  device - IP addr={} - MAC addr={} - vendor={}",
-                        packet_ip_address, packet_mac_address, packet_vendor
-                    );
-                    let mut device = Device::new(
-                        packet_mac_address,
-                        packet_ip_address,
-                        packet_vendor,
-                        Local::now().to_utc(),
-                    );
-                    device.device_type = vendor_device_type_finder::find(&device.vendor);
+                    // ARP carries no hostname or service hints, so vendor comes from the OUI only.
+                    let device = build_device(packet_mac_address, packet_ip_address, &[], None);
+                    debug!("Found online device {device}");
                     devices.push(device);
                 }
             }

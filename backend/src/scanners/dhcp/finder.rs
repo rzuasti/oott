@@ -4,6 +4,8 @@ use log::{debug, info};
 use socket2::{Domain, Protocol, Socket, Type};
 use tokio::net::UdpSocket;
 
+use crate::utils::network::format_mac;
+
 const DHCP_SERVER_PORT: u16 = 67;
 
 // DHCP/BOOTP fixed-header field offsets (RFC 2131).
@@ -162,15 +164,6 @@ pub fn parse_packet(buf: &[u8]) -> Option<DhcpDiscovery> {
     })
 }
 
-/// Format 6 raw MAC bytes as a lowercase colon-separated string.
-fn format_mac(bytes: &[u8]) -> String {
-    bytes
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect::<Vec<_>>()
-        .join(":")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,7 +177,8 @@ mod tests {
         let ci = ciaddr.octets();
         buf[CIADDR_OFFSET..CIADDR_OFFSET + 4].copy_from_slice(&ci);
         // chaddr: aa:bb:cc:dd:ee:ff
-        buf[CHADDR_OFFSET..CHADDR_OFFSET + 6].copy_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff]);
+        buf[CHADDR_OFFSET..CHADDR_OFFSET + 6]
+            .copy_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff]);
         buf[MAGIC_COOKIE_OFFSET..OPTIONS_OFFSET].copy_from_slice(&MAGIC_COOKIE);
         buf.extend_from_slice(options);
         buf.push(OPTION_END);
@@ -201,7 +195,13 @@ mod tests {
         options.extend_from_slice(&[OPTION_HOSTNAME, 6, b'l', b'a', b'p', b't', b'o', b'p']);
         options.extend_from_slice(&[OPTION_REQUESTED_IP, 4, 192, 168, 1, 50]);
 
-        let buf = build_packet(OP_BOOTREQUEST, HTYPE_ETHERNET, HLEN_ETHERNET, Ipv4Addr::UNSPECIFIED, &options);
+        let buf = build_packet(
+            OP_BOOTREQUEST,
+            HTYPE_ETHERNET,
+            HLEN_ETHERNET,
+            Ipv4Addr::UNSPECIFIED,
+            &options,
+        );
         let parsed = parse_packet(&buf).expect("discover packet");
         assert_eq!(parsed.mac, "aa:bb:cc:dd:ee:ff");
         assert_eq!(parsed.hostname.as_deref(), Some("laptop"));
@@ -229,7 +229,13 @@ mod tests {
     #[test]
     fn test_parse_discover_without_ip_yields_none_hint() {
         let options = message_type_option(DHCP_DISCOVER);
-        let buf = build_packet(OP_BOOTREQUEST, HTYPE_ETHERNET, HLEN_ETHERNET, Ipv4Addr::UNSPECIFIED, &options);
+        let buf = build_packet(
+            OP_BOOTREQUEST,
+            HTYPE_ETHERNET,
+            HLEN_ETHERNET,
+            Ipv4Addr::UNSPECIFIED,
+            &options,
+        );
         let parsed = parse_packet(&buf).expect("discover packet");
         assert_eq!(parsed.mac, "aa:bb:cc:dd:ee:ff");
         assert_eq!(parsed.hostname, None);
@@ -240,7 +246,13 @@ mod tests {
     fn test_parse_server_reply_returns_none() {
         // op = 2 (BOOTREPLY) — a server message, ignored.
         let options = message_type_option(DHCP_DISCOVER);
-        let buf = build_packet(2, HTYPE_ETHERNET, HLEN_ETHERNET, Ipv4Addr::UNSPECIFIED, &options);
+        let buf = build_packet(
+            2,
+            HTYPE_ETHERNET,
+            HLEN_ETHERNET,
+            Ipv4Addr::UNSPECIFIED,
+            &options,
+        );
         assert!(parse_packet(&buf).is_none());
     }
 
@@ -248,7 +260,13 @@ mod tests {
     fn test_parse_other_message_type_returns_none() {
         // message type 5 = ACK (server->client), not a client request.
         let options = message_type_option(5);
-        let buf = build_packet(OP_BOOTREQUEST, HTYPE_ETHERNET, HLEN_ETHERNET, Ipv4Addr::UNSPECIFIED, &options);
+        let buf = build_packet(
+            OP_BOOTREQUEST,
+            HTYPE_ETHERNET,
+            HLEN_ETHERNET,
+            Ipv4Addr::UNSPECIFIED,
+            &options,
+        );
         assert!(parse_packet(&buf).is_none());
     }
 
@@ -256,14 +274,26 @@ mod tests {
     fn test_parse_missing_message_type_returns_none() {
         // No option 53 present at all.
         let options = vec![OPTION_HOSTNAME, 4, b'h', b'o', b's', b't'];
-        let buf = build_packet(OP_BOOTREQUEST, HTYPE_ETHERNET, HLEN_ETHERNET, Ipv4Addr::UNSPECIFIED, &options);
+        let buf = build_packet(
+            OP_BOOTREQUEST,
+            HTYPE_ETHERNET,
+            HLEN_ETHERNET,
+            Ipv4Addr::UNSPECIFIED,
+            &options,
+        );
         assert!(parse_packet(&buf).is_none());
     }
 
     #[test]
     fn test_parse_bad_magic_cookie_returns_none() {
         let options = message_type_option(DHCP_DISCOVER);
-        let mut buf = build_packet(OP_BOOTREQUEST, HTYPE_ETHERNET, HLEN_ETHERNET, Ipv4Addr::UNSPECIFIED, &options);
+        let mut buf = build_packet(
+            OP_BOOTREQUEST,
+            HTYPE_ETHERNET,
+            HLEN_ETHERNET,
+            Ipv4Addr::UNSPECIFIED,
+            &options,
+        );
         buf[MAGIC_COOKIE_OFFSET] = 0;
         assert!(parse_packet(&buf).is_none());
     }
@@ -272,10 +302,22 @@ mod tests {
     fn test_parse_non_ethernet_returns_none() {
         let options = message_type_option(DHCP_DISCOVER);
         // htype != 1
-        let buf = build_packet(OP_BOOTREQUEST, 6, HLEN_ETHERNET, Ipv4Addr::UNSPECIFIED, &options);
+        let buf = build_packet(
+            OP_BOOTREQUEST,
+            6,
+            HLEN_ETHERNET,
+            Ipv4Addr::UNSPECIFIED,
+            &options,
+        );
         assert!(parse_packet(&buf).is_none());
         // hlen != 6
-        let buf = build_packet(OP_BOOTREQUEST, HTYPE_ETHERNET, 8, Ipv4Addr::UNSPECIFIED, &options);
+        let buf = build_packet(
+            OP_BOOTREQUEST,
+            HTYPE_ETHERNET,
+            8,
+            Ipv4Addr::UNSPECIFIED,
+            &options,
+        );
         assert!(parse_packet(&buf).is_none());
     }
 
@@ -290,7 +332,13 @@ mod tests {
         // Option claims 4 bytes of payload but the buffer ends early. Must not panic and
         // must not yield a discovery (message type never read).
         let options = vec![OPTION_REQUESTED_IP, 4, 192, 168];
-        let buf = build_packet(OP_BOOTREQUEST, HTYPE_ETHERNET, HLEN_ETHERNET, Ipv4Addr::UNSPECIFIED, &options);
+        let buf = build_packet(
+            OP_BOOTREQUEST,
+            HTYPE_ETHERNET,
+            HLEN_ETHERNET,
+            Ipv4Addr::UNSPECIFIED,
+            &options,
+        );
         // Drop the trailing END byte appended by build_packet to keep the option truncated.
         let truncated = &buf[..buf.len() - 1];
         assert!(parse_packet(truncated).is_none());

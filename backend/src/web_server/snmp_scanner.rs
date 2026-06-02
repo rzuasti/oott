@@ -1,65 +1,17 @@
 use axum::{Json, http::StatusCode};
-use chrono::Utc;
-use log::error;
-use serde::Serialize;
-use utoipa::ToSchema;
 
-#[derive(Serialize, ToSchema)]
-pub struct SnmpScannerStatusResponse {
-    pub is_running: bool,
-    /// Seconds the current poll has been running (only set when is_running is true)
-    pub running_for_seconds: Option<f64>,
-    /// Seconds until the next poll starts (only set when is_running is false; clamped to 0)
-    pub next_run_in_seconds: Option<f64>,
-    /// Number of devices found by the last successful scan (None if none completed yet)
-    pub last_scan_devices_seen: Option<u64>,
-    /// Seconds since the last successful scan completed (None if none completed yet)
-    pub last_scan_seconds_ago: Option<f64>,
-}
+use crate::web_server::scanner_status::{ActiveScannerStatusResponse, active_response};
 
 #[utoipa::path(
     get,
     path = "/api/snmp_scanner/status",
     tag = "snmp_scanner",
     responses(
-        (status = 200, description = "SNMP scanner status", body = SnmpScannerStatusResponse),
+        (status = 200, description = "SNMP scanner status", body = ActiveScannerStatusResponse),
         (status = 500, description = "Internal server error"),
     ),
     security(("bearer_auth" = []))
 )]
-pub async fn status() -> Result<Json<SnmpScannerStatusResponse>, StatusCode> {
-    let snapshot = match crate::scanners::snmp::status::get() {
-        Some(s) => s,
-        None => {
-            error!("SNMP scanner status not initialized");
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-
-    let now = Utc::now();
-
-    let (running_for_seconds, next_run_in_seconds) = if snapshot.is_running {
-        let running_for = snapshot
-            .scan_started_at
-            .map(|t| (now - t).num_milliseconds() as f64 / 1000.0);
-        (running_for, None)
-    } else {
-        let next_run_in = snapshot.next_scan_at.map(|t| {
-            let secs = (t - now).num_milliseconds() as f64 / 1000.0;
-            secs.max(0.0)
-        });
-        (None, next_run_in)
-    };
-
-    let last_scan_seconds_ago = snapshot
-        .last_scan_at
-        .map(|t| ((now - t).num_milliseconds() as f64 / 1000.0).max(0.0));
-
-    Ok(Json(SnmpScannerStatusResponse {
-        is_running: snapshot.is_running,
-        running_for_seconds,
-        next_run_in_seconds,
-        last_scan_devices_seen: snapshot.last_scan_devices_seen,
-        last_scan_seconds_ago,
-    }))
+pub async fn status() -> Result<Json<ActiveScannerStatusResponse>, StatusCode> {
+    active_response(crate::scanners::snmp::status::get()).map(Json)
 }

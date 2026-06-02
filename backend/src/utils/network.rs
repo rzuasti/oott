@@ -155,6 +155,15 @@ pub fn is_locally_administered(mac: &str) -> bool {
         .is_some_and(|first_octet| first_octet & 0x02 != 0)
 }
 
+/// Format raw MAC bytes as a lowercase colon-separated string (e.g. `0a:00:ff:10:20:30`).
+pub fn format_mac(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<Vec<_>>()
+        .join(":")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -287,5 +296,13 @@ mod tests {
         assert_eq!(normalize_mac("aa:bb:cc:dd:ee:ff"), "aa:bb:cc:dd:ee:ff");
         assert_eq!(normalize_mac("Aa:Bb:Cc:Dd:Ee:Ff"), "aa:bb:cc:dd:ee:ff");
         assert_eq!(normalize_mac(""), "");
+    }
+
+    #[test]
+    fn test_format_mac_pads_and_lowercases() {
+        assert_eq!(
+            format_mac(&[0x0a, 0x00, 0xff, 0x10, 0x20, 0x30]),
+            "0a:00:ff:10:20:30"
+        );
     }
 }

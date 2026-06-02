@@ -1,13 +1,12 @@
 use std::net::{Ipv4Addr, SocketAddr};
 
-use chrono::Local;
 use csnmp::{ObjectIdentifier, ObjectValue, Snmp2cClient};
 use log::{debug, info, warn};
 
-use crate::data::mac_vendor_finder;
-use crate::data::vendor_device_type_finder;
 use crate::model::devices::Device;
+use crate::scanners::common::enrichment::build_device;
 use crate::settings::SnmpScanner;
+use crate::utils::network::format_mac;
 
 // ipNetToMediaPhysAddress (RFC 1213 MIB-II): maps interface + IPv4 address to a MAC. Walking
 // this column yields one row per neighbour in the agent's ARP cache. Rows are indexed by
@@ -43,12 +42,7 @@ pub async fn find(config: &SnmpScanner) -> Result<Vec<Device>, Box<dyn std::erro
 
     let devices = pairs
         .into_iter()
-        .map(|(mac, ip)| {
-            let vendor = mac_vendor_finder::find(mac.get(0..8).unwrap_or("").to_string());
-            let mut device = Device::new(mac, ip.to_string(), vendor, Local::now().to_utc());
-            device.device_type = vendor_device_type_finder::find(&device.vendor);
-            device
-        })
+        .map(|(mac, ip)| build_device(mac, ip.to_string(), &[], None))
         .collect();
 
     Ok(devices)
@@ -103,15 +97,6 @@ where
     pairs
 }
 
-/// Format 6 raw MAC bytes as a lowercase colon-separated string.
-fn format_mac(bytes: &[u8]) -> String {
-    bytes
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect::<Vec<_>>()
-        .join(":")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,7 +126,10 @@ mod tests {
         let pairs = parse_arp_table(rows, &base());
         assert_eq!(
             pairs,
-            vec![("aa:bb:cc:dd:ee:ff".to_string(), Ipv4Addr::new(192, 168, 1, 50))]
+            vec![(
+                "aa:bb:cc:dd:ee:ff".to_string(),
+                Ipv4Addr::new(192, 168, 1, 50)
+            )]
         );
     }
 
@@ -180,12 +168,13 @@ mod tests {
 
         let pairs = parse_arp_table(rows, &base());
         assert_eq!(pairs.len(), 2);
-        assert!(pairs.contains(&("00:11:22:33:44:55".to_string(), Ipv4Addr::new(192, 168, 1, 2))));
-        assert!(pairs.contains(&("66:77:88:99:aa:bb".to_string(), Ipv4Addr::new(192, 168, 1, 3))));
-    }
-
-    #[test]
-    fn format_mac_pads_and_lowercases() {
-        assert_eq!(format_mac(&[0x0a, 0x00, 0xff, 0x10, 0x20, 0x30]), "0a:00:ff:10:20:30");
+        assert!(pairs.contains(&(
+            "00:11:22:33:44:55".to_string(),
+            Ipv4Addr::new(192, 168, 1, 2)
+        )));
+        assert!(pairs.contains(&(
+            "66:77:88:99:aa:bb".to_string(),
+            Ipv4Addr::new(192, 168, 1, 3)
+        )));
     }
 }
