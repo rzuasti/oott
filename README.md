@@ -136,7 +136,7 @@ modules = [
     enable = true;
     database.path = "/var/lib/oott.db";
     # networking.interface = "eth0"; # Optional: auto-detected if not set
-    log.level = "info";
+    log.level = "warn";
     arp_scanner.wait_between_scans = "30m";
     arp_scanner.sender_timeout = "1m";
     arp_scanner.scan_duration = "10m";
@@ -159,7 +159,7 @@ Options marked **Required** have no built-in default and must be set in your con
 |------|-------------|-----------|
 |`database.path`|**Required**|Location of the system database. Must be `/db/oott.db` when using the Docker image.|
 |`networking.interface`|auto-detected|Network interface to use for scans. Optional — if not set, the first non-loopback connected interface is used automatically.|
-|`log.level`|**Required**|Log level to use (trace, debug, info, warn, error)|
+|`log.level`|`warn`|Log level to use (off, error, warn, info, debug, trace)|
 |`web_server.ip_address`|**Required**|Address the API and web UI bind to. Use `0.0.0.0` to bind all interfaces.|
 |`web_server.port`|**Required**|Port the API and web UI listen on.|
 |`web_server.api_key`|**Required**|API key the app must present to use the backend.|

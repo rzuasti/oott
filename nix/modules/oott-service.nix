@@ -29,7 +29,7 @@ in {
     log.level = mkOption {
       type = types.str;
       description = "Log level for the oott service";
-      default = "info";
+      default = "warn";
     };
     arp_scanner.enabled = mkOption {
       type = types.bool;

@@ -10,6 +10,10 @@ fn default_true() -> bool {
     true
 }
 
+fn default_log_level() -> String {
+    "warn".to_string()
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Database {
     pub path: String,
@@ -22,7 +26,16 @@ pub struct Networking {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Log {
+    #[serde(default = "default_log_level")]
     pub level: String,
+}
+
+impl Default for Log {
+    fn default() -> Self {
+        Log {
+            level: default_log_level(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -165,6 +178,7 @@ impl Default for DeviceEvents {
 pub struct Settings {
     pub database: Database,
     pub networking: Networking,
+    #[serde(default)]
     pub log: Log,
     #[serde(default)]
     pub arp_scanner: ArpScanner,
@@ -319,6 +333,36 @@ mod tests {
             std::time::Duration::from(settings.arp_scanner.scan_duration),
             std::time::Duration::from_secs(10 * 60)
         );
+    }
+
+    #[test]
+    fn log_level_defaults_to_warn_when_section_omitted() {
+        // A config without a `[log]` section falls back to the code default.
+        const NO_LOG_CONFIG: &str = r#"
+            [database]
+            path = "./oott.db"
+            [networking]
+            [notifications]
+            method = "none"
+            notify_when_not_seen_for = "1w"
+            [notifications.pushover]
+            token = ""
+            user_key = ""
+            [web_server]
+            ip_address = "0.0.0.0"
+            port = 3000
+            api_key = "test"
+        "#;
+        let settings = parse(NO_LOG_CONFIG);
+        assert_eq!(settings.log.level, "warn");
+    }
+
+    #[test]
+    fn log_level_defaults_to_warn_when_field_omitted() {
+        // Keep the `[log]` section but drop the `level` field; it should fall back to the default.
+        let toml = BASE_CONFIG.replace("[log]\n        level = \"info\"", "[log]");
+        let settings = parse(&toml);
+        assert_eq!(settings.log.level, "warn");
     }
 
     #[test]

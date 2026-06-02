@@ -5,7 +5,7 @@ path = "/db/oott.db" # Database path. For the Docker image this must be "/db/oot
 # interface = "eno1" # Optional: network interface to use for scans. If not set, the first non-loopback connected interface is used.
 
 [log]
-level = "info" # off, error, warn, info, debug, trace
+level = "warn" # off, error, warn, info, debug, trace. Defaults to "warn" if omitted
 
 [arp_scanner] # Optional: omit this whole section to use the defaults shown below
 enabled=true # Set to false to disable the ARP scanner
