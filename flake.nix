@@ -54,6 +54,7 @@
           claude-code
           clippy # Rust linter
           pythonEnv
+          gh # GitHub CLI tool (for release process)
         ];
 
         # fish > all
