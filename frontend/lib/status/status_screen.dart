@@ -11,21 +11,23 @@ class StatusScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Status', style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 20),
-        const ArpScannerCard(),
-        const SizedBox(height: 8),
-        const MdnsScannerCard(),
-        const SizedBox(height: 8),
-        const SsdpScannerCard(),
-        const SizedBox(height: 8),
-        const DhcpScannerCard(),
-        const SizedBox(height: 8),
-        const SnmpScannerCard(),
-      ],
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Status', style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 20),
+          const ArpScannerCard(),
+          const SizedBox(height: 8),
+          const MdnsScannerCard(),
+          const SizedBox(height: 8),
+          const SsdpScannerCard(),
+          const SizedBox(height: 8),
+          const DhcpScannerCard(),
+          const SizedBox(height: 8),
+          const SnmpScannerCard(),
+        ],
+      ),
     );
   }
 }

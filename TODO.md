@@ -1,7 +1,7 @@
 # OOTT ToDo list
 
 - [x] Add linting to CLAUDE.md for both Rust and Dart
-- [ ] Review and document the release process
+- [x] Review and document the release process
 - [ ] Add support for push notifications to the app (iOS and Android)
 - [ ] Review the README.md file
 
