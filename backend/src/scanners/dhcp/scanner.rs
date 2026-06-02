@@ -99,5 +99,5 @@ async fn process_discovery(discovery: finder::DhcpDiscovery) {
         }
     }
 
-    status::record_discovery();
+    status::record_discovery(&mac);
 }

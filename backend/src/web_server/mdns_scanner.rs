@@ -9,7 +9,7 @@ pub struct MdnsScannerStatusResponse {
     pub is_listening: bool,
     /// Seconds the listener has been running (only set when is_listening is true)
     pub listening_for_seconds: Option<f64>,
-    /// Total device announcements processed since the listener started
+    /// Distinct devices seen in the last hour
     pub devices_seen: u64,
     /// Seconds since the last device was seen (None if none seen yet)
     pub last_device_seen_seconds_ago: Option<f64>,
@@ -51,7 +51,7 @@ pub async fn status() -> Result<Json<MdnsScannerStatusResponse>, StatusCode> {
     Ok(Json(MdnsScannerStatusResponse {
         is_listening: snapshot.is_listening,
         listening_for_seconds,
-        devices_seen: snapshot.devices_discovered,
+        devices_seen: snapshot.devices_last_hour,
         last_device_seen_seconds_ago,
     }))
 }

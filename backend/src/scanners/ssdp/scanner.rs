@@ -123,5 +123,5 @@ async fn process_announcement(
         }
     }
 
-    status::record_discovery();
+    status::record_discovery(&mac);
 }

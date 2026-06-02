@@ -33,8 +33,8 @@ class MdnsScannerCard extends StatelessWidget {
     }
     final sublabels = <String>[
       status.listeningForSeconds != null
-          ? 'Listening for ${formatSeconds(status.listeningForSeconds! + elapsed)} · ${status.devicesSeen} devices seen'
-          : '${status.devicesSeen} devices seen',
+          ? 'Listening for ${formatSeconds(status.listeningForSeconds! + elapsed)} · ${status.devicesSeen} devices in the last hour'
+          : '${status.devicesSeen} devices in the last hour',
       if (status.lastDeviceSeenSecondsAgo != null)
         'Last device ${formatSeconds(status.lastDeviceSeenSecondsAgo! + elapsed)} ago',
     ];

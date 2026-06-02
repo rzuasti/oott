@@ -1,11 +1,18 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use once_cell::sync::OnceCell;
+use std::collections::HashMap;
 use std::sync::Mutex;
+
+/// A device counts as "seen" only if its most recent sighting falls within this
+/// rolling window.
+const RECENT_WINDOW_SECONDS: i64 = 3600;
 
 pub struct SsdpScannerStatus {
     pub is_listening: bool,
     pub listening_since: Option<DateTime<Utc>>,
-    pub devices_discovered: u64,
+    /// Most recent sighting time per device MAC, used to count the distinct
+    /// devices seen within the last hour.
+    pub recent_sightings: HashMap<String, DateTime<Utc>>,
     pub last_discovery_at: Option<DateTime<Utc>>,
 }
 
@@ -13,7 +20,8 @@ pub struct SsdpScannerStatus {
 pub struct SsdpScannerStatusSnapshot {
     pub is_listening: bool,
     pub listening_since: Option<DateTime<Utc>>,
-    pub devices_discovered: u64,
+    /// Distinct devices seen within the last hour.
+    pub devices_last_hour: u64,
     pub last_discovery_at: Option<DateTime<Utc>>,
 }
 
@@ -24,7 +32,7 @@ pub fn init() {
         .set(Mutex::new(SsdpScannerStatus {
             is_listening: false,
             listening_since: None,
-            devices_discovered: 0,
+            recent_sightings: HashMap::new(),
             last_discovery_at: None,
         }))
         .ok();
@@ -38,21 +46,24 @@ pub fn set_listening() {
     }
 }
 
-pub fn record_discovery() {
+pub fn record_discovery(mac: &str) {
     if let Some(m) = STATUS.get() {
+        let now = Utc::now();
         let mut s = m.lock().unwrap();
-        s.devices_discovered += 1;
-        s.last_discovery_at = Some(Utc::now());
+        s.recent_sightings.insert(mac.to_string(), now);
+        s.last_discovery_at = Some(now);
     }
 }
 
 pub fn get() -> Option<SsdpScannerStatusSnapshot> {
     STATUS.get().map(|m| {
-        let s = m.lock().unwrap();
+        let mut s = m.lock().unwrap();
+        let cutoff = Utc::now() - Duration::seconds(RECENT_WINDOW_SECONDS);
+        s.recent_sightings.retain(|_, seen| *seen >= cutoff);
         SsdpScannerStatusSnapshot {
             is_listening: s.is_listening,
             listening_since: s.listening_since,
-            devices_discovered: s.devices_discovered,
+            devices_last_hour: s.recent_sightings.len() as u64,
             last_discovery_at: s.last_discovery_at,
         }
     })
@@ -67,7 +78,7 @@ mod tests {
             let mut s = m.lock().unwrap();
             s.is_listening = false;
             s.listening_since = None;
-            s.devices_discovered = 0;
+            s.recent_sightings.clear();
             s.last_discovery_at = None;
         } else {
             init();
@@ -84,13 +95,38 @@ mod tests {
     }
 
     #[test]
-    fn test_record_discovery() {
+    fn test_same_mac_counts_once() {
         reset_for_test();
-        record_discovery();
-        record_discovery();
+        record_discovery("aa:bb:cc:dd:ee:ff");
+        record_discovery("aa:bb:cc:dd:ee:ff");
         let snapshot = get().unwrap();
-        assert_eq!(snapshot.devices_discovered, 2);
+        assert_eq!(snapshot.devices_last_hour, 1);
         assert!(snapshot.last_discovery_at.is_some());
+    }
+
+    #[test]
+    fn test_distinct_macs_counted() {
+        reset_for_test();
+        record_discovery("aa:bb:cc:dd:ee:ff");
+        record_discovery("11:22:33:44:55:66");
+        let snapshot = get().unwrap();
+        assert_eq!(snapshot.devices_last_hour, 2);
+    }
+
+    #[test]
+    fn test_old_sighting_excluded() {
+        reset_for_test();
+        record_discovery("aa:bb:cc:dd:ee:ff");
+        // Backdate an entry beyond the window; it must not be counted.
+        if let Some(m) = STATUS.get() {
+            let mut s = m.lock().unwrap();
+            s.recent_sightings.insert(
+                "11:22:33:44:55:66".to_string(),
+                Utc::now() - Duration::seconds(RECENT_WINDOW_SECONDS + 60),
+            );
+        }
+        let snapshot = get().unwrap();
+        assert_eq!(snapshot.devices_last_hour, 1);
     }
 
     #[test]
@@ -99,7 +135,7 @@ mod tests {
         let snapshot = get().unwrap();
         assert!(!snapshot.is_listening);
         assert!(snapshot.listening_since.is_none());
-        assert_eq!(snapshot.devices_discovered, 0);
+        assert_eq!(snapshot.devices_last_hour, 0);
         assert!(snapshot.last_discovery_at.is_none());
     }
 }
