@@ -98,8 +98,8 @@ impl Default for SnmpScanner {
             enabled: false,
             target: String::new(),
             community: String::new(),
-            wait_between_scans: DurationString::try_from("2m".to_string()).unwrap(),
-            timeout: DurationString::try_from("3s".to_string()).unwrap(),
+            wait_between_scans: DurationString::try_from("10m".to_string()).unwrap(),
+            timeout: DurationString::try_from("5s".to_string()).unwrap(),
         }
     }
 }

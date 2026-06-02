@@ -94,12 +94,12 @@ in {
     snmp_scanner.wait_between_scans = mkOption {
       type = types.str;
       description = "Wait time between SNMP polls. Keep it well under the agent's ARP cache timeout so active devices aren't missed.";
-      default = "2m";
+      default = "10m";
     };
     snmp_scanner.timeout = mkOption {
       type = types.str;
       description = "Per-poll SNMP request timeout.";
-      default = "3s";
+      default = "5s";
     };
     notifications.method = mkOption {
       type = types.str;
