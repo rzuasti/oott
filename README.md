@@ -192,41 +192,41 @@ Connect using the **domain name the certificate is issued for**, not an IP addre
 ## Things to keep in mind
 
 ### Storage considerations
-OOTT stores a timestamped event in the database for every device detected on every scan. Storage therefore scales with three factors: number of active devices, scan frequency, and the retention window.
+OOTT records a timestamped event for every device *sighting*. With the default scanners running, the main driver of storage is how often each scanner re-sights a device — capped by the deduplication window — multiplied by the number of devices and the retention window.
+
+These figures assume the **default configuration** and the four scanners that are **on by default**: ARP, mDNS, SSDP and DHCP. The SNMP scanner is **disabled by default** (it has no universal target) and is therefore **not** included below — see the note at the end if you enable it. The estimates are **typical averages**, not worst case; real numbers are often lower because not every device participates in every protocol.
+
+#### Typical events per device per day
+| Scanner | Typical events / device / day | Why |
+|---|---|---|
+| ARP | ~36 | One sweep per 40-min cycle (`scan_duration` 10m + `wait_between_scans` 30m) |
+| mDNS | ~48 | ≈ one recorded announcement every 30 min (devices that speak mDNS) |
+| SSDP | ~48 | ≈ one `NOTIFY` refresh every 30 min (typical UPnP cache max-age) |
+| DHCP | ~2 | Lease renewals only (hours-scale leases) |
+| **Total** | **~134** | |
+
+Bursts can't exceed the deduplication window: at `device_events.deduplication_window = 1m`, each scanner records at most one event per device per minute (≤1440/scanner/day).
 
 #### Estimates by network size
-The figures below assume a 1-minute scan duration (`arp_scanner.scan_duration = 1m`) with a 1-minute wait between scans (`arp_scanner.wait_between_scans = 1m`), giving 720 scans per day, and a 365-day retention window. Assume all devices are continuously online (worst case).
+Typical storage with the defaults (all four default scanners, `retention.window = 365d`):
 
-| Network size | Active devices | Storage / year |
+| Network size | Active devices | Typical storage / year |
 |---|---|---|
-| Home network | 20–50 | ~1–2 GB |
-| Homelab | 50–100 | ~2–4 GB |
-| Small office | 100–200 | ~4–7 GB |
-| Medium office | 200–500 | ~7–18 GB |
+| Home | 20–50 | ~150–350 MB |
+| Homelab | 50–100 | ~350–700 MB |
+| Small office | 100–200 | ~0.7–1.4 GB |
+| Medium office | 200–500 | ~1.4–3.5 GB |
 
-The rough formula behind these numbers is:
+The formula behind these numbers:
 
 ```
-storage ≈ devices × scans_per_day × 145 bytes × retention_days
+storage ≈ devices × events_per_device_per_day × 145 bytes × retention_days
 ```
 
-where `145 bytes` covers the database row and its index entry, and `scans_per_day = 86400 / (scan_duration_seconds + wait_between_scans_seconds)`.
+where `145 bytes` covers the database row and its index entry, and `events_per_device_per_day` is the sum across enabled scanners (each capped at `86400 / deduplication_window_seconds`). For the defaults that sum is ~134, dominated by the three passive scanners.
 
-#### Tuning scan timings and retention to control storage
-Storage is directly proportional to scan frequency and retention window. The two main levers are:
-
-**Scan interval** — `arp_scanner.wait_between_scans` is the most effective knob. Increasing it reduces scans per day linearly:
-
-| `wait_between_scans` | Scans/day (with 1m scan) | Storage vs. 1m+1m |
-|---|---|---|
-| `1m` | 720 | 1× (baseline) |
-| `4m` | 288 | 0.4× |
-| `15m` | 90 | 0.12× |
-| `30m` | 48 | 0.07× |
-
-A 15-minute wait (the default) cuts storage to about one eighth of the worst-case figures above — the medium office drops from up to 18 GB to roughly 2 GB per year.
-
-**Event deduplication** — `device_events.deduplication_window` caps how often the same scanner can record an event for the same device. With several scanners (ARP, mDNS, SSDP, DHCP) reporting overlapping sightings, this collapses near-identical rows into one per scanner per device per window, trimming storage without changing scan timings. Widen it to keep fewer events; narrow it (or set it very small) to keep a finer-grained history.
+#### Tuning to control storage
+With the default scanners, the two biggest levers are the **retention window** (a linear multiplier on everything) and **how many scanners run**. Scan timing and the dedup window are secondary.
 
 **Retention window** — `retention.window` sets how far back history is kept. Halving the window halves the storage. Useful reference points:
 
@@ -237,14 +237,28 @@ A 15-minute wait (the default) cuts storage to about one eighth of the worst-cas
 | `180d` | Six months — good middle ground |
 | `365d` | One year (default) |
 
-**Recommended starting points by network type:**
+**Disabling scanners** — each scanner you turn off removes its share. The three passive scanners (mDNS/SSDP/DHCP) account for ~98 of the ~134 events/device/day; turning them off leaves the ARP baseline of ~36/device/day (≈1.9 MB/device/year).
 
-| Network | `wait_between_scans` | `retention.window` | Approx. storage |
-|---|---|---|---|
-| Home | `15m` | `365d` | ~100–250 MB |
-| Homelab | `5m` | `180d` | ~350–700 MB |
-| Small office | `5m` | `90d` | ~175–350 MB |
-| Medium office | `15m` | `90d` | ~175–450 MB |
+**ARP scan interval** — `arp_scanner.wait_between_scans` only affects the ARP share, so its overall effect is modest once the passive scanners are running:
+
+| `wait_between_scans` | ARP events/device/day (10m scan) |
+|---|---|
+| `15m` | ~58 |
+| `30m` (default) | ~36 |
+| `1h` | ~21 |
+| `2h` | ~11 |
+
+**Event deduplication** — `device_events.deduplication_window` is a safety cap, not a routine lever. In typical operation each scanner reports well under one sighting per minute, so widening it changes little; its job is to bound chatty devices and announcement storms. Narrow it for finer-grained history (raises worst-case storage).
+
+**Recommended starting points:**
+
+| Network | Suggested change from defaults | Typical storage |
+|---|---|---|
+| Home / Homelab | None — defaults are fine | ~150–700 MB/yr |
+| Small office | `retention.window = 180d` | ~0.35–0.7 GB |
+| Medium office | `retention.window = 90d` (and consider disabling unused passive scanners) | ~0.35–0.9 GB |
+
+> **SNMP scanner:** disabled by default and excluded from all figures above. If you enable it, add roughly `86400 / snmp_scanner.wait_between_scans` events/device/day (~144/day at the default 10m poll), capped by the dedup window.
 
 ### Privileges and network ports
 OOTT binds to the following ports on the host where it runs:
