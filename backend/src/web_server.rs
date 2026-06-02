@@ -40,7 +40,8 @@ pub mod utils;
 #[openapi(
     info(
         title = "OOTT API",
-        version = "0.1.0",
+        // version is intentionally omitted: utoipa fills it from the crate
+        // version (CARGO_PKG_VERSION, i.e. backend/Cargo.toml) automatically.
         description = "Network monitoring and alert system API"
     ),
     paths(
@@ -243,5 +244,13 @@ mod tests {
     #[test]
     fn web_root_falls_back_to_local_dir_without_an_executable() {
         assert_eq!(resolve_web_root(None), PathBuf::from("./web"));
+    }
+
+    #[test]
+    fn openapi_version_tracks_the_crate_version() {
+        // The OpenAPI spec must report the crate version (backend/Cargo.toml)
+        // rather than a separately maintained literal.
+        let openapi = <ApiDoc as OpenApi>::openapi();
+        assert_eq!(openapi.info.version, env!("CARGO_PKG_VERSION"));
     }
 }

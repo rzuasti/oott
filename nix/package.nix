@@ -12,7 +12,8 @@
 in
   pkgs.rustPlatform.buildRustPackage rec {
     pname = "oott";
-    version = "0.1.0";
+    # Single source of truth: read the version straight from backend/Cargo.toml.
+    version = (builtins.fromTOML (builtins.readFile ./../backend/Cargo.toml)).package.version;
     src = ./../backend;
     cargoLock = {
       lockFile = ./../backend/Cargo.lock;

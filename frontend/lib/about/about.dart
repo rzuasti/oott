@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const _version = '0.1.0';
+// The version is read at runtime from the bundled package metadata
+// (frontend/pubspec.yaml), so it never needs to be hand-edited here.
 const _releaseDate = 'May 28, 2026';
 const _repoUrl = 'https://github.com/rzuasti/oott';
 const _licenseUrl = 'https://www.gnu.org/licenses/agpl-3.0.html';
@@ -28,11 +30,20 @@ class About extends StatelessWidget {
             style: textTheme.bodyLarge,
           ),
           const SizedBox(height: 8),
-          Text(
-            'v$_version - released $_releaseDate',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snapshot) {
+              final version = snapshot.data?.version;
+              final label = version == null
+                  ? 'Released $_releaseDate'
+                  : 'v$version - released $_releaseDate';
+              return Text(
+                label,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              );
+            },
           ),
           const SizedBox(height: 24),
           _SurfaceContainer(
