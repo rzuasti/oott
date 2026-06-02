@@ -7,7 +7,7 @@ path = "/db/oott.db" # Database path. For the Docker image this must be "/db/oot
 [log]
 level = "info" # off, error, warn, info, debug, trace
 
-[arp_scanner]
+[arp_scanner] # Optional: omit this whole section to use the defaults shown below
 enabled=true # Set to false to disable the ARP scanner
 wait_between_scans="30m" # Wait time between scans. This does not include the scan time
 sender_timeout="1m" # If the ARP sender process takes longer than this it will be stopped (for a class C network - 254 IPs - it should take less than a minute)

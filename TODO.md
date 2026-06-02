@@ -10,7 +10,7 @@
 - [x] Add configuration options to enable/disable each scanner
 - [ ] Implement the pushover API call directly to support HTML content and review notification text to use it
 - [ ] Add "devices seen on last scan" to the ARP and SNMP scanners status
-- [ ] Review the recommended timings for the ARP scanner (change defaults) — SNMP defaults set to 10m/5s
+- [x] Review the recommended timings for the ARP scanner (change defaults) — SNMP defaults set to 10m/5s
 
 ## Frontend
 

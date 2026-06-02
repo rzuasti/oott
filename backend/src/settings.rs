@@ -34,6 +34,17 @@ pub struct ArpScanner {
     pub scan_duration: DurationString,
 }
 
+impl Default for ArpScanner {
+    fn default() -> Self {
+        ArpScanner {
+            enabled: true,
+            wait_between_scans: DurationString::try_from("30m".to_string()).unwrap(),
+            sender_timeout: DurationString::try_from("1m".to_string()).unwrap(),
+            scan_duration: DurationString::try_from("10m".to_string()).unwrap(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct MdnsScanner {
     #[serde(default = "default_true")]
@@ -142,6 +153,7 @@ pub struct Settings {
     pub database: Database,
     pub networking: Networking,
     pub log: Log,
+    #[serde(default)]
     pub arp_scanner: ArpScanner,
     pub notifications: Notifications,
     pub web_server: WebServer,
@@ -256,6 +268,42 @@ mod tests {
         assert!(settings.snmp_scanner.enabled);
         assert_eq!(settings.snmp_scanner.target, "192.168.1.1:161");
         assert_eq!(settings.snmp_scanner.community, "public");
+    }
+
+    #[test]
+    fn arp_scanner_uses_code_defaults_when_section_omitted() {
+        // A config without an `[arp_scanner]` section falls back to the code defaults.
+        const NO_ARP_CONFIG: &str = r#"
+            [database]
+            path = "./oott.db"
+            [networking]
+            [log]
+            level = "info"
+            [notifications]
+            method = "none"
+            notify_when_not_seen_for = "1w"
+            [notifications.pushover]
+            token = ""
+            user_key = ""
+            [web_server]
+            ip_address = "0.0.0.0"
+            port = 3000
+            api_key = "test"
+        "#;
+        let settings = parse(NO_ARP_CONFIG);
+        assert!(settings.arp_scanner.enabled);
+        assert_eq!(
+            std::time::Duration::from(settings.arp_scanner.wait_between_scans),
+            std::time::Duration::from_secs(30 * 60)
+        );
+        assert_eq!(
+            std::time::Duration::from(settings.arp_scanner.sender_timeout),
+            std::time::Duration::from_secs(60)
+        );
+        assert_eq!(
+            std::time::Duration::from(settings.arp_scanner.scan_duration),
+            std::time::Duration::from_secs(10 * 60)
+        );
     }
 
     #[test]

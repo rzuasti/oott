@@ -111,9 +111,9 @@ Finally, in your `configuration.nix` (or in an import file) enable and configure
     database.path = "/var/lib/oott.db";
     # networking.interface = "eth0"; # Optional: auto-detected if not set
     log.level = "info";
-    arp_scanner.wait_between_scans = "15m";
-    arp_scanner.sender_timeout = "20m";
-    arp_scanner.scan_duration = "30m";
+    arp_scanner.wait_between_scans = "30m";
+    arp_scanner.sender_timeout = "1m";
+    arp_scanner.scan_duration = "10m";
     notifications.method = "pushover";
     notifications.notify_when_not_seen_for = "1w";
     notifications.pushover.token = "YOUR API TOKEN GOES HERE";
@@ -136,8 +136,8 @@ If you are using Docker I recommend writing the config using TOML, [here](https:
 |`database.path`|`/var/lib/oott.db`|Location of the system database|
 |`networking.interface`|`eno1`|Network interface to use for scans. Optional — if not set, the first non-loopback connected interface is used automatically.|
 |`log.level`|`info`|Log level to use (trace, debug, info, warn, error)|
-|`arp_scanner.enabled`|`true`|Whether to run the ARP scanner. Defaults to enabled; set to `false` to turn it off.|
-|`arp_scanner.wait_between_scans`|`15m`|Time to wait between each network scan (you can express it in seconds, minutes, hours, etc. as a suffix - for example: 30s, 10m, 1h)|
+|`arp_scanner.enabled`|`true`|Whether to run the ARP scanner. The whole `[arp_scanner]` section is optional; omit it to use the defaults below. Defaults to enabled; set to `false` to turn it off.|
+|`arp_scanner.wait_between_scans`|`30m`|Time to wait between each network scan (you can express it in seconds, minutes, hours, etc. as a suffix - for example: 30s, 10m, 1h)|
 |`arp_scanner.sender_timeout`|`1m`|If the ARP sender process takes longer than this it will be stopped (for a class C network - 254 IPs - it should take less than a minute)|
 |`arp_scanner.scan_duration`|`10m`|How long to wait for response packets on each scan (5m to 10m is a good timeframe for a class B or C network)|
 |`mdns_scanner.enabled`|`true`|Whether to run the mDNS/Bonjour scanner. Defaults to enabled; set to `false` to turn it off.|
