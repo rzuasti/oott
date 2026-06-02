@@ -18,7 +18,7 @@
 ## Frontend
 
 - [ ] Can we add front-end tests?
-- [ ] Break down oott_api.dart in modules
+- [x] Break down oott_api.dart in modules
 
 ## Improve engine
 
