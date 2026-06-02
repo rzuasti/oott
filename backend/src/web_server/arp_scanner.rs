@@ -11,6 +11,10 @@ pub struct ArpScannerStatusResponse {
     pub running_for_seconds: Option<f64>,
     /// Seconds until the next scan starts (only set when is_running is false; clamped to 0)
     pub next_run_in_seconds: Option<f64>,
+    /// Number of devices found by the last successful scan (None if none completed yet)
+    pub last_scan_devices_seen: Option<u64>,
+    /// Seconds since the last successful scan completed (None if none completed yet)
+    pub last_scan_seconds_ago: Option<f64>,
 }
 
 #[utoipa::path(
@@ -47,9 +51,15 @@ pub async fn status() -> Result<Json<ArpScannerStatusResponse>, StatusCode> {
         (None, next_run_in)
     };
 
+    let last_scan_seconds_ago = snapshot
+        .last_scan_at
+        .map(|t| ((now - t).num_milliseconds() as f64 / 1000.0).max(0.0));
+
     Ok(Json(ArpScannerStatusResponse {
         is_running: snapshot.is_running,
         running_for_seconds,
         next_run_in_seconds,
+        last_scan_devices_seen: snapshot.last_scan_devices_seen,
+        last_scan_seconds_ago,
     }))
 }

@@ -33,6 +33,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
         match finder::find(config).await {
             Ok(devices) => {
                 info!("SNMP poll found {} devices in the ARP cache", devices.len());
+                status::record_scan(devices.len() as u64);
                 for device in devices.iter() {
                     process_device(device);
                 }

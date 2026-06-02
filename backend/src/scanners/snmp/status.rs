@@ -6,6 +6,8 @@ pub struct SnmpScannerStatus {
     pub is_running: bool,
     pub scan_started_at: Option<DateTime<Utc>>,
     pub next_scan_at: Option<DateTime<Utc>>,
+    pub last_scan_devices_seen: Option<u64>,
+    pub last_scan_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone)]
@@ -13,6 +15,8 @@ pub struct SnmpScannerStatusSnapshot {
     pub is_running: bool,
     pub scan_started_at: Option<DateTime<Utc>>,
     pub next_scan_at: Option<DateTime<Utc>>,
+    pub last_scan_devices_seen: Option<u64>,
+    pub last_scan_at: Option<DateTime<Utc>>,
 }
 
 static STATUS: OnceCell<Mutex<SnmpScannerStatus>> = OnceCell::new();
@@ -23,6 +27,8 @@ pub fn init() {
             is_running: false,
             scan_started_at: None,
             next_scan_at: None,
+            last_scan_devices_seen: None,
+            last_scan_at: None,
         }))
         .ok();
 }
@@ -45,6 +51,14 @@ pub fn set_waiting(next_scan_at: DateTime<Utc>) {
     }
 }
 
+pub fn record_scan(devices_seen: u64) {
+    if let Some(m) = STATUS.get() {
+        let mut s = m.lock().unwrap();
+        s.last_scan_devices_seen = Some(devices_seen);
+        s.last_scan_at = Some(Utc::now());
+    }
+}
+
 pub fn get() -> Option<SnmpScannerStatusSnapshot> {
     STATUS.get().map(|m| {
         let s = m.lock().unwrap();
@@ -52,6 +66,8 @@ pub fn get() -> Option<SnmpScannerStatusSnapshot> {
             is_running: s.is_running,
             scan_started_at: s.scan_started_at,
             next_scan_at: s.next_scan_at,
+            last_scan_devices_seen: s.last_scan_devices_seen,
+            last_scan_at: s.last_scan_at,
         }
     })
 }
@@ -66,6 +82,8 @@ mod tests {
             s.is_running = false;
             s.scan_started_at = None;
             s.next_scan_at = None;
+            s.last_scan_devices_seen = None;
+            s.last_scan_at = None;
         } else {
             init();
         }
@@ -93,11 +111,22 @@ mod tests {
     }
 
     #[test]
+    fn test_record_scan() {
+        reset_for_test();
+        record_scan(7);
+        let snapshot = get().unwrap();
+        assert_eq!(snapshot.last_scan_devices_seen, Some(7));
+        assert!(snapshot.last_scan_at.is_some());
+    }
+
+    #[test]
     fn test_initial_state() {
         reset_for_test();
         let snapshot = get().unwrap();
         assert!(!snapshot.is_running);
         assert!(snapshot.scan_started_at.is_none());
         assert!(snapshot.next_scan_at.is_none());
+        assert!(snapshot.last_scan_devices_seen.is_none());
+        assert!(snapshot.last_scan_at.is_none());
     }
 }

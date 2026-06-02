@@ -24,14 +24,20 @@ class ArpScannerCard extends StatelessWidget {
     ArpScannerStatus status,
     double elapsed,
   ) {
-    final successColor =
-        Theme.of(context).extension<AppColorExtension>()!.success;
+    final successColor = Theme.of(
+      context,
+    ).extension<AppColorExtension>()!.success;
     final neutralColor = Theme.of(context).colorScheme.outline;
+    final lastScan = status.lastScanDevicesSeen != null
+        ? '${status.lastScanDevicesSeen} devices on last scan'
+        : null;
     if (status.isRunning) {
-      final sub = status.runningForSeconds != null
-          ? ['Running for ${formatSeconds(status.runningForSeconds! + elapsed)}']
-          : <String>[];
-      return (color: successColor, label: 'Running', sublabels: sub);
+      final sublabels = <String>[
+        if (status.runningForSeconds != null)
+          'Running for ${formatSeconds(status.runningForSeconds! + elapsed)}',
+        ?lastScan,
+      ];
+      return (color: successColor, label: 'Running', sublabels: sublabels);
     }
     if (status.nextRunInSeconds != null) {
       final remaining = (status.nextRunInSeconds! - elapsed).clamp(
@@ -41,7 +47,7 @@ class ArpScannerCard extends StatelessWidget {
       return (
         color: neutralColor,
         label: 'Waiting for next run',
-        sublabels: ['Next run in ${formatSeconds(remaining)}'],
+        sublabels: ['Next run in ${formatSeconds(remaining)}', ?lastScan],
       );
     }
     return (color: neutralColor, label: 'Not started', sublabels: []);
