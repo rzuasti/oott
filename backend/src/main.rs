@@ -61,6 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     scanners::mdns::status::init();
     scanners::ssdp::status::init();
     scanners::dhcp::status::init();
+    scanners::snmp::status::init();
 
     // Start the device scanners, web server, and retention cleaner in parallel
     tokio::join!(
@@ -68,6 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         scanners::mdns::scanner::listen(),
         scanners::ssdp::scanner::listen(),
         scanners::dhcp::scanner::listen(),
+        scanners::snmp::scanner::scan(),
         web_server::serve(),
         retention::run()
     )

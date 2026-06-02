@@ -145,6 +145,11 @@ If you are using Docker I recommend writing the config using TOML, [here](https:
 |`ssdp_scanner.enabled`|`true`|Whether to run the SSDP/UPnP scanner. Defaults to enabled; set to `false` to turn it off.|
 |`ssdp_scanner.probe_timeout`|`2s`|When an SSDP/UPnP-discovered IP is not in the OS ARP cache, how long to wait for a targeted ARP probe reply to resolve its MAC address|
 |`dhcp_scanner.enabled`|`true`|Whether to run the DHCP scanner. Defaults to enabled; set to `false` to turn it off.|
+|`snmp_scanner.enabled`|`true` when the section is present, otherwise off|Whether to run the SNMP scanner. The whole `[snmp_scanner]` section is optional and the scanner stays off unless you add it; within the section it defaults to enabled.|
+|`snmp_scanner.target`||SNMP agent to poll, as `host:port` (e.g. your gateway: `192.168.1.1:161`). The scanner reads the agent's ARP table over SNMPv2c — no local probing.|
+|`snmp_scanner.community`||SNMPv2c read-only community string. Use a read-only community and never commit a real secret.|
+|`snmp_scanner.wait_between_scans`|`2m`|Time to wait between polls. Keep it well under the agent's ARP cache timeout so active devices aren't missed.|
+|`snmp_scanner.timeout`|`3s`|Per-poll SNMP request timeout.|
 |`notifications.method`|`pushover`|For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)|
 |`notifications.notify_when_not_seen_for`|`1w`|Send a notification if a device comes back online after not being seen for this timeframe (you can use hours, weeks, etc.)|
 |`notifications.pushover.token`||Your pushover token goes here, just copy&paste from their website after creating the app|

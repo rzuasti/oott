@@ -10,6 +10,7 @@ import '../model/arp_scanner_status.dart';
 import '../model/dhcp_scanner_status.dart';
 import '../model/mdns_scanner_status.dart';
 import '../model/ssdp_scanner_status.dart';
+import '../model/snmp_scanner_status.dart';
 import '../model/device.dart';
 import '../model/device_event.dart';
 import '../model/device_summary.dart';
@@ -331,6 +332,16 @@ class BackendAPI {
       cancelToken: cancelToken,
     );
     return DhcpScannerStatus.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<SnmpScannerStatus> getSnmpScannerStatus({
+    CancelToken? cancelToken,
+  }) async {
+    final response = await _dio.get(
+      '/snmp_scanner/status',
+      cancelToken: cancelToken,
+    );
+    return SnmpScannerStatus.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<({List<Notification> items, bool hasNextPage})> listNotifications(

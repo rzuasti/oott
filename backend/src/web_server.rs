@@ -9,6 +9,7 @@ use crate::web_server::arp_scanner::ArpScannerStatusResponse;
 use crate::web_server::devices::{RegisterDevicePayload, UpdateDevicePayload};
 use crate::web_server::dhcp_scanner::DhcpScannerStatusResponse;
 use crate::web_server::mdns_scanner::MdnsScannerStatusResponse;
+use crate::web_server::snmp_scanner::SnmpScannerStatusResponse;
 use crate::web_server::ssdp_scanner::SsdpScannerStatusResponse;
 use axum::Json;
 use axum::extract::Request;
@@ -32,6 +33,7 @@ pub mod devices;
 pub mod dhcp_scanner;
 pub mod mdns_scanner;
 pub mod notifications;
+pub mod snmp_scanner;
 pub mod ssdp_scanner;
 pub mod utils;
 
@@ -60,6 +62,7 @@ pub mod utils;
         mdns_scanner::status,
         ssdp_scanner::status,
         dhcp_scanner::status,
+        snmp_scanner::status,
     ),
     components(schemas(
         Device,
@@ -75,6 +78,7 @@ pub mod utils;
         MdnsScannerStatusResponse,
         SsdpScannerStatusResponse,
         DhcpScannerStatusResponse,
+        SnmpScannerStatusResponse,
     )),
     modifiers(&SecurityAddon),
     tags(
@@ -85,6 +89,7 @@ pub mod utils;
         (name = "mdns_scanner", description = "mDNS/Bonjour scanner process status"),
         (name = "ssdp_scanner", description = "SSDP/UPnP scanner process status"),
         (name = "dhcp_scanner", description = "DHCP scanner process status"),
+        (name = "snmp_scanner", description = "SNMP scanner process status"),
     )
 )]
 struct ApiDoc;
@@ -147,6 +152,7 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .route("/api/mdns_scanner/status", get(mdns_scanner::status))
         .route("/api/ssdp_scanner/status", get(ssdp_scanner::status))
         .route("/api/dhcp_scanner/status", get(dhcp_scanner::status))
+        .route("/api/snmp_scanner/status", get(snmp_scanner::status))
         .route("/api/notifications", get(notifications::list))
         .route(
             "/api/notifications/mark_all_as_old",

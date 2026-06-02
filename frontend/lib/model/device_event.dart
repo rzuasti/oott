@@ -34,6 +34,7 @@ class DeviceEvent {
     'Mdns' => 'mDNS',
     'Ssdp' => 'SSDP/UPnP',
     'Dhcp' => 'DHCP',
+    'Snmp' => 'SNMP',
     _ => scanner,
   };
 }

@@ -76,6 +76,31 @@ in {
       description = "Whether to run the DHCP scanner.";
       default = true;
     };
+    snmp_scanner.enabled = mkOption {
+      type = types.bool;
+      description = "Whether to run the SNMP scanner. Off by default; requires a target and community to be set.";
+      default = false;
+    };
+    snmp_scanner.target = mkOption {
+      type = types.str;
+      description = "SNMP agent to poll, as host:port (e.g. the gateway: 192.168.1.1:161). The scanner reads its ARP table over SNMPv2c.";
+      default = "";
+    };
+    snmp_scanner.community = mkOption {
+      type = types.str;
+      description = "SNMPv2c read-only community string. Use a read-only community and avoid committing real secrets.";
+      default = "";
+    };
+    snmp_scanner.wait_between_scans = mkOption {
+      type = types.str;
+      description = "Wait time between SNMP polls. Keep it well under the agent's ARP cache timeout so active devices aren't missed.";
+      default = "2m";
+    };
+    snmp_scanner.timeout = mkOption {
+      type = types.str;
+      description = "Per-poll SNMP request timeout.";
+      default = "3s";
+    };
     notifications.method = mkOption {
       type = types.str;
       description = "For now just pushover, you can set this to none to avoid sending notifications (it will just log).";

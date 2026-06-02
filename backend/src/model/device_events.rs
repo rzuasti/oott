@@ -120,6 +120,7 @@ pub enum DeviceEventScanner {
     Mdns,
     Ssdp,
     Dhcp,
+    Snmp,
 }
 
 impl fmt::Display for DeviceEventScanner {
@@ -129,6 +130,7 @@ impl fmt::Display for DeviceEventScanner {
             Self::Mdns => write!(f, "mDNS"),
             Self::Ssdp => write!(f, "SSDP"),
             Self::Dhcp => write!(f, "DHCP"),
+            Self::Snmp => write!(f, "SNMP"),
         }
     }
 }
@@ -153,6 +155,7 @@ impl FromStr for DeviceEventScanner {
             "mDNS" => Ok(DeviceEventScanner::Mdns),
             "SSDP" => Ok(DeviceEventScanner::Ssdp),
             "DHCP" => Ok(DeviceEventScanner::Dhcp),
+            "SNMP" => Ok(DeviceEventScanner::Snmp),
             _ => Err(DeviceEventScannerParseError),
         }
     }
@@ -170,5 +173,38 @@ impl FromSql for DeviceEventScanner {
             .as_str()?
             .parse()
             .map_err(|e| FromSqlError::Other(Box::new(e)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scanner_display_and_from_str_round_trip() {
+        for scanner in [
+            DeviceEventScanner::Arp,
+            DeviceEventScanner::Mdns,
+            DeviceEventScanner::Ssdp,
+            DeviceEventScanner::Dhcp,
+            DeviceEventScanner::Snmp,
+        ] {
+            let text = scanner.to_string();
+            assert_eq!(text.parse::<DeviceEventScanner>().unwrap(), scanner);
+        }
+    }
+
+    #[test]
+    fn snmp_scanner_displays_as_snmp() {
+        assert_eq!(DeviceEventScanner::Snmp.to_string(), "SNMP");
+        assert_eq!(
+            "SNMP".parse::<DeviceEventScanner>().unwrap(),
+            DeviceEventScanner::Snmp
+        );
+    }
+
+    #[test]
+    fn unknown_scanner_fails_to_parse() {
+        assert!("BOGUS".parse::<DeviceEventScanner>().is_err());
     }
 }

@@ -79,6 +79,32 @@ impl Default for DhcpScanner {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct SnmpScanner {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// SNMP agent to poll, as `host:port` (e.g. the gateway: `192.168.1.1:161`).
+    pub target: String,
+    /// SNMPv2c read-only community string.
+    pub community: String,
+    pub wait_between_scans: DurationString,
+    pub timeout: DurationString,
+}
+
+impl Default for SnmpScanner {
+    fn default() -> Self {
+        // No universal target exists, so the SNMP scanner stays off until the user adds a
+        // `[snmp_scanner]` section pointing at their gateway.
+        SnmpScanner {
+            enabled: false,
+            target: String::new(),
+            community: String::new(),
+            wait_between_scans: DurationString::try_from("2m".to_string()).unwrap(),
+            timeout: DurationString::try_from("3s".to_string()).unwrap(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Pushover {
     pub token: String,
     pub user_key: String,
@@ -127,6 +153,8 @@ pub struct Settings {
     pub ssdp_scanner: SsdpScanner,
     #[serde(default)]
     pub dhcp_scanner: DhcpScanner,
+    #[serde(default)]
+    pub snmp_scanner: SnmpScanner,
 }
 // End configuration structure
 // -----------------------------------------------------------
@@ -208,6 +236,26 @@ mod tests {
         assert!(settings.mdns_scanner.enabled);
         assert!(settings.ssdp_scanner.enabled);
         assert!(settings.dhcp_scanner.enabled);
+        // The SNMP scanner is opt-in: with no `[snmp_scanner]` section it stays disabled.
+        assert!(!settings.snmp_scanner.enabled);
+    }
+
+    #[test]
+    fn snmp_scanner_section_is_parsed() {
+        let toml = format!(
+            "{BASE_CONFIG}
+            [snmp_scanner]
+            target = \"192.168.1.1:161\"
+            community = \"public\"
+            wait_between_scans = \"5m\"
+            timeout = \"3s\"
+            "
+        );
+        let settings = parse(&toml);
+        // `enabled` defaults to true once the section is present.
+        assert!(settings.snmp_scanner.enabled);
+        assert_eq!(settings.snmp_scanner.target, "192.168.1.1:161");
+        assert_eq!(settings.snmp_scanner.community, "public");
     }
 
     #[test]

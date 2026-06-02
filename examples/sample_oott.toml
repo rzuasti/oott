@@ -24,6 +24,16 @@ probe_timeout="2s" # When an SSDP/UPnP-discovered IP is not in the OS ARP cache,
 [dhcp_scanner]
 enabled=true # Set to false to disable the DHCP scanner
 
+# [snmp_scanner] # Optional: poll a router/firewall's ARP table over SNMP. Disabled unless this section is present.
+# enabled=true # Set to false to disable the SNMP scanner without removing this section
+# target="192.168.1.1:161" # SNMP agent to poll, as host:port. Point this at your gateway (router/firewall).
+# community="public" # SNMPv2c read-only community string. Use a read-only community; never commit a real secret here.
+# wait_between_scans="2m" # Wait time between polls. Keep this well under the agent's ARP cache timeout so active devices aren't missed.
+# timeout="3s" # Per-poll SNMP request timeout.
+# Note: SNMP must be enabled on the target. On pfSense: Services > SNMP (v2c; the mibII module exposes the ARP table).
+# On OPNsense: install the os-net-snmp plugin, then Services > Net-SNMP. In both cases add a firewall rule allowing
+# UDP/161 from the host running OOTT.
+
 [notifications]
 method="pushover" # For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)
 notify_when_not_seen_for="1w" # Send a notification if a device comes back online after not being seen for this timeframe
