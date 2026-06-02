@@ -126,6 +126,11 @@ in {
       description = "How long to retain device events and notifications. Records older than this are purged daily. Accepts duration strings (e.g. 90d, 1y, 6m).";
       default = "365d";
     };
+    device_events.deduplication_window = mkOption {
+      type = types.str;
+      description = "If the same scanner sees the same device (same MAC and IP) again within this window, only one device event is recorded. Keeps the events table from filling with near-identical rows. Accepts duration strings (e.g. 30s, 1m, 5m).";
+      default = "1m";
+    };
     web_server.ip_address = mkOption {
       type = types.str;
       description = "IP address to bind the web server (API and web UI) to. Use 0.0.0.0 to bind to all interfaces.";

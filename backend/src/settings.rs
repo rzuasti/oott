@@ -149,6 +149,19 @@ impl Default for Retention {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct DeviceEvents {
+    pub deduplication_window: DurationString,
+}
+
+impl Default for DeviceEvents {
+    fn default() -> Self {
+        DeviceEvents {
+            deduplication_window: DurationString::try_from("1m".to_string()).unwrap(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub database: Database,
     pub networking: Networking,
@@ -159,6 +172,8 @@ pub struct Settings {
     pub web_server: WebServer,
     #[serde(default)]
     pub retention: Retention,
+    #[serde(default)]
+    pub device_events: DeviceEvents,
     #[serde(default)]
     pub mdns_scanner: MdnsScanner,
     #[serde(default)]
@@ -303,6 +318,30 @@ mod tests {
         assert_eq!(
             std::time::Duration::from(settings.arp_scanner.scan_duration),
             std::time::Duration::from_secs(10 * 60)
+        );
+    }
+
+    #[test]
+    fn device_events_dedup_window_defaults_when_section_omitted() {
+        let settings = parse(BASE_CONFIG);
+        assert_eq!(
+            std::time::Duration::from(settings.device_events.deduplication_window),
+            std::time::Duration::from_secs(60)
+        );
+    }
+
+    #[test]
+    fn device_events_dedup_window_is_parsed() {
+        let toml = format!(
+            "{BASE_CONFIG}
+            [device_events]
+            deduplication_window = \"5m\"
+            "
+        );
+        let settings = parse(&toml);
+        assert_eq!(
+            std::time::Duration::from(settings.device_events.deduplication_window),
+            std::time::Duration::from_secs(5 * 60)
         );
     }
 

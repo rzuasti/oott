@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use log::{debug, error};
 use rusqlite::{params, params_from_iter};
 
-use crate::model::device_events::DeviceEvent;
+use crate::model::device_events::{DeviceEvent, DeviceEventScanner};
 use crate::utils::network::normalize_mac;
 
 pub fn insert(event: DeviceEvent) -> Result<i64, DbError> {
@@ -31,6 +31,32 @@ pub fn insert(event: DeviceEvent) -> Result<i64, DbError> {
             Err(DbError::from(error))
         }
     }
+}
+
+/// Returns true if an event with the same scanner, MAC and IPv4 address was already recorded
+/// at or after `since`. Used to suppress duplicate sightings that the same scanner reports for
+/// the same device within a short deduplication window.
+pub fn recent_duplicate_exists(
+    mac_address: &str,
+    ipv4_address: &str,
+    scanner: &DeviceEventScanner,
+    since: DateTime<Utc>,
+) -> Result<bool, DbError> {
+    let conn = db::get_db_connection();
+    let mac_address = normalize_mac(mac_address);
+
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM device_events WHERE mac_address = ?1 AND ipv4_address = ?2 AND scanner = ?3 AND created_on >= ?4",
+        params![
+            mac_address,
+            ipv4_address,
+            scanner,
+            since.to_rfc3339_opts(chrono::SecondsFormat::Nanos, false)
+        ],
+        |row| row.get(0),
+    )?;
+
+    Ok(count > 0)
 }
 
 pub fn list(
@@ -195,6 +221,48 @@ mod tests {
         let event = read(inserted_id).unwrap();
         assert_eq!(event.event_type, DeviceEventType::DeviceSeen);
         assert_eq!(event.scanner, DeviceEventScanner::Mdns);
+    }
+
+    #[tokio::test]
+    async fn test_recent_duplicate_exists() {
+        tests_common::setup().await;
+
+        let mac = "ab:cd:ef:00:11:22".to_string();
+        let ip = "192.168.5.5".to_string();
+        let created_on = Utc::now();
+        insert(DeviceEvent::new(
+            mac.clone(),
+            created_on,
+            DeviceEventType::DeviceSeen,
+            ip.clone(),
+            "Vendor".to_string(),
+            DeviceEventScanner::Arp,
+        ))
+        .unwrap();
+
+        let within_window = created_on - chrono::TimeDelta::seconds(60);
+
+        // Same scanner, MAC and IP within the window is a duplicate.
+        assert!(
+            recent_duplicate_exists(&mac, &ip, &DeviceEventScanner::Arp, within_window).unwrap()
+        );
+
+        // A different IP is not a duplicate.
+        assert!(
+            !recent_duplicate_exists(&mac, "192.168.5.6", &DeviceEventScanner::Arp, within_window)
+                .unwrap()
+        );
+
+        // A different scanner is not a duplicate.
+        assert!(
+            !recent_duplicate_exists(&mac, &ip, &DeviceEventScanner::Mdns, within_window).unwrap()
+        );
+
+        // A cutoff after the stored event (outside the window) is not a duplicate.
+        let after_event = created_on + chrono::TimeDelta::seconds(1);
+        assert!(
+            !recent_duplicate_exists(&mac, &ip, &DeviceEventScanner::Arp, after_event).unwrap()
+        );
     }
 
     #[tokio::test]

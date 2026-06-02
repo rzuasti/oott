@@ -197,24 +197,45 @@ fn send_notification(notification: Notification) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Record a device event, skipping it when the same scanner already recorded an event for the
+/// same device (same MAC and IPv4) within the configured deduplication window. This keeps the
+/// events table from filling with near-identical rows when a scanner sees a device repeatedly.
+fn record_event(event: DeviceEvent) {
+    let window: Duration = get_settings().device_events.deduplication_window.into();
+    let since = Utc::now() - chrono::Duration::from_std(window).unwrap_or_default();
+
+    match db::device_events::recent_duplicate_exists(
+        &event.mac_address,
+        &event.ipv4_address,
+        &event.scanner,
+        since,
+    ) {
+        Ok(true) => {
+            debug!("Skipping duplicate device event within window: {event}");
+            return;
+        }
+        Ok(false) => {}
+        // On a check error, fall through and record the event rather than silently drop it.
+        Err(err) => error!("Device event deduplication check failed ({err}); recording event"),
+    }
+
+    if let Err(err) = db::device_events::insert(event) {
+        error!("Failed to record device event: {err}");
+    }
+}
+
 pub fn trigger_new_device(
     device: Device,
     scanner: DeviceEventScanner,
 ) -> Result<(), Box<dyn Error>> {
-    let event = DeviceEvent::new(
+    record_event(DeviceEvent::new(
         device.mac_address.clone(),
         Utc::now(),
         DeviceEventType::NewDevice,
         device.ipv4_address.clone(),
         device.vendor.clone(),
         scanner,
-    );
-    if let Err(err) = db::device_events::insert(event) {
-        error!(
-            "Failed to record device event for {}: {}",
-            device.mac_address, err
-        );
-    }
+    ));
 
     let (title, body) = render_new_device(&device);
     let notification = Notification::new(
@@ -235,20 +256,14 @@ pub fn trigger_existing_device(
     new_device: Device,
     scanner: DeviceEventScanner,
 ) -> Result<(), Box<dyn Error>> {
-    let event = DeviceEvent::new(
+    record_event(DeviceEvent::new(
         new_device.mac_address.clone(),
         Utc::now(),
         DeviceEventType::DeviceSeen,
         new_device.ipv4_address.clone(),
         new_device.vendor.clone(),
         scanner,
-    );
-    if let Err(err) = db::device_events::insert(event) {
-        error!(
-            "Failed to record device event for {}: {}",
-            new_device.mac_address, err
-        );
-    }
+    ));
 
     // Notify if the device comes back online after not being seen for the configured period
     let elapsed_since_last_seen: Duration = (Local::now().to_utc() - existing_device.last_seen)
@@ -446,5 +461,40 @@ mod tests {
         assert!(body.contains("IP address: 192.168.1.42 -> 192.168.1.99"));
         assert!(body.contains("Vendor: Apple, Inc. -> Samsung Electronics"));
         assert!(body.contains("MAC spoofing"));
+    }
+
+    #[tokio::test]
+    async fn repeated_sighting_from_same_scanner_records_one_event() {
+        crate::tests_common::setup().await;
+
+        let mut device = Device::new(
+            "fa:ce:fa:ce:00:01".to_string(),
+            "192.168.7.7".to_string(),
+            "Acme".to_string(),
+            Utc::now(),
+        );
+        device.last_seen = Utc::now();
+        let mac = device.mac_address.clone();
+
+        // Two sightings from the same scanner within the dedup window: only one event recorded.
+        trigger_existing_device(device.clone(), device.clone(), DeviceEventScanner::Arp).unwrap();
+        trigger_existing_device(device.clone(), device.clone(), DeviceEventScanner::Arp).unwrap();
+
+        let after_arp = db::device_events::list(Some(mac.clone()), None, None, None).unwrap();
+        assert_eq!(
+            after_arp.len(),
+            1,
+            "A repeated same-scanner sighting should be deduplicated"
+        );
+
+        // A sighting from a different scanner is not a duplicate and is recorded.
+        trigger_existing_device(device.clone(), device.clone(), DeviceEventScanner::Mdns).unwrap();
+
+        let after_mdns = db::device_events::list(Some(mac), None, None, None).unwrap();
+        assert_eq!(
+            after_mdns.len(),
+            2,
+            "A sighting from a different scanner should be recorded"
+        );
     }
 }

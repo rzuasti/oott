@@ -49,3 +49,6 @@ api_key="CHANGE_ME" # API Key to use the system's API, change this!
 
 [retention]
 window="365d" # How long to keep device events and notifications. Records older than this are deleted daily. Supports: d (days), w (weeks), h (hours), m (minutes)
+
+[device_events]
+deduplication_window="1m" # If the same scanner sees the same device (same MAC and IP) again within this window, only one device event is recorded. Keeps the events table from filling with near-identical rows. Supports: d (days), w (weeks), h (hours), m (minutes), s (seconds)

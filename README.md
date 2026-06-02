@@ -119,6 +119,7 @@ Finally, in your `configuration.nix` (or in an import file) enable and configure
     notifications.pushover.token = "YOUR API TOKEN GOES HERE";
     notifications.pushover.user_key = "YOUR USER TOKEN GOES HERE";
     retention.window = "365d";
+    device_events.deduplication_window = "1m";
   };
 }
 ```
@@ -155,6 +156,7 @@ If you are using Docker I recommend writing the config using TOML, [here](https:
 |`notifications.pushover.token`||Your pushover token goes here, just copy&paste from their website after creating the app|
 |`notifications.pushover.user_key`||User key goes here, this is the account wide code for pushover|
 |`retention.window`|`365d`|How long to retain device events and notifications. Records older than this are purged daily. Accepts duration strings (e.g. `90d`, `1y`, `6m`). Defaults to one year.|
+|`device_events.deduplication_window`|`1m`|Suppress duplicate device events: if the same scanner sees the same device (same MAC and IPv4) again within this window, only one event is recorded. Accepts duration strings (e.g. `30s`, `1m`, `5m`). Defaults to one minute.|
 
 ## Network ports
 OOTT binds to the following ports on the host where it runs:
@@ -228,6 +230,8 @@ Storage is directly proportional to scan frequency and retention window. The two
 | `30m` | 48 | 0.07× |
 
 A 15-minute wait (the default) cuts storage to about one eighth of the worst-case figures above — the medium office drops from up to 18 GB to roughly 2 GB per year.
+
+**Event deduplication** — `device_events.deduplication_window` caps how often the same scanner can record an event for the same device. With several scanners (ARP, mDNS, SSDP, DHCP) reporting overlapping sightings, this collapses near-identical rows into one per scanner per device per window, trimming storage without changing scan timings. Widen it to keep fewer events; narrow it (or set it very small) to keep a finer-grained history.
 
 **Retention window** — `retention.window` sets how far back history is kept. Halving the window halves the storage. Useful reference points:
 
