@@ -1,5 +1,5 @@
 [database]
-path = "./oott.db" # Database path. Make sure it's writeable for the user running this process
+path = "/db/oott.db" # Database path. For the Docker image this must be "/db/oott.db" (the mounted volume); make sure it's writeable for the user running this process
 
 [networking]
 # interface = "eno1" # Optional: network interface to use for scans. If not set, the first non-loopback connected interface is used.

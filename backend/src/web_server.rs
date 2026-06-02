@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::path::{Path, PathBuf};
 
 use crate::model::device_events::{DeviceEvent, DeviceEventScanner, DeviceEventType};
 use crate::model::devices::{Device, DeviceSummary};
@@ -100,9 +101,24 @@ impl Modify for SecurityAddon {
     }
 }
 
+/// Resolve the directory that holds the bundled front-end (Flutter web) assets.
+///
+/// The assets are installed next to the binary at `<exe_dir>/../share/oott/web`
+/// (see the Nix package definition). When the executable location cannot be
+/// determined we fall back to `./web` relative to the current directory.
+fn resolve_web_root(exe_dir: Option<&Path>) -> PathBuf {
+    match exe_dir {
+        Some(dir) => dir.join("../share/oott/web"),
+        None => PathBuf::from("./web"),
+    }
+}
+
 pub async fn serve() -> Result<(), Box<dyn Error>> {
     info!("Starting web server");
-    let static_files = ServeDir::new("./web");
+    let exe = std::env::current_exe().ok();
+    let web_root = resolve_web_root(exe.as_deref().and_then(Path::parent));
+    info!("Serving front-end assets from {}", web_root.display());
+    let static_files = ServeDir::new(web_root);
 
     // Allow all origins and headers for API
     let cors_layer = CorsLayer::new()
@@ -206,5 +222,24 @@ async fn auth(request: Request, next: Next) -> Result<Response, StatusCode> {
         Ok(next.run(request).await)
     } else {
         Err(StatusCode::UNAUTHORIZED)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn web_root_is_relative_to_the_executable() {
+        let root = resolve_web_root(Some(Path::new("/nix/store/abc-oott/bin")));
+        assert_eq!(
+            root,
+            PathBuf::from("/nix/store/abc-oott/bin/../share/oott/web")
+        );
+    }
+
+    #[test]
+    fn web_root_falls_back_to_local_dir_without_an_executable() {
+        assert_eq!(resolve_web_root(None), PathBuf::from("./web"));
     }
 }

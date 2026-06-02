@@ -101,6 +101,21 @@ in {
       description = "How long to retain device events and notifications. Records older than this are purged daily. Accepts duration strings (e.g. 90d, 1y, 6m).";
       default = "365d";
     };
+    web_server.ip_address = mkOption {
+      type = types.str;
+      description = "IP address to bind the web server (API and web UI) to. Use 0.0.0.0 to bind to all interfaces.";
+      default = "0.0.0.0";
+    };
+    web_server.port = mkOption {
+      type = types.port;
+      description = "Port the web server listens on.";
+      default = 3000;
+    };
+    web_server.api_key = mkOption {
+      type = types.str;
+      description = "API key required to access the system's API. Change this from the default empty value.";
+      default = "";
+    };
   };
 
   # Service implementation

@@ -8,7 +8,6 @@
   outputs = {
     self,
     nixpkgs,
-    nix,
   }: let
     # System types to support.
     supportedSystems = ["x86_64-linux"];
@@ -65,8 +64,11 @@
       };
     });
 
-    # A Nixpkgs overlay that provides a 'oott' package.
-    overlays.default = final: prev: {oott = final.callPackage ./nix/package.nix {};};
+    # A Nixpkgs overlay that provides the 'oott' package and its bundled front-end.
+    overlays.default = final: prev: {
+      oott-frontend = final.callPackage ./nix/frontend.nix {};
+      oott = final.callPackage ./nix/package.nix {};
+    };
 
     # Package definition
     packages = forEachSystem (system: {
@@ -77,19 +79,17 @@
       # use via 'nix build .#dockerImage'
       dockerImage = with pkgsBySystem.${system};
         dockerTools.buildLayeredImage {
-          # Based on the official nixos image
-          fromImage = dockerTools.pullImage {
-            imageName = "nixos/nix";
-            imageDigest = "sha256:d5cce2440bda1f966357732c06d86cb92368069fb52dfb6b2bae8725eea488a5";
-            sha256 = "sha256-4+99v7Jej0dY0zv8iJLtFiulCsw90ZnGwtjTaGu2L+c=";
-            finalImageTag = "2.33.1";
-            finalImageName = "nix";
-          };
           name = "oott";
           tag = "latest";
-          contents = [oott curl bash openssl cacert];
+          # oott carries its full runtime closure (incl. the bundled front-end);
+          # cacert provides the trust store referenced by SSL_CERT_FILE below.
+          contents = [oott cacert];
+          # Ensure a writable /tmp exists (no base image provides one).
+          extraCommands = "mkdir -p tmp";
           config = {
             Cmd = ["${oott}/bin/oott" "--config" "/config/oott.toml"];
+            # Let openssl/native-tls (used for Pushover notifications) find the CA bundle.
+            Env = ["SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt"];
           };
         };
     });
