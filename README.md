@@ -160,8 +160,8 @@ Options marked **Required** have no built-in default and must be set in your con
 |`database.path`|**Required**|Location of the system database. Must be `/db/oott.db` when using the Docker image.|
 |`networking.interface`|auto-detected|Network interface to use for scans. Optional — if not set, the first non-loopback connected interface is used automatically.|
 |`log.level`|`warn`|Log level to use (off, error, warn, info, debug, trace)|
-|`web_server.ip_address`|**Required**|Address the API and web UI bind to. Use `0.0.0.0` to bind all interfaces.|
-|`web_server.port`|**Required**|Port the API and web UI listen on.|
+|`web_server.ip_address`|`0.0.0.0`|Address the API and web UI bind to. Use `0.0.0.0` to bind all interfaces.|
+|`web_server.port`|`3000`|Port the API and web UI listen on.|
 |`web_server.api_key`|**Required**|API key the app must present to use the backend.|
 |`arp_scanner.enabled`|`true`|Whether to run the ARP scanner. The whole `[arp_scanner]` section is optional; omit it to use the defaults below. Set to `false` to turn it off.|
 |`arp_scanner.wait_between_scans`|`30m`|Time to wait between each network scan (you can express it in seconds, minutes, hours, etc. as a suffix - for example: 30s, 10m, 1h)|

@@ -43,8 +43,8 @@ token="" # Your pushover token goes here, just copy&paste from their website aft
 user_key="" # User key goes here, this is the account wide code for pushover
 
 [web_server]
-ip_address="0.0.0.0" # IP to bind the web server for the API and web UI to, use 0.0.0.0 to bind it to all interfaces
-port=3000 # Port to listen on
+ip_address="0.0.0.0" # IP to bind the web server for the API and web UI to, use 0.0.0.0 to bind it to all interfaces. Defaults to "0.0.0.0" if omitted
+port=3000 # Port to listen on. Defaults to 3000 if omitted
 api_key="CHANGE_ME" # API Key to use the system's API, change this!
 
 [retention]

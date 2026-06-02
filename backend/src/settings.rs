@@ -14,6 +14,14 @@ fn default_log_level() -> String {
     "warn".to_string()
 }
 
+fn default_ip_address() -> String {
+    "0.0.0.0".to_string()
+}
+
+fn default_port() -> u16 {
+    3000
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Database {
     pub path: String,
@@ -143,7 +151,9 @@ pub struct Notifications {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct WebServer {
+    #[serde(default = "default_ip_address")]
     pub ip_address: String,
+    #[serde(default = "default_port")]
     pub port: u16,
     pub api_key: String,
 }
@@ -363,6 +373,29 @@ mod tests {
         let toml = BASE_CONFIG.replace("[log]\n        level = \"info\"", "[log]");
         let settings = parse(&toml);
         assert_eq!(settings.log.level, "warn");
+    }
+
+    #[test]
+    fn web_server_address_and_port_default_when_fields_omitted() {
+        // Keep the `[web_server]` section (api_key is required) but drop ip_address and port.
+        const NO_ADDR_CONFIG: &str = r#"
+            [database]
+            path = "./oott.db"
+            [networking]
+            [log]
+            level = "info"
+            [notifications]
+            method = "none"
+            notify_when_not_seen_for = "1w"
+            [notifications.pushover]
+            token = ""
+            user_key = ""
+            [web_server]
+            api_key = "test"
+        "#;
+        let settings = parse(NO_ADDR_CONFIG);
+        assert_eq!(settings.web_server.ip_address, "0.0.0.0");
+        assert_eq!(settings.web_server.port, 3000);
     }
 
     #[test]
