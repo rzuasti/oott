@@ -58,3 +58,4 @@ For Flutter/Dart code:
 - In the frontend, use the UISnackbars component to display messages to the user that do not require action on their part.
 - In the frontend, always use colors from the selected theme. Never hard code colors any other way. If a color is needed and it's not covered semantically by the theme, suggest an addition to the theme extension implemented in the project.
 - In the backend Rust code, avoid import aliases ("use ... as ...") unless necessary
+- Do not create branches by default, commit directly to main (this is a single developer project)
