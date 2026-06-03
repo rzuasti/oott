@@ -93,6 +93,22 @@
               || echo "  WARNING: failed to create Android emulator '$ANDROID_AVD_NAME'."
           fi
 
+          # Enable the emulated hardware keyboard so the host keyboard is
+          # forwarded into the guest. This image always exposes a (phantom)
+          # hardware keyboard, which makes Gboard hide the on-screen keyboard
+          # for non-password fields; without host-keyboard forwarding those
+          # fields are untypable. Enforced on every entry so it also fixes a
+          # pre-existing AVD, and a changed hardware config makes the emulator
+          # cold-boot once so the setting takes effect.
+          avdConfig="$HOME/.android/avd/$ANDROID_AVD_NAME.avd/config.ini"
+          if [ -f "$avdConfig" ]; then
+            if grep -q '^hw.keyboard=' "$avdConfig"; then
+              sed -i 's/^hw.keyboard=.*/hw.keyboard=yes/' "$avdConfig"
+            else
+              printf 'hw.keyboard=yes\n' >> "$avdConfig"
+            fi
+          fi
+
           # Point the Android Gradle Plugin at the Nix-patched aapt2 shipped in
           # the SDK build-tools. AGP otherwise downloads a prebuilt aapt2 from
           # Maven that cannot run on NixOS (its ELF interpreter is missing).
