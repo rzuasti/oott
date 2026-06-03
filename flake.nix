@@ -39,11 +39,17 @@
       # available and reproducible across machines, instead of relying on the
       # contents of the default androidPkgs bundle (which can drift over time).
       androidComposition = pkgsBySystem.${system}.androidenv.composeAndroidPackages {
-        platformVersions = ["36"]; # matches Flutter 3.41 compileSdk/targetSdk
+        # 36 = Flutter 3.41 app compileSdk/targetSdk; 33-35 cover plugin subprojects
+        # which each pin their own compileSdk (e.g. package_info_plus -> 34, jni -> 35).
+        platformVersions = ["33" "34" "35" "36"];
+        buildToolsVersions = ["35.0.0"]; # required by Android Gradle Plugin 8.11.1
         includeEmulator = true;
         includeSystemImages = true;
         systemImageTypes = ["google_apis"];
         abiVersions = ["x86_64"];
+        includeNDK = true;
+        ndkVersions = ["28.2.13676358"]; # matches Flutter 3.41 flutter.ndkVersion
+        cmakeVersions = ["3.22.1"]; # required by plugin native (externalNativeBuild) tasks
       };
     in {
       default = pkgsBySystem.${system}.mkShell rec {
@@ -85,6 +91,22 @@
               --device pixel_6 >/dev/null 2>&1 \
               && echo "  Android emulator '$ANDROID_AVD_NAME' ready." \
               || echo "  WARNING: failed to create Android emulator '$ANDROID_AVD_NAME'."
+          fi
+
+          # Point the Android Gradle Plugin at the Nix-patched aapt2 shipped in
+          # the SDK build-tools. AGP otherwise downloads a prebuilt aapt2 from
+          # Maven that cannot run on NixOS (its ELF interpreter is missing).
+          # We write this to the user-global Gradle properties because the
+          # project's android/gradle.properties is version-controlled and must
+          # not contain a machine-specific Nix store path. The managed block is
+          # rewritten on every entry so it tracks the pinned SDK store path.
+          aapt2Bin="$(ls "$ANDROID_SDK_ROOT"/build-tools/*/aapt2 2>/dev/null | sort | tail -n1)"
+          if [ -n "$aapt2Bin" ]; then
+            mkdir -p "$HOME/.gradle"
+            gradleProps="$HOME/.gradle/gradle.properties"
+            touch "$gradleProps"
+            sed -i '/# >>> oott-nix >>>/,/# <<< oott-nix <<</d' "$gradleProps"
+            printf '# >>> oott-nix >>>\nandroid.aapt2FromMavenOverride=%s\n# <<< oott-nix <<<\n' "$aapt2Bin" >> "$gradleProps"
           fi
 
           DEV_SHELL=oott exec fish
