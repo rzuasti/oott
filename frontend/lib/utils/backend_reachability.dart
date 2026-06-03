@@ -38,6 +38,16 @@ class BackendReachability extends ChangeNotifier {
     _prober = prober;
   }
 
+  /// Test-only hook to force a deterministic online state so polling widgets
+  /// load during tests (where connectivity_plus has no platform backing).
+  @visibleForTesting
+  void forceOnlineForTesting() {
+    _deviceHasNetwork = true;
+    _isBackendReachable = true;
+    _lastErrorMessage = null;
+    notifyListeners();
+  }
+
   void recordSuccess() {
     _lastSuccessAt = DateTime.now();
     _lastErrorMessage = null;

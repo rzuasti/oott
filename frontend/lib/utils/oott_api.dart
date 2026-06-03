@@ -2,6 +2,7 @@ library;
 
 import 'package:dio/dio.dart';
 import 'package:encrypter/encrypter/xor.dart';
+import 'package:flutter/foundation.dart';
 
 import 'api/api_error.dart';
 import 'api/dio_config.dart';
@@ -42,6 +43,18 @@ class BackendAPI {
     _apiKey = XOR().xorDecode(PrefUtil.getValue("api_key", "") as String);
 
     _dio = buildDio(baseUrl: _baseUrl, apiKey: _apiKey);
+    BackendReachability.instance.setProber(() => _dio.get('/test'));
+  }
+
+  /// Test-only access to the underlying [Dio] so tests can swap in a client
+  /// with a mock adapter installed. Mirrors [reconfigureFromPrefs]'s prober
+  /// wiring so reachability stays consistent after a swap.
+  @visibleForTesting
+  Dio get dioForTesting => _dio;
+
+  @visibleForTesting
+  set dioForTesting(Dio dio) {
+    _dio = dio;
     BackendReachability.instance.setProber(() => _dio.get('/test'));
   }
 

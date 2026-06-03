@@ -23,6 +23,7 @@ For Flutter/Dart code:
 - `cd backend && ./run.sh` from the `backend/` folder - Run the backend
 - `cd frontend && ./run.sh` from the `frontend/` folder - Run the front-end for the web
 - `cd backend && ./run_tests.sh` - Run the backend tests
+- `cd frontend && ./run_tests.sh` - Run the front-end tests
 - `cd backend && ./lint.sh` - Run the clippy linter for Rust code
 - `dart analyze` - Run the Dart linter
 - `cd backend/data && ./update_mac_vendors --llm` - Update the MAC vendors list from the web and re-calculate the vedors -> device type list
@@ -49,7 +50,8 @@ For Flutter/Dart code:
 ## Important notes
 - NEVER add or commit .env files or files with secrets (passwords, API keys or similar information)
 - Code must be as simple as possible, human readable and modularized
-- ALWAYS write unit tests for new or modified backend components
+- ALWAYS write and/or update unit tests for new or modified backend components
+- ALWAYS write and/or update unit, API and widget tests for new or modified frontend components
 - ALWAYS run all tests after making a new change and do not continue until all tests pass
 - When adding a new API endpoint, ALWAYS wire it to the OpenAPI generation
 - When adding a significant chunk of new code (either Rust or Dart), run the corresponding linter
