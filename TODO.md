@@ -1,6 +1,8 @@
 # OOTT ToDo list
 
 - [ ] Add support for push notifications to the app (iOS and Android)
+- [ ] README.md - Add section about securing access (reverse proxy, never expose to the internet, etc.)
+- [ ] README.md - Simplify storage section (remove the calculations - just leave the results)
 
 ## Release plan for 0.2.0
 - [ ] Test Android UI on emulator
@@ -22,6 +24,7 @@
 
 ## Frontend
 
+- [ ] Mobile - Implement pull to refresh on the notifications and devices list
 - [ ] Mobile - reduce lists length (# of items) so they fit on a phone in one screen (use iPhone latest gen and Google phone latest gen)
 - [ ] Mobile - In the devices list the filters and sort buttons overlap (dont fit in the screen)
 - [ ] When changing pages (either list) the items should change to placeholders while loading
