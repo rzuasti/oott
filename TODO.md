@@ -22,6 +22,7 @@
 
 ## Frontend
 
+- [ ] The notifications list should not refresh coldly every time. It should add/remove notifications with an animation as if a stack
 - [x] Make gruvbox the default theme
 - [x] Can we add front-end tests?
 - [x] Break down oott_api.dart in modules

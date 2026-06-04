@@ -54,4 +54,55 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
+
+  testWidgets('changing pages scrolls back to the top of the list', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 300);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    List<Map<String, dynamic>> page(int firstId) => List.generate(
+      6,
+      (i) => notificationJson(id: firstId + i, title: 'Item ${firstId + i}'),
+    );
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(200, page(1)),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 6},
+    );
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(200, page(7)),
+      queryParameters: {'is_new': true, 'page_offset': 5, 'page_limit': 6},
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: gruvboxDarkTheme,
+        home: const Scaffold(body: NotificationsList()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final scrollable = find.descendant(
+      of: find.byType(CustomScrollView),
+      matching: find.byType(Scrollable),
+    );
+    ScrollPosition position() =>
+        tester.state<ScrollableState>(scrollable).position;
+
+    // Scroll down to reveal the pagination bar.
+    await tester.drag(scrollable, const Offset(0, -2000));
+    await tester.pumpAndSettle();
+    expect(position().pixels, greaterThan(0));
+
+    // Advance a page: the list should jump back to the top.
+    await tester.tap(find.byTooltip('Next page'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Item 7'), findsWidgets);
+    expect(position().pixels, 0);
+
+    await tester.pumpWidget(const SizedBox());
+  });
 }

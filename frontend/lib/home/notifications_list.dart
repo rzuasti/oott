@@ -52,6 +52,7 @@ class _NotificationsListState extends State<NotificationsList>
   bool _hasNextPage = false;
   String? _error;
   CancelToken? _fetchToken;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -107,7 +108,21 @@ class _NotificationsListState extends State<NotificationsList>
     routeObserver.unsubscribe(this);
     _notificationTimer?.cancel();
     _fetchToken?.cancel();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Fetches [page] and scrolls back to the top of the list, so changing pages
+  /// always starts the new page from its first item.
+  void _goToPage(int page) {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+    _fetchPage(page);
   }
 
   Future<void> _fetchPage(int page) async {
@@ -207,6 +222,7 @@ class _NotificationsListState extends State<NotificationsList>
         _buildNotificationsHeader(context),
         Expanded(
           child: CustomScrollView(
+            controller: _scrollController,
             slivers: [
               ..._buildNotificationSlivers(context),
               ...widget.trailingSlivers,
@@ -296,7 +312,7 @@ class _NotificationsListState extends State<NotificationsList>
             currentPage: _currentPage,
             hasNextPage: _hasNextPage,
             isLoading: _isLoading,
-            onPageChanged: _fetchPage,
+            onPageChanged: _goToPage,
           ),
         ),
     ];

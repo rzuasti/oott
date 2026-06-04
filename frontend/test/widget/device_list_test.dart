@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/devices/device_list.dart';
 import 'package:frontend/devices/device_list_rows.dart';
@@ -31,8 +32,9 @@ void main() {
     await tearDownTree(tester);
   });
 
-  testWidgets('shows the empty message when there are no devices',
-      (tester) async {
+  testWidgets('shows the empty message when there are no devices', (
+    tester,
+  ) async {
     adapter.onGet('/devices', (server) => server.reply(200, <dynamic>[]));
 
     await pumpScreen(tester, const DeviceList());
@@ -54,6 +56,47 @@ void main() {
     );
 
     expect(find.textContaining('Backend error (status 500)'), findsOneWidget);
+
+    await tearDownTree(tester);
+  });
+
+  testWidgets('changing pages scrolls back to the top of the list', (
+    tester,
+  ) async {
+    // 11 devices: a full page of 10 plus one, so the pagination bar appears.
+    adapter.onGet(
+      '/devices',
+      (server) => server.reply(
+        200,
+        List.generate(
+          11,
+          (i) => deviceJson(
+            macAddress: '00:00:00:00:00:${i.toString().padLeft(2, '0')}',
+          ),
+        ),
+      ),
+    );
+
+    // A short viewport so the rows overflow the screen and the list can scroll.
+    await pumpScreen(tester, const DeviceList(), size: const Size(900, 500));
+    await pumpUntilFound(tester, find.byType(DeviceRowWide));
+
+    final scrollable = find.descendant(
+      of: find.byType(CustomScrollView),
+      matching: find.byType(Scrollable),
+    );
+    ScrollPosition position() =>
+        tester.state<ScrollableState>(scrollable).position;
+
+    // Scroll down to reveal the pagination bar.
+    await tester.drag(scrollable, const Offset(0, -2000));
+    await tester.pumpAndSettle();
+    expect(position().pixels, greaterThan(0));
+
+    // Advance a page: the list should jump back to the top.
+    await tester.tap(find.byTooltip('Next page'));
+    await tester.pumpAndSettle();
+    expect(position().pixels, 0);
 
     await tearDownTree(tester);
   });

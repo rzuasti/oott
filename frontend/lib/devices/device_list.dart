@@ -41,6 +41,7 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
   int _currentPage = 0;
   bool _hasNextPage = false;
   CancelToken? _fetchToken;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -69,7 +70,21 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
     _ownerDebounce?.cancel();
     _fetchToken?.cancel();
     _ownerController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Fetches [page] and scrolls back to the top of the list, so changing pages
+  /// always starts the new page from its first row.
+  void _goToPage(int page) {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+    _fetchPage(page);
   }
 
   void _onOwnerChanged() {
@@ -286,6 +301,7 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
     return RefreshIndicator(
       onRefresh: () => _fetchPage(_currentPage),
       child: CustomScrollView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           if (isWide)
@@ -323,7 +339,7 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
                 currentPage: _currentPage,
                 hasNextPage: _hasNextPage,
                 isLoading: _isLoading,
-                onPageChanged: _fetchPage,
+                onPageChanged: _goToPage,
               ),
             ),
         ],
