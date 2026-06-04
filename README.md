@@ -178,7 +178,7 @@ Options marked **Required** have no built-in default and must be set in your con
 |`snmp_scanner.wait_between_scans`|`10m`|Time to wait between polls. Keep it well under the agent's ARP cache timeout so active devices aren't missed.|
 |`snmp_scanner.timeout`|`5s`|Per-poll SNMP request timeout.|
 |`notifications.method`|**Required**|For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)|
-|`notifications.notify_when_not_seen_for`|**Required**|Send a notification if a device comes back online after not being seen for this timeframe (you can use hours, weeks, etc.)|
+|`notifications.notify_when_not_seen_for`|`1w`|Send a notification if a device comes back online after not being seen for this timeframe (you can use hours, weeks, etc.)|
 |`notifications.pushover.token`|**Required**|Your pushover token goes here, just copy&paste from their website after creating the app (may be left empty when `method` is `none`)|
 |`notifications.pushover.user_key`|**Required**|User key goes here, this is the account wide code for pushover (may be left empty when `method` is `none`)|
 |`retention.window`|`365d`|How long to retain device events and notifications. Records older than this are purged daily. Accepts duration strings (e.g. `90d`, `1y`, `6m`).|

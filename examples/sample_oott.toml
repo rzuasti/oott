@@ -1,6 +1,7 @@
 [database]
 path = "/db/oott.db" # Database path. For the Docker image this must be "/db/oott.db" (the mounted volume); make sure it's writeable for the user running this process
 
+# The whole [networking] section is optional; omit it to auto-detect the interface.
 [networking]
 # interface = "eno1" # Optional: network interface to use for scans. If not set, the first non-loopback connected interface is used.
 
@@ -36,7 +37,7 @@ enabled=true # Set to false to disable the DHCP scanner
 
 [notifications]
 method="pushover" # For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)
-notify_when_not_seen_for="1w" # Send a notification if a device comes back online after not being seen for this timeframe
+notify_when_not_seen_for="1w" # Send a notification if a device comes back online after not being seen for this timeframe. Defaults to "1w" if omitted
 
 [notifications.pushover]
 token="" # Your pushover token goes here, just copy&paste from their website after creating the app

@@ -22,12 +22,40 @@ fn default_port() -> u16 {
     3000
 }
 
+fn default_notify_when_not_seen_for() -> DurationString {
+    DurationString::try_from("1w".to_string()).unwrap()
+}
+
+fn default_arp_wait_between_scans() -> DurationString {
+    DurationString::try_from("30m".to_string()).unwrap()
+}
+
+fn default_arp_sender_timeout() -> DurationString {
+    DurationString::try_from("1m".to_string()).unwrap()
+}
+
+fn default_arp_scan_duration() -> DurationString {
+    DurationString::try_from("10m".to_string()).unwrap()
+}
+
+fn default_probe_timeout() -> DurationString {
+    DurationString::try_from("2s".to_string()).unwrap()
+}
+
+fn default_snmp_wait_between_scans() -> DurationString {
+    DurationString::try_from("10m".to_string()).unwrap()
+}
+
+fn default_snmp_timeout() -> DurationString {
+    DurationString::try_from("5s".to_string()).unwrap()
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Database {
     pub path: String,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct Networking {
     pub interface: Option<String>,
 }
@@ -50,8 +78,11 @@ impl Default for Log {
 pub struct ArpScanner {
     #[serde(default = "default_true")]
     pub enabled: bool,
+    #[serde(default = "default_arp_wait_between_scans")]
     pub wait_between_scans: DurationString,
+    #[serde(default = "default_arp_sender_timeout")]
     pub sender_timeout: DurationString,
+    #[serde(default = "default_arp_scan_duration")]
     pub scan_duration: DurationString,
 }
 
@@ -59,9 +90,9 @@ impl Default for ArpScanner {
     fn default() -> Self {
         ArpScanner {
             enabled: true,
-            wait_between_scans: DurationString::try_from("30m".to_string()).unwrap(),
-            sender_timeout: DurationString::try_from("1m".to_string()).unwrap(),
-            scan_duration: DurationString::try_from("10m".to_string()).unwrap(),
+            wait_between_scans: default_arp_wait_between_scans(),
+            sender_timeout: default_arp_sender_timeout(),
+            scan_duration: default_arp_scan_duration(),
         }
     }
 }
@@ -70,6 +101,7 @@ impl Default for ArpScanner {
 pub struct MdnsScanner {
     #[serde(default = "default_true")]
     pub enabled: bool,
+    #[serde(default = "default_probe_timeout")]
     pub probe_timeout: DurationString,
 }
 
@@ -77,7 +109,7 @@ impl Default for MdnsScanner {
     fn default() -> Self {
         MdnsScanner {
             enabled: true,
-            probe_timeout: DurationString::try_from("2s".to_string()).unwrap(),
+            probe_timeout: default_probe_timeout(),
         }
     }
 }
@@ -86,6 +118,7 @@ impl Default for MdnsScanner {
 pub struct SsdpScanner {
     #[serde(default = "default_true")]
     pub enabled: bool,
+    #[serde(default = "default_probe_timeout")]
     pub probe_timeout: DurationString,
 }
 
@@ -93,7 +126,7 @@ impl Default for SsdpScanner {
     fn default() -> Self {
         SsdpScanner {
             enabled: true,
-            probe_timeout: DurationString::try_from("2s".to_string()).unwrap(),
+            probe_timeout: default_probe_timeout(),
         }
     }
 }
@@ -118,7 +151,9 @@ pub struct SnmpScanner {
     pub target: String,
     /// SNMPv2c read-only community string.
     pub community: String,
+    #[serde(default = "default_snmp_wait_between_scans")]
     pub wait_between_scans: DurationString,
+    #[serde(default = "default_snmp_timeout")]
     pub timeout: DurationString,
 }
 
@@ -130,8 +165,8 @@ impl Default for SnmpScanner {
             enabled: false,
             target: String::new(),
             community: String::new(),
-            wait_between_scans: DurationString::try_from("10m".to_string()).unwrap(),
-            timeout: DurationString::try_from("5s".to_string()).unwrap(),
+            wait_between_scans: default_snmp_wait_between_scans(),
+            timeout: default_snmp_timeout(),
         }
     }
 }
@@ -146,6 +181,7 @@ pub struct Pushover {
 pub struct Notifications {
     pub method: String,
     pub pushover: Pushover,
+    #[serde(default = "default_notify_when_not_seen_for")]
     pub notify_when_not_seen_for: DurationString,
 }
 
@@ -187,6 +223,7 @@ impl Default for DeviceEvents {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub database: Database,
+    #[serde(default)]
     pub networking: Networking,
     #[serde(default)]
     pub log: Log,
@@ -310,6 +347,69 @@ mod tests {
     }
 
     #[test]
+    fn snmp_scanner_durations_default_when_omitted() {
+        // The section is present (with only the required target/community), so the
+        // duration fields must fall back to their defaults rather than failing.
+        let toml = format!(
+            "{BASE_CONFIG}
+            [snmp_scanner]
+            target = \"192.168.1.1:161\"
+            community = \"public\"
+            "
+        );
+        let settings = parse(&toml);
+        assert!(settings.snmp_scanner.enabled);
+        assert_eq!(
+            std::time::Duration::from(settings.snmp_scanner.wait_between_scans),
+            std::time::Duration::from_secs(10 * 60)
+        );
+        assert_eq!(
+            std::time::Duration::from(settings.snmp_scanner.timeout),
+            std::time::Duration::from_secs(5)
+        );
+    }
+
+    #[test]
+    fn scanner_durations_default_when_section_present_but_fields_omitted() {
+        // Each scanner section is present (e.g. to toggle `enabled`) but the duration
+        // fields are omitted; they must fall back to their defaults, not fail parsing.
+        let toml = format!(
+            "{BASE_CONFIG}
+            [mdns_scanner]
+            enabled = true
+            [ssdp_scanner]
+            enabled = true
+            "
+        );
+        // Keep the `[arp_scanner]` section but drop its duration fields.
+        let toml = toml.replace(
+            "[arp_scanner]\n        wait_between_scans = \"1m\"\n        sender_timeout = \"1m\"\n        scan_duration = \"2m\"",
+            "[arp_scanner]",
+        );
+        let settings = parse(&toml);
+        assert_eq!(
+            std::time::Duration::from(settings.arp_scanner.wait_between_scans),
+            std::time::Duration::from_secs(30 * 60)
+        );
+        assert_eq!(
+            std::time::Duration::from(settings.arp_scanner.sender_timeout),
+            std::time::Duration::from_secs(60)
+        );
+        assert_eq!(
+            std::time::Duration::from(settings.arp_scanner.scan_duration),
+            std::time::Duration::from_secs(10 * 60)
+        );
+        assert_eq!(
+            std::time::Duration::from(settings.mdns_scanner.probe_timeout),
+            std::time::Duration::from_secs(2)
+        );
+        assert_eq!(
+            std::time::Duration::from(settings.ssdp_scanner.probe_timeout),
+            std::time::Duration::from_secs(2)
+        );
+    }
+
+    #[test]
     fn arp_scanner_uses_code_defaults_when_section_omitted() {
         // A config without an `[arp_scanner]` section falls back to the code defaults.
         const NO_ARP_CONFIG: &str = r#"
@@ -420,6 +520,38 @@ mod tests {
             std::time::Duration::from(settings.device_events.deduplication_window),
             std::time::Duration::from_secs(5 * 60)
         );
+    }
+
+    #[test]
+    fn notify_when_not_seen_for_defaults_when_field_omitted() {
+        // Drop the `notify_when_not_seen_for` field; it should fall back to the "1w" default.
+        let toml = BASE_CONFIG.replace("\n        notify_when_not_seen_for = \"1w\"", "");
+        let settings = parse(&toml);
+        assert_eq!(
+            std::time::Duration::from(settings.notifications.notify_when_not_seen_for),
+            std::time::Duration::from_secs(7 * 24 * 60 * 60)
+        );
+    }
+
+    #[test]
+    fn networking_section_is_optional() {
+        // The `[networking]` section has no mandatory fields, so omitting it entirely
+        // should fall back to the code default (interface auto-detected at runtime).
+        const NO_NETWORKING_CONFIG: &str = r#"
+            [database]
+            path = "./oott.db"
+            [log]
+            level = "info"
+            [notifications]
+            method = "none"
+            [notifications.pushover]
+            token = ""
+            user_key = ""
+            [web_server]
+            api_key = "test"
+        "#;
+        let settings = parse(NO_NETWORKING_CONFIG);
+        assert!(settings.networking.interface.is_none());
     }
 
     #[test]
