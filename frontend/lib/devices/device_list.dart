@@ -74,19 +74,6 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
     super.dispose();
   }
 
-  /// Fetches [page] and scrolls back to the top of the list, so changing pages
-  /// always starts the new page from its first row.
-  void _goToPage(int page) {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-    _fetchPage(page);
-  }
-
   void _onOwnerChanged() {
     _ownerDebounce?.cancel();
     _ownerDebounce = Timer(
@@ -95,7 +82,16 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
     );
   }
 
-  Future<void> _fetchPage(int page) async {
+  /// Fetches [page]. When [scrollToTop] is set, the list animates back to its
+  /// first row, so changing pages always starts the new page from the top.
+  Future<void> _fetchPage(int page, {bool scrollToTop = false}) async {
+    if (scrollToTop && _scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
     _fetchToken?.cancel();
     final token = CancelToken();
     _fetchToken = token;
@@ -339,7 +335,7 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
                 currentPage: _currentPage,
                 hasNextPage: _hasNextPage,
                 isLoading: _isLoading,
-                onPageChanged: _goToPage,
+                onPageChanged: (page) => _fetchPage(page, scrollToTop: true),
               ),
             ),
         ],

@@ -112,20 +112,16 @@ class _NotificationsListState extends State<NotificationsList>
     super.dispose();
   }
 
-  /// Fetches [page] and scrolls back to the top of the list, so changing pages
-  /// always starts the new page from its first item.
-  void _goToPage(int page) {
-    if (_scrollController.hasClients) {
+  /// Fetches [page]. When [scrollToTop] is set, the list animates back to its
+  /// first item, so changing pages always starts the new page from the top.
+  Future<void> _fetchPage(int page, {bool scrollToTop = false}) async {
+    if (scrollToTop && _scrollController.hasClients) {
       _scrollController.animateTo(
         0,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
     }
-    _fetchPage(page);
-  }
-
-  Future<void> _fetchPage(int page) async {
     _fetchToken?.cancel();
     final token = CancelToken();
     _fetchToken = token;
@@ -312,7 +308,7 @@ class _NotificationsListState extends State<NotificationsList>
             currentPage: _currentPage,
             hasNextPage: _hasNextPage,
             isLoading: _isLoading,
-            onPageChanged: _goToPage,
+            onPageChanged: (page) => _fetchPage(page, scrollToTop: true),
           ),
         ),
     ];
