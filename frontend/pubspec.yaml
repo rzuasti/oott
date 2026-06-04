@@ -27,6 +27,25 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   http_mock_adapter: ^0.6.1
+  flutter_native_splash: ^2.4.7
 
 flutter:
   uses-material-design: true
+
+# Branded native launch screen (Android + iOS).
+# OOTT wordmark on the Gruvbox-dark background (#1d2021).
+# Regenerate native files after changing this block or the images:
+#   dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#1d2021"
+  color_dark: "#1d2021"
+  image: assets/splash/oott_logo.png
+  image_dark: assets/splash/oott_logo.png
+  android_12:
+    image: assets/splash/oott_logo_android12.png
+    icon_background_color: "#1d2021"
+    image_dark: assets/splash/oott_logo_android12.png
+    icon_background_color_dark: "#1d2021"
+  android: true
+  ios: true
+  web: false
