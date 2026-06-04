@@ -9,6 +9,7 @@ import 'status/status_screen.dart';
 import 'theme/dimens.dart';
 import 'utils/pref_utils.dart';
 import 'widgets/offline_banner.dart';
+import 'widgets/pagination_progress.dart';
 
 typedef _NavDest = ({IconData icon, IconData activeIcon, String label});
 
@@ -106,16 +107,20 @@ class MainShell extends StatelessWidget {
         if (width < Breakpoints.medium) {
           return Scaffold(
             appBar: _buildAppBar(context, selectedIndex),
-            body: Column(
-              children: [
-                const OfflineBanner(),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(Insets.lg),
-                    child: child,
+            // The overlay pins the pagination progress bar flush against the
+            // bottom of the body, i.e. the top of the navigation bar below.
+            body: PaginationProgressOverlay(
+              child: Column(
+                children: [
+                  const OfflineBanner(),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(Insets.lg),
+                      child: child,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             bottomNavigationBar: NavigationBar(
               selectedIndex: selectedIndex,
@@ -161,16 +166,20 @@ class MainShell extends StatelessWidget {
               Expanded(
                 child: Container(
                   color: Theme.of(context).colorScheme.surface,
-                  child: Column(
-                    children: [
-                      const OfflineBanner(),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.all(Insets.lg),
-                          child: child,
+                  // The overlay pins the pagination progress bar flush against
+                  // the very bottom of the content region (the screen bottom).
+                  child: PaginationProgressOverlay(
+                    child: Column(
+                      children: [
+                        const OfflineBanner(),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(Insets.lg),
+                            child: child,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

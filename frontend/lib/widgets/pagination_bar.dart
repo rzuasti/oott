@@ -18,6 +18,9 @@ class PaginationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final canGoBack = currentPage > 0 && !isLoading;
     final canGoForward = hasNextPage && !isLoading;
+    // While a page change is in flight the buttons disable so the tap reads as
+    // registered and double-taps are blocked; the progress cue itself is drawn
+    // by the app shell at the bottom of the page body.
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(

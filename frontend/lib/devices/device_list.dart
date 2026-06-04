@@ -13,6 +13,7 @@ import '../utils/oott_api.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/filter_selector.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/pagination_progress.dart';
 import '../widgets/skeleton.dart';
 import 'device_list_filter.dart';
 import 'device_list_rows.dart';
@@ -35,6 +36,7 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
   DeviceFilter _filter = DeviceFilter.newDevices;
   List<Device> _devices = [];
   bool _isLoading = true;
+  bool _isPaging = false;
   String? _error;
   final TextEditingController _ownerController = TextEditingController();
   DeviceType? _typeFilter;
@@ -86,6 +88,8 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
     _fetchToken?.cancel();
     _ownerController.dispose();
     _scrollController.dispose();
+    // Clear any in-flight cue so it doesn't linger after leaving the page.
+    paginationLoading.value = false;
     super.dispose();
   }
 
@@ -99,7 +103,14 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
 
   /// Fetches [page]. When [scrollToTop] is set, the list animates back to its
   /// first row, so changing pages always starts the new page from the top.
-  Future<void> _fetchPage(int page, {bool scrollToTop = false}) async {
+  /// When [paging] is set the current page stays visible and the pagination
+  /// bar shows a progress cue; background refreshes leave [paging] false so
+  /// they don't flash the bar.
+  Future<void> _fetchPage(
+    int page, {
+    bool scrollToTop = false,
+    bool paging = false,
+  }) async {
     if (scrollToTop && _scrollController.hasClients) {
       _scrollController.animateTo(
         0,
@@ -112,8 +123,10 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
     _fetchToken = token;
     setState(() {
       _isLoading = _devices.isEmpty;
+      _isPaging = paging;
       _error = null;
     });
+    paginationLoading.value = paging;
     try {
       bool? isRegistered;
       if (_filter == DeviceFilter.newDevices) isRegistered = false;
@@ -135,14 +148,18 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
         _hasNextPage = result.hasNextPage;
         _devices = result.items;
         _isLoading = false;
+        _isPaging = false;
       });
+      paginationLoading.value = false;
     } catch (e) {
       if (!mounted || token != _fetchToken) return;
       if (e is DioException && e.type == DioExceptionType.cancel) return;
       setState(() {
         _error = dioErrorToUserMessage(e);
         _isLoading = false;
+        _isPaging = false;
       });
+      paginationLoading.value = false;
     }
   }
 
@@ -337,8 +354,9 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
               child: PaginationBar(
                 currentPage: _currentPage,
                 hasNextPage: _hasNextPage,
-                isLoading: _isLoading,
-                onPageChanged: (page) => _fetchPage(page, scrollToTop: true),
+                isLoading: _isPaging,
+                onPageChanged: (page) =>
+                    _fetchPage(page, scrollToTop: true, paging: true),
               ),
             ),
         ],

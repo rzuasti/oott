@@ -12,6 +12,7 @@ import '../utils/ui_snackbars.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/filter_selector.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/pagination_progress.dart';
 import '../widgets/skeleton.dart';
 import 'notification_card.dart';
 
@@ -55,6 +56,7 @@ class _NotificationsListState extends State<NotificationsList>
   bool _didInitialFetch = false;
   List<oott_model.Notification> _items = [];
   bool _isLoading = false;
+  bool _isPaging = false;
 
   int get _pageSize => MediaQuery.sizeOf(context).width < Breakpoints.medium
       ? _phonePageSize
@@ -124,12 +126,21 @@ class _NotificationsListState extends State<NotificationsList>
     _notificationTimer?.cancel();
     _fetchToken?.cancel();
     _scrollController.dispose();
+    // Clear any in-flight cue so it doesn't linger after leaving the page.
+    paginationLoading.value = false;
     super.dispose();
   }
 
   /// Fetches [page]. When [scrollToTop] is set, the list animates back to its
   /// first item, so changing pages always starts the new page from the top.
-  Future<void> _fetchPage(int page, {bool scrollToTop = false}) async {
+  /// When [paging] is set the current page stays visible and the pagination
+  /// bar shows a progress cue; background refreshes leave [paging] false so
+  /// they don't flash the bar.
+  Future<void> _fetchPage(
+    int page, {
+    bool scrollToTop = false,
+    bool paging = false,
+  }) async {
     if (scrollToTop && _scrollController.hasClients) {
       _scrollController.animateTo(
         0,
@@ -142,8 +153,10 @@ class _NotificationsListState extends State<NotificationsList>
     _fetchToken = token;
     setState(() {
       _isLoading = _items.isEmpty;
+      _isPaging = paging;
       _error = null;
     });
+    paginationLoading.value = paging;
     try {
       final result = await BackendAPI.instance.listNotifications(
         _filter.isNew,
@@ -157,14 +170,18 @@ class _NotificationsListState extends State<NotificationsList>
         _hasNextPage = result.hasNextPage;
         _items = result.items;
         _isLoading = false;
+        _isPaging = false;
       });
+      paginationLoading.value = false;
     } catch (e) {
       if (!mounted || token != _fetchToken) return;
       if (e is DioException && e.type == DioExceptionType.cancel) return;
       setState(() {
         _error = dioErrorToUserMessage(e);
         _isLoading = false;
+        _isPaging = false;
       });
+      paginationLoading.value = false;
     }
   }
 
@@ -313,8 +330,9 @@ class _NotificationsListState extends State<NotificationsList>
           child: PaginationBar(
             currentPage: _currentPage,
             hasNextPage: _hasNextPage,
-            isLoading: _isLoading,
-            onPageChanged: (page) => _fetchPage(page, scrollToTop: true),
+            isLoading: _isPaging,
+            onPageChanged: (page) =>
+                _fetchPage(page, scrollToTop: true, paging: true),
           ),
         ),
     ];
