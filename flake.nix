@@ -125,6 +125,18 @@
             printf '# >>> oott-nix >>>\nandroid.aapt2FromMavenOverride=%s\n# <<< oott-nix <<<\n' "$aapt2Bin" >> "$gradleProps"
           fi
 
+          # Normalize the Android Gradle wrapper's shebang. The nixpkgs Flutter
+          # SDK ships a gradlew template whose shebang is hardcoded to a specific
+          # bash in the Nix store; flutter copies it verbatim into android/gradlew.
+          # When that store path is later garbage-collected (or Flutter updates),
+          # the interpreter vanishes and Gradle dies with a misleading
+          # "ProcessException: No such file or directory". gradlew is gitignored,
+          # so we rewrite it to the portable shebang on every entry.
+          gradlewFile="$(git rev-parse --show-toplevel 2>/dev/null || echo .)/frontend/android/gradlew"
+          if [ -f "$gradlewFile" ]; then
+            sed -i '1s|^#!.*|#!/usr/bin/env sh|' "$gradlewFile"
+          fi
+
           DEV_SHELL=oott exec fish
         '';
       };
