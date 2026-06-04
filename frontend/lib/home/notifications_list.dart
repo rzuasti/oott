@@ -309,6 +309,7 @@ class _NotificationsListState extends State<NotificationsList>
       itemBuilder: (context, index) {
         final item = _items[index];
         return NotificationCard(
+          key: ValueKey(item.id),
           item: item,
           formatter: formatter,
           onSetRead: (read) => _setRead(item, read),
