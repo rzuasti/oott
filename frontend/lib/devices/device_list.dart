@@ -21,7 +21,7 @@ import 'device_list_sort.dart';
 // Phones show fewer devices so the list and its pagination controls fit on
 // screen at once on the common current phones (e.g. iPhone 15, Pixel 8); the
 // wider table layout has the vertical room for a full page.
-const _phonePageSize = 6;
+const _phonePageSize = 5;
 const _widePageSize = 10;
 
 class DeviceList extends StatefulWidget {
@@ -329,7 +329,8 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
                       onRefresh: () => _fetchPage(_currentPage),
                     );
             },
-            separatorBuilder: (_, _) => const Divider(height: 1),
+            separatorBuilder: (_, _) =>
+                isWide ? const Divider(height: 1) : const SizedBox.shrink(),
           ),
           if (_currentPage > 0 || _hasNextPage)
             SliverToBoxAdapter(
