@@ -22,6 +22,7 @@
 
 ## Frontend
 
+- [x] Make gruvbox the default theme
 - [x] Can we add front-end tests?
 - [x] Break down oott_api.dart in modules
 

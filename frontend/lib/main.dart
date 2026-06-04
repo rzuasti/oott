@@ -61,8 +61,8 @@ final _themes = {
 
 class AppState extends ChangeNotifier {
   AppState() {
-    final saved = PrefUtil.getValue('theme', 'catppuccin_mocha') as String;
-    _themeKey = _themes.containsKey(saved) ? saved : 'catppuccin_mocha';
+    final saved = PrefUtil.getValue('theme', 'gruvbox_dark') as String;
+    _themeKey = _themes.containsKey(saved) ? saved : 'gruvbox_dark';
   }
 
   late String _themeKey;
