@@ -2,18 +2,37 @@
 #
 # Run the OOTT front-end on the Android emulator.
 #
-# Boots the emulator first (via run_android.sh) if it isn't already running,
-# then launches the Flutter app on it. Any extra arguments are forwarded to
-# `flutter run`.
+# Boots the emulator first if it isn't already running, then launches the
+# Flutter app on it. Any extra arguments are forwarded to `flutter run`.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# AVD created by the Nix dev shell. The AVD (named "oott_api36" by default) is
+# auto-created from the pinned system image when you enter the flake dev shell.
+AVD_NAME="${ANDROID_AVD_NAME:-oott_api36}"
 
 if ! command -v flutter >/dev/null 2>&1; then
   echo "error: 'flutter' not found on PATH." >&2
   echo "       Enter the dev shell first (e.g. 'nix develop')." >&2
   exit 1
 fi
+
+# Boot the OOTT Android emulator created by the Nix dev shell in the background.
+# Any extra arguments are forwarded to `emulator` (e.g. -no-window -no-audio).
+boot_emulator() {
+  if ! command -v emulator >/dev/null 2>&1; then
+    echo "error: 'emulator' not found on PATH." >&2
+    echo "       Enter the dev shell first (e.g. 'nix develop')." >&2
+    exit 1
+  fi
+
+  if ! emulator -list-avds | grep -qx "$AVD_NAME"; then
+    echo "error: Android emulator '$AVD_NAME' not found." >&2
+    echo "       Re-enter the dev shell to have it created automatically." >&2
+    exit 1
+  fi
+
+  emulator -avd "$AVD_NAME" "$@" &
+}
 
 # Print the id of the first connected Android device, or nothing if none is up.
 # `flutter run -d <x>` matches a device by id/name, never by platform, so the
@@ -48,7 +67,7 @@ wait_for_boot() {
 # Boot the emulator in the background if no Android device is connected yet.
 if [ -z "$(android_device_id)" ]; then
   echo "No Android device detected, booting the emulator..."
-  "$SCRIPT_DIR/run_android.sh" -no-snapshot-save &
+  boot_emulator -no-snapshot-save
 
   echo "Waiting for the emulator to come online..."
   until [ -n "$(android_device_id)" ]; do

@@ -22,8 +22,7 @@ For Flutter/Dart code:
 - `cd backend && ./build.sh` from the `backend/` folder - Build the backend
 - `cd backend && ./run.sh` from the `backend/` folder - Run the backend
 - `cd frontend && ./run_web.sh` from the `frontend/` folder - Run the front-end for the web
-- `cd frontend && ./run_android.sh` from the `frontend/` folder - Boot the Android emulator
-- `cd frontend && ./run_android_emulator.sh` from the `frontend/` folder - Run the front-end on the Android emulator
+- `cd frontend && ./run_android_emulator.sh` from the `frontend/` folder - Boot the Android emulator (if needed) and run the front-end on it
 - `cd backend && ./run_tests.sh` - Run the backend tests
 - `cd frontend && ./run_tests.sh` - Run the front-end tests
 - `cd backend && ./lint.sh` - Run the clippy linter for Rust code
