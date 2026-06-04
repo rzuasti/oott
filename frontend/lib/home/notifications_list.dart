@@ -10,6 +10,7 @@ import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../utils/ui_snackbars.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/filter_selector.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/skeleton.dart';
 import 'notification_card.dart';
@@ -266,27 +267,14 @@ class _NotificationsListState extends State<NotificationsList>
               ),
           ],
         ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(
-            horizontal: Insets.sm,
-            vertical: Insets.xs,
-          ),
-          child: Wrap(
-            spacing: Insets.sm,
-            children: _NotificationFilter.values
-                .map(
-                  (f) => ChoiceChip(
-                    label: Text(f.label),
-                    selected: _filter == f,
-                    onSelected: (_) {
-                      setState(() => _filter = f);
-                      _fetchPage(0);
-                    },
-                  ),
-                )
-                .toList(),
-          ),
+        FilterSelector<_NotificationFilter>(
+          values: _NotificationFilter.values,
+          selected: _filter,
+          labelOf: (f) => f.label,
+          onSelected: (f) {
+            setState(() => _filter = f);
+            _fetchPage(0);
+          },
         ),
       ],
     );

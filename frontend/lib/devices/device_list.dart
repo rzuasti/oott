@@ -11,6 +11,7 @@ import '../theme/dimens.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/filter_selector.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/skeleton.dart';
 import 'device_list_filter.dart';
@@ -240,27 +241,14 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
             Row(
               children: [
                 Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Insets.sm,
-                      vertical: Insets.xs,
-                    ),
-                    child: Wrap(
-                      spacing: Insets.sm,
-                      children: DeviceFilter.values
-                          .map(
-                            (f) => ChoiceChip(
-                              label: Text(f.label),
-                              selected: _filter == f,
-                              onSelected: (_) {
-                                setState(() => _filter = f);
-                                _fetchPage(0);
-                              },
-                            ),
-                          )
-                          .toList(),
-                    ),
+                  child: FilterSelector<DeviceFilter>(
+                    values: DeviceFilter.values,
+                    selected: _filter,
+                    labelOf: (f) => f.label,
+                    onSelected: (f) {
+                      setState(() => _filter = f);
+                      _fetchPage(0);
+                    },
                   ),
                 ),
                 if (!isWide)
