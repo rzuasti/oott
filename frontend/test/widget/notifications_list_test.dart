@@ -62,19 +62,21 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
+    // The 400px-wide viewport above is a phone, so the list uses the smaller
+    // phone page size of 4 (requesting page_limit 5 to detect a next page).
     List<Map<String, dynamic>> page(int firstId) => List.generate(
-      6,
+      5,
       (i) => notificationJson(id: firstId + i, title: 'Item ${firstId + i}'),
     );
     adapter.onGet(
       '/notifications',
       (server) => server.reply(200, page(1)),
-      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 6},
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
     );
     adapter.onGet(
       '/notifications',
-      (server) => server.reply(200, page(7)),
-      queryParameters: {'is_new': true, 'page_offset': 5, 'page_limit': 6},
+      (server) => server.reply(200, page(6)),
+      queryParameters: {'is_new': true, 'page_offset': 4, 'page_limit': 5},
     );
 
     await tester.pumpWidget(
@@ -119,7 +121,7 @@ void main() {
     adapter.onGet(
       '/notifications',
       (server) => server.reply(200, items),
-      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 6},
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
     );
 
     await tester.pumpWidget(

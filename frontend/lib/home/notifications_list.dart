@@ -14,7 +14,11 @@ import '../widgets/pagination_bar.dart';
 import '../widgets/skeleton.dart';
 import 'notification_card.dart';
 
-const _pageSize = 5;
+// Phones show fewer notifications so the list and its pagination controls fit
+// on screen at once on the common current phones (e.g. iPhone 15, Pixel 8);
+// wider layouts have the vertical room for a couple more.
+const _phonePageSize = 4;
+const _widePageSize = 5;
 
 enum _NotificationFilter {
   newOnly('New'),
@@ -47,8 +51,13 @@ class _NotificationsListState extends State<NotificationsList>
   Timer? _notificationTimer;
 
   int _currentPage = 0;
+  bool _didInitialFetch = false;
   List<oott_model.Notification> _items = [];
   bool _isLoading = false;
+
+  int get _pageSize => MediaQuery.sizeOf(context).width < Breakpoints.medium
+      ? _phonePageSize
+      : _widePageSize;
   bool _hasNextPage = false;
   String? _error;
   CancelToken? _fetchToken;
@@ -58,7 +67,6 @@ class _NotificationsListState extends State<NotificationsList>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _fetchPage(0);
     _startTimer();
   }
 
@@ -68,6 +76,12 @@ class _NotificationsListState extends State<NotificationsList>
     final route = ModalRoute.of(context);
     if (route is ModalRoute<void>) {
       routeObserver.subscribe(this, route);
+    }
+    // Deferred from initState so the page size can read the screen width from
+    // MediaQuery, which is only available once dependencies are in place.
+    if (!_didInitialFetch) {
+      _didInitialFetch = true;
+      _fetchPage(0);
     }
   }
 

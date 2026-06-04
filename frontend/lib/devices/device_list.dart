@@ -17,7 +17,11 @@ import 'device_list_filter.dart';
 import 'device_list_rows.dart';
 import 'device_list_sort.dart';
 
-const _pageSize = 10;
+// Phones show fewer devices so the list and its pagination controls fit on
+// screen at once on the common current phones (e.g. iPhone 15, Pixel 8); the
+// wider table layout has the vertical room for a full page.
+const _phonePageSize = 6;
+const _widePageSize = 10;
 
 class DeviceList extends StatefulWidget {
   const DeviceList({super.key});
@@ -40,14 +44,18 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
 
   int _currentPage = 0;
   bool _hasNextPage = false;
+  bool _didInitialFetch = false;
   CancelToken? _fetchToken;
   final ScrollController _scrollController = ScrollController();
+
+  int get _pageSize => MediaQuery.sizeOf(context).width < Breakpoints.medium
+      ? _phonePageSize
+      : _widePageSize;
 
   @override
   void initState() {
     super.initState();
     _ownerController.addListener(_onOwnerChanged);
-    _fetchPage(0);
   }
 
   @override
@@ -56,6 +64,12 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
     final route = ModalRoute.of(context);
     if (route is ModalRoute<void>) {
       routeObserver.subscribe(this, route);
+    }
+    // Deferred from initState so the page size can read the screen width from
+    // MediaQuery, which is only available once dependencies are in place.
+    if (!_didInitialFetch) {
+      _didInitialFetch = true;
+      _fetchPage(0);
     }
   }
 
