@@ -28,7 +28,7 @@
 - [x] Mobile - reduce lists length (# of items) so they fit on a phone in one screen (use iPhone latest gen and Google phone latest gen)
 - [x] Mobile - In the devices list the filters and sort buttons overlap (dont fit in the screen)
 - [x] When changing pages (either list) the items should change to placeholders while loading
-- [ ] The notifications list should not refresh coldly every time. It should add/remove notifications with an animation as if a stack
+- [x] The notifications list should not refresh coldly every time. It should add/remove notifications with an animation as if a stack
 - [x] Make gruvbox the default theme
 - [x] Can we add front-end tests?
 - [x] Break down oott_api.dart in modules

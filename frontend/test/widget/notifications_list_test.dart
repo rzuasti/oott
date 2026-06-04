@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/home/notification_card.dart';
 import 'package:frontend/home/notifications_list.dart';
 import 'package:frontend/theme/gruvbox_theme.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
@@ -146,6 +147,221 @@ void main() {
 
     expect(find.textContaining('After refresh'), findsOneWidget);
     expect(find.textContaining('Before refresh'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('swiping a "New" notification marks it read and removes it', (
+    tester,
+  ) async {
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(200, [
+        notificationJson(id: 1, title: 'First'),
+        notificationJson(id: 2, title: 'Second'),
+      ]),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 6},
+    );
+    adapter.onGet('/notifications/1', (server) => server.reply(200, null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: gruvboxDarkTheme,
+        home: const Scaffold(body: NotificationsList()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(NotificationCard), findsNWidgets(2));
+
+    // Swipe the first card right-to-left (endToStart) to mark it read; it then
+    // animates out and the second card takes its place. Pump in steps rather
+    // than pumpAndSettle: confirmDismiss awaits the (mocked) backend call, and
+    // pumpAndSettle would treat that async gap as settled and return early.
+    await tester.fling(
+      find.byType(Dismissible).first,
+      const Offset(-600, 0),
+      1000,
+    );
+    for (
+      var i = 0;
+      i < 40 && find.textContaining('First').evaluate().isNotEmpty;
+      i++
+    ) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    expect(find.textContaining('First'), findsNothing);
+    expect(find.textContaining('Second'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a newly fetched notification flashes in at the top', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final items = <Map<String, dynamic>>[
+      notificationJson(id: 1, title: 'Existing'),
+    ];
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(200, items),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: gruvboxDarkTheme,
+        home: const Scaffold(body: NotificationsList()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Existing'), findsOneWidget);
+
+    // A new notification arrives at the top on the next pull-to-refresh.
+    items.insert(0, notificationJson(id: 2, title: 'Arrived'));
+    await tester.fling(
+      find.byType(CustomScrollView),
+      const Offset(0, 300),
+      1000,
+    );
+    // Pump in small steps until the new card has been inserted and is flashing
+    // (the refresh indicator takes a moment to fire before the insert begins).
+    var flashing = const Iterable<NotificationCard>.empty();
+    for (var i = 0; i < 60 && flashing.isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      flashing = tester
+          .widgetList<NotificationCard>(find.byType(NotificationCard))
+          .where((c) => c.flash);
+    }
+
+    // Only the freshly arrived card runs its arrival highlight.
+    expect(flashing.length, 1);
+    expect(flashing.single.item.title, 'Arrived');
+
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Arrived'), findsOneWidget);
+    expect(find.textContaining('Existing'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a notification dropped by the backend is removed on refresh', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final items = <Map<String, dynamic>>[
+      notificationJson(id: 1, title: 'Stays'),
+      notificationJson(id: 2, title: 'Vanishes'),
+    ];
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(200, items),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: gruvboxDarkTheme,
+        home: const Scaffold(body: NotificationsList()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Vanishes'), findsOneWidget);
+
+    // The second notification is gone from the backend on the next refresh.
+    items.removeWhere((j) => j['id'] == 2);
+    await tester.fling(
+      find.byType(CustomScrollView),
+      const Offset(0, 300),
+      1000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Vanishes'), findsNothing);
+    expect(find.textContaining('Stays'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('marking read under the "All" filter keeps the item in place', (
+    tester,
+  ) async {
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(200, [notificationJson(id: 1, title: 'Kept')]),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 6},
+    );
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(200, [notificationJson(id: 1, title: 'Kept')]),
+      queryParameters: {'is_new': '', 'page_offset': 0, 'page_limit': 6},
+    );
+    adapter.onGet('/notifications/1', (server) => server.reply(200, null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: gruvboxDarkTheme,
+        home: const Scaffold(body: NotificationsList()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Switch to the All filter, where read items stay in the list.
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Kept'), findsOneWidget);
+
+    // Expand the card and mark it read in place.
+    await tester.tap(find.byType(ListTile));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mark as read'));
+    await tester.pumpAndSettle();
+
+    // The item stays, now flipped to "old" (offering to mark it unread).
+    expect(find.textContaining('Kept'), findsOneWidget);
+    expect(find.text('Mark as unread'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('changing the filter resets the list to the new dataset', (
+    tester,
+  ) async {
+    adapter.onGet(
+      '/notifications',
+      (server) =>
+          server.reply(200, [notificationJson(id: 1, title: 'New one')]),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 6},
+    );
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(200, [
+        notificationJson(id: 2, title: 'Old one', isNew: false),
+      ]),
+      queryParameters: {'is_new': false, 'page_offset': 0, 'page_limit': 6},
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: gruvboxDarkTheme,
+        home: const Scaffold(body: NotificationsList()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('New one'), findsOneWidget);
+
+    await tester.tap(find.text('Old'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Old one'), findsOneWidget);
+    expect(find.textContaining('New one'), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
   });
