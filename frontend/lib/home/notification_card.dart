@@ -71,37 +71,39 @@ class _NotificationCardState extends State<NotificationCard> {
           padding: const EdgeInsets.only(right: Insets.lg),
           child: const Icon(Icons.done),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ListTile(
-              leading: Icon(
-                widget.item.notificationType.icon,
-                color: widget.item.isNew ? theme.colorScheme.primary : null,
+        child: InkWell(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ListTile(
+                leading: Icon(
+                  widget.item.notificationType.icon,
+                  color: widget.item.isNew ? theme.colorScheme.primary : null,
+                ),
+                title: Text(
+                  '${widget.formatter.format(widget.item.createdOn)} - ${widget.item.title}',
+                  style: widget.item.isNew
+                      ? const TextStyle(fontWeight: FontWeight.bold)
+                      : null,
+                ),
+                subtitle: Text(
+                  widget.item.body,
+                  maxLines: _expanded ? null : 2,
+                  overflow: _expanded
+                      ? TextOverflow.visible
+                      : TextOverflow.ellipsis,
+                ),
               ),
-              title: Text(
-                '${widget.formatter.format(widget.item.createdOn)} - ${widget.item.title}',
-                style: widget.item.isNew
-                    ? const TextStyle(fontWeight: FontWeight.bold)
-                    : null,
+              AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                child: _expanded
+                    ? _buildActions(context)
+                    : const SizedBox.shrink(),
               ),
-              subtitle: Text(
-                widget.item.body,
-                maxLines: _expanded ? null : 2,
-                overflow: _expanded
-                    ? TextOverflow.visible
-                    : TextOverflow.ellipsis,
-              ),
-              onTap: () => setState(() => _expanded = !_expanded),
-            ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              child: _expanded
-                  ? _buildActions(context)
-                  : const SizedBox.shrink(),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
