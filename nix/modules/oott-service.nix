@@ -111,15 +111,23 @@ in {
       description = "Send a notification if a device comes back online after not being seen for this timeframe.";
       default = "1w";
     };
-    notifications.pushover.token = mkOption {
-      type = types.str;
-      description = "Your pushover token goes here, just copy&paste from their website after creating the app.";
-      default = "";
-    };
-    notifications.pushover.user_key = mkOption {
-      type = types.str;
-      description = "User key goes here, this is the account wide code for pushover.";
-      default = "";
+    notifications.pushover = mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          token = mkOption {
+            type = types.str;
+            description = "Your pushover token goes here, just copy&paste from their website after creating the app.";
+            default = "";
+          };
+          user_key = mkOption {
+            type = types.str;
+            description = "User key goes here, this is the account wide code for pushover.";
+            default = "";
+          };
+        };
+      });
+      description = "Pushover credentials. Only required when notifications.method is \"pushover\"; leave it null (the default) for any other method.";
+      default = null;
     };
     retention.window = mkOption {
       type = types.str;

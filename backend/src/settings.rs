@@ -180,7 +180,8 @@ pub struct Pushover {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Notifications {
     pub method: String,
-    pub pushover: Pushover,
+    // Only required when `method` is "pushover"; other methods leave this section out.
+    pub pushover: Option<Pushover>,
     #[serde(default = "default_notify_when_not_seen_for")]
     pub notify_when_not_seen_for: DurationString,
 }
@@ -255,7 +256,22 @@ impl Settings {
             .add_source(File::with_name(config_path.as_str()))
             .build()?;
 
-        local_settings.try_deserialize()
+        let settings: Settings = local_settings.try_deserialize()?;
+        settings.validate()?;
+        Ok(settings)
+    }
+
+    // Cross-field checks that serde can't express on its own. Run once at load time so a
+    // misconfiguration fails fast at startup rather than on every notification attempt.
+    fn validate(&self) -> Result<(), ConfigError> {
+        if self.notifications.method == "pushover" && self.notifications.pushover.is_none() {
+            return Err(ConfigError::Message(
+                "notifications.method is \"pushover\" but the [notifications.pushover] section is \
+                 missing; add it with your token and user_key, or change notifications.method."
+                    .to_string(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -531,6 +547,68 @@ mod tests {
             std::time::Duration::from(settings.notifications.notify_when_not_seen_for),
             std::time::Duration::from_secs(7 * 24 * 60 * 60)
         );
+    }
+
+    #[test]
+    fn validate_rejects_pushover_method_without_section() {
+        // method = "pushover" but no [notifications.pushover] section: must fail at load time.
+        const PUSHOVER_NO_SECTION: &str = r#"
+            [database]
+            path = "./oott.db"
+            [networking]
+            [log]
+            level = "info"
+            [notifications]
+            method = "pushover"
+            [web_server]
+            api_key = "test"
+        "#;
+        let settings = parse(PUSHOVER_NO_SECTION);
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn validate_accepts_non_pushover_method_without_section() {
+        let settings = parse(NO_PUSHOVER_CONFIG);
+        assert!(settings.validate().is_ok());
+    }
+
+    #[test]
+    fn validate_accepts_pushover_method_with_section() {
+        let settings = parse(BASE_CONFIG);
+        assert!(settings.validate().is_ok());
+    }
+
+    const NO_PUSHOVER_CONFIG: &str = r#"
+        [database]
+        path = "./oott.db"
+        [networking]
+        [log]
+        level = "info"
+        [notifications]
+        method = "none"
+        [web_server]
+        api_key = "test"
+    "#;
+
+    #[test]
+    fn pushover_section_is_optional_for_non_pushover_methods() {
+        // With a non-pushover method, the `[notifications.pushover]` section may be omitted
+        // entirely; it should deserialize to `None` rather than fail parsing.
+        let settings = parse(NO_PUSHOVER_CONFIG);
+        assert_eq!(settings.notifications.method, "none");
+        assert!(settings.notifications.pushover.is_none());
+    }
+
+    #[test]
+    fn pushover_section_is_parsed_when_present() {
+        let settings = parse(BASE_CONFIG);
+        let pushover = settings
+            .notifications
+            .pushover
+            .expect("pushover section should be parsed when present");
+        assert_eq!(pushover.token, "");
+        assert_eq!(pushover.user_key, "");
     }
 
     #[test]

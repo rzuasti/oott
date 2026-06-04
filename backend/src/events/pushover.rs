@@ -3,17 +3,13 @@ use pushover::API;
 use pushover::requests::message::SendMessage;
 
 use crate::events::error::DeliveryError;
-use crate::settings::get_settings;
+use crate::settings::Pushover;
 
-pub fn send_message(title: String, body: String) -> Result<(), DeliveryError> {
+pub fn send_message(config: &Pushover, title: String, body: String) -> Result<(), DeliveryError> {
     debug!("About to send message via pushover ({body})");
     let api = API::new();
 
-    let mut msg = SendMessage::new(
-        get_settings().notifications.pushover.token.as_str(),
-        get_settings().notifications.pushover.user_key.as_str(),
-        body,
-    );
+    let mut msg = SendMessage::new(config.token.as_str(), config.user_key.as_str(), body);
 
     msg.set_title(title);
 

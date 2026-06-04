@@ -47,6 +47,7 @@ api_key = "CHANGE_ME" # API key the app uses to talk to the backend — change t
 [notifications]
 method = "pushover" # Use "none" to only log notifications instead of sending them
 
+# Only needed when method = "pushover"; omit this section for any other method.
 [notifications.pushover]
 token = ""    # Your Pushover application token
 user_key = "" # Your Pushover user key
@@ -179,8 +180,8 @@ Options marked **Required** have no built-in default and must be set in your con
 |`snmp_scanner.timeout`|`5s`|Per-poll SNMP request timeout.|
 |`notifications.method`|**Required**|For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)|
 |`notifications.notify_when_not_seen_for`|`1w`|Send a notification if a device comes back online after not being seen for this timeframe (you can use hours, weeks, etc.)|
-|`notifications.pushover.token`|**Required**|Your pushover token goes here, just copy&paste from their website after creating the app (may be left empty when `method` is `none`)|
-|`notifications.pushover.user_key`|**Required**|User key goes here, this is the account wide code for pushover (may be left empty when `method` is `none`)|
+|`notifications.pushover.token`|**Required when `method` is `pushover`**|Your pushover token goes here, just copy&paste from their website after creating the app. The whole `[notifications.pushover]` section may be omitted when `method` is anything other than `pushover`|
+|`notifications.pushover.user_key`|**Required when `method` is `pushover`**|User key goes here, this is the account wide code for pushover. The whole `[notifications.pushover]` section may be omitted when `method` is anything other than `pushover`|
 |`retention.window`|`365d`|How long to retain device events and notifications. Records older than this are purged daily. Accepts duration strings (e.g. `90d`, `1y`, `6m`).|
 |`device_events.deduplication_window`|`1m`|Suppress duplicate device events: if the same scanner sees the same device (same MAC and IPv4) again within this window, only one event is recorded. Accepts duration strings (e.g. `30s`, `1m`, `5m`).|
 

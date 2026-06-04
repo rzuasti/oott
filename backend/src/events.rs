@@ -185,9 +185,17 @@ fn send_notification(notification: Notification) -> Result<(), Box<dyn Error>> {
     debug!("About to send notification ({notification}).");
 
     match get_settings().notifications.method.as_str() {
-        "pushover" => {
-            pushover::send_message(notification.title, notification.body)?;
-        }
+        "pushover" => match &get_settings().notifications.pushover {
+            Some(pushover) => {
+                pushover::send_message(pushover, notification.title, notification.body)?;
+            }
+            None => {
+                error!(
+                    "Notification method is 'pushover' but no [notifications.pushover] section is \
+                     configured; cannot deliver notification."
+                );
+            }
+        },
         other => {
             warn!("Notification method set to '{other}'. Set logs to 'info' to see notifications.");
             info!("Notification: {}", notification.body);
@@ -294,8 +302,12 @@ pub fn trigger_existing_device(
     let vendor_changed_flag = vendor_changed(&existing_device.vendor, &new_device.vendor);
 
     if ip_changed || vendor_changed_flag {
-        let (title, body) =
-            render_device_changed(&existing_device, &new_device, ip_changed, vendor_changed_flag);
+        let (title, body) = render_device_changed(
+            &existing_device,
+            &new_device,
+            ip_changed,
+            vendor_changed_flag,
+        );
         let notification = Notification::new(
             Utc::now(),
             NotificationType::DeviceChanged,
@@ -411,10 +423,7 @@ mod tests {
 
         let (title, body) = render_device_back_online(&device, "12d");
 
-        assert_eq!(
-            title,
-            "Device back online after 12d: bobs-iphone.local"
-        );
+        assert_eq!(title, "Device back online after 12d: bobs-iphone.local");
         assert!(body.contains("Registered to Bob"));
         assert!(body.contains("Absent for: 12d"));
     }
