@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 
 import '../model/notification.dart' as oott_model;
 import '../navigation.dart';
+import '../theme/dimens.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../utils/ui_snackbars.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/skeleton.dart';
 import 'notification_card.dart';
 
 const _pageSize = 5;
@@ -190,6 +193,12 @@ class _NotificationsListState extends State<NotificationsList>
     return false;
   }
 
+  String _emptyMessage() => switch (_filter) {
+    _NotificationFilter.newOnly => 'No new notifications',
+    _NotificationFilter.oldOnly => 'No old notifications',
+    _NotificationFilter.all => 'No notifications yet',
+  };
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -229,9 +238,12 @@ class _NotificationsListState extends State<NotificationsList>
         ),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Insets.sm,
+            vertical: Insets.xs,
+          ),
           child: Wrap(
-            spacing: 8.0,
+            spacing: Insets.sm,
             children: _NotificationFilter.values
                 .map(
                   (f) => ChoiceChip(
@@ -252,11 +264,7 @@ class _NotificationsListState extends State<NotificationsList>
 
   List<Widget> _buildNotificationSlivers(BuildContext context) {
     if (_isLoading) {
-      return [
-        const SliverFillRemaining(
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      ];
+      return [const SliverToBoxAdapter(child: ListSkeleton(rows: 4))];
     }
     if (_error != null) {
       return [
@@ -273,16 +281,9 @@ class _NotificationsListState extends State<NotificationsList>
     if (_items.isEmpty) {
       return [
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 16, bottom: 12),
-            child: Center(
-              child: Text(
-                'No items found',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
+          child: EmptyState(
+            icon: Icons.notifications_off_outlined,
+            message: _emptyMessage(),
           ),
         ),
       ];

@@ -2,19 +2,22 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../model/device.dart';
 import '../model/device_type.dart';
 import '../navigation.dart';
+import '../theme/dimens.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/skeleton.dart';
 import 'device_list_filter.dart';
 import 'device_list_rows.dart';
 import 'device_list_sort.dart';
 
 const _pageSize = 10;
-const _wideLayoutBreakpoint = 600.0;
 
 class DeviceList extends StatefulWidget {
   const DeviceList({super.key});
@@ -147,11 +150,32 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
   bool get _hasActiveDetailFilters =>
       _ownerController.text.isNotEmpty || _typeFilter != null;
 
-  void _showFilterSheet() {
-    showModalBottomSheet(
+  /// Presents [child] as a modal bottom sheet on narrow (phone) layouts and as
+  /// a centered dialog on wider (tablet/desktop) layouts, where a sheet sliding
+  /// up from the bottom of a large window reads poorly.
+  Future<void> _showAdaptivePanel(Widget child) {
+    final isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
+    if (isWide) {
+      return showDialog<void>(
+        context: context,
+        builder: (_) => Dialog(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: SingleChildScrollView(child: child),
+          ),
+        ),
+      );
+    }
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => DeviceFilterSheet(
+      builder: (_) => child,
+    );
+  }
+
+  void _showFilterSheet() {
+    _showAdaptivePanel(
+      DeviceFilterSheet(
         ownerController: _ownerController,
         typeFilter: _typeFilter,
         hasActiveFilters: _hasActiveDetailFilters,
@@ -171,10 +195,8 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
   }
 
   void _showSortSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => DeviceSortSheet(
+    _showAdaptivePanel(
+      DeviceSortSheet(
         currentColumn: _sortColumn,
         ascending: _sortAscending,
         onChanged: _onSortSheetChanged,
@@ -184,18 +206,37 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= _wideLayoutBreakpoint;
+        final isWide = constraints.maxWidth >= Breakpoints.medium;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Expanded(
-                  child: Text('Devices', style: textTheme.headlineSmall),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Insets.sm,
+                      vertical: Insets.xs,
+                    ),
+                    child: Wrap(
+                      spacing: Insets.sm,
+                      children: DeviceFilter.values
+                          .map(
+                            (f) => ChoiceChip(
+                              label: Text(f.label),
+                              selected: _filter == f,
+                              onSelected: (_) {
+                                setState(() => _filter = f);
+                                _fetchPage(0);
+                              },
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
                 ),
                 if (!isWide)
                   IconButton(
@@ -213,25 +254,6 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
                 ),
               ],
             ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Wrap(
-                spacing: 8.0,
-                children: DeviceFilter.values
-                    .map(
-                      (f) => ChoiceChip(
-                        label: Text(f.label),
-                        selected: _filter == f,
-                        onSelected: (_) {
-                          setState(() => _filter = f);
-                          _fetchPage(0);
-                        },
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
             Expanded(child: _buildBody(context, isWide)),
           ],
         );
@@ -241,7 +263,7 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
 
   Widget _buildBody(BuildContext context, bool isWide) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const ListSkeleton();
     }
     if (_error != null) {
       return Center(
@@ -252,17 +274,11 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
       );
     }
     if (_devices.isEmpty) {
-      final theme = Theme.of(context);
-      return Padding(
-        padding: const EdgeInsets.only(top: 16, bottom: 12),
-        child: Center(
-          child: Text(
-            _emptyMessage(),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
+      return EmptyState(
+        icon: Icons.devices_other_outlined,
+        message: _emptyMessage(),
+        actionLabel: 'Check scanner status',
+        onAction: () => context.go('/status'),
       );
     }
 

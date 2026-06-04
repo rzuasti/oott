@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../theme/dimens.dart';
 import '../widgets/device_summary_card.dart';
 import '../widgets/scanners_status_card.dart';
 import 'notifications_list.dart';
-
-const _twoColumnBreakpoint = 700.0;
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -13,7 +12,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isTwoColumn = constraints.maxWidth >= _twoColumnBreakpoint;
+        final isTwoColumn = constraints.maxWidth >= Breakpoints.twoColumn;
         return isTwoColumn ? _buildTwoColumn() : _buildSingleColumn();
       },
     );
@@ -24,7 +23,7 @@ class HomeScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(flex: 3, child: NotificationsList()),
-        VerticalDivider(width: 32),
+        VerticalDivider(width: Insets.xxxl),
         SizedBox(
           width: 300,
           child: SingleChildScrollView(
@@ -32,7 +31,7 @@ class HomeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 DeviceSummaryCard(),
-                SizedBox(height: 16),
+                SizedBox(height: Insets.lg),
                 ScannersStatusCard(),
               ],
             ),
@@ -47,13 +46,13 @@ class HomeScreen extends StatelessWidget {
       trailingSlivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.only(top: 24),
+            padding: EdgeInsets.only(top: Insets.xxl),
             child: DeviceSummaryCard(),
           ),
         ),
         SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.only(top: 16, bottom: 20),
+            padding: EdgeInsets.only(top: Insets.lg, bottom: Insets.xl),
             child: ScannersStatusCard(),
           ),
         ),

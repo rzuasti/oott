@@ -179,8 +179,8 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Status',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    'Scanners',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 12),
                   _scannerRow(

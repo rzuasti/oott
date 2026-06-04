@@ -15,7 +15,7 @@ void main() {
     // falls back to the hard-coded release date.
     await tester.pump();
 
-    expect(find.text('About OOTT'), findsOneWidget);
+    // The screen title now lives in the shared shell AppBar, not the body.
     // Assert the fallback prefix only, not the release date literal (it changes
     // every release).
     expect(find.textContaining('Released'), findsOneWidget);

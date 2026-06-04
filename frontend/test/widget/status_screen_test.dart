@@ -43,14 +43,15 @@ void main() {
     );
   }
 
-  testWidgets('renders each scanner card with its resolved status',
-      (tester) async {
+  testWidgets('renders each scanner card with its resolved status', (
+    tester,
+  ) async {
     stubAllScanners();
 
     await pumpScreen(tester, const StatusScreen());
     await pumpUntilFound(tester, find.text('Running'));
 
-    expect(find.text('Status'), findsOneWidget);
+    // The screen title now lives in the shared shell AppBar, not the body.
     expect(find.text('ARP Scanner'), findsOneWidget);
     expect(find.text('mDNS Scanner'), findsOneWidget);
     expect(find.text('Running'), findsWidgets);

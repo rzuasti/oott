@@ -2,17 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:frontend/about/about.dart';
 import 'package:frontend/settings/settings.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'devices/device_detail.dart';
 import 'devices/device_list.dart';
 import 'home/home_screen.dart';
 import 'status/status_screen.dart';
+import 'theme/dimens.dart';
 import 'utils/pref_utils.dart';
 import 'widgets/offline_banner.dart';
-
-// M3 window size class breakpoints
-const _mediumBreakpoint = 600.0;
-const _expandedBreakpoint = 840.0;
 
 typedef _NavDest = ({IconData icon, IconData activeIcon, String label});
 
@@ -107,18 +103,15 @@ class MainShell extends StatelessWidget {
         final selectedIndex = _calculateSelectedIndex(context);
         final width = constraints.maxWidth;
 
-        if (width < _mediumBreakpoint) {
+        if (width < Breakpoints.medium) {
           return Scaffold(
-            appBar: _buildAppBar(context),
+            appBar: _buildAppBar(context, selectedIndex),
             body: Column(
               children: [
                 const OfflineBanner(),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.all(Insets.lg),
                     child: child,
                   ),
                 ),
@@ -142,7 +135,7 @@ class MainShell extends StatelessWidget {
         }
 
         return Scaffold(
-          appBar: _buildAppBar(context),
+          appBar: _buildAppBar(context, selectedIndex),
           body: Row(
             children: [
               SafeArea(
@@ -150,7 +143,7 @@ class MainShell extends StatelessWidget {
                   backgroundColor: Theme.of(
                     context,
                   ).colorScheme.surfaceContainerLow,
-                  extended: width >= _expandedBreakpoint,
+                  extended: width >= Breakpoints.expanded,
                   destinations: _destinations
                       .map(
                         (d) => NavigationRailDestination(
@@ -173,7 +166,7 @@ class MainShell extends StatelessWidget {
                       const OfflineBanner(),
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(Insets.lg),
                           child: child,
                         ),
                       ),
@@ -188,24 +181,37 @@ class MainShell extends StatelessWidget {
     );
   }
 
-  AppBar _buildAppBar(BuildContext context) {
+  AppBar _buildAppBar(BuildContext context, int selectedIndex) {
+    final theme = Theme.of(context);
     return AppBar(
-      title: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          'OOTT',
-          style: GoogleFonts.barlowCondensed(
-            color: Theme.of(context).colorScheme.onPrimary,
-            fontWeight: FontWeight.bold,
-            fontSize: 26,
+      titleSpacing: Insets.lg,
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              'OOTT',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                color: theme.colorScheme.onPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
-        ),
+          const SizedBox(width: Insets.md),
+          Flexible(
+            child: Text(
+              _destinations[selectedIndex].label,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge,
+            ),
+          ),
+        ],
       ),
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
+      backgroundColor: theme.colorScheme.surfaceContainerLowest,
     );
   }
 }

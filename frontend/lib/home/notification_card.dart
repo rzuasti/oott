@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../model/notification.dart' as oott_model;
+import '../theme/dimens.dart';
 import '../utils/friendly_date_formatter.dart';
 
 class NotificationCard extends StatefulWidget {
@@ -25,7 +26,7 @@ class _NotificationCardState extends State<NotificationCard> {
 
   Widget _buildActions(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      padding: const EdgeInsets.fromLTRB(Insets.sm, 0, Insets.sm, Insets.sm),
       child: OverflowBar(
         alignment: MainAxisAlignment.end,
         children: [
@@ -61,13 +62,13 @@ class _NotificationCardState extends State<NotificationCard> {
         background: Container(
           color: theme.colorScheme.tertiaryContainer,
           alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.only(left: 16),
+          padding: const EdgeInsets.only(left: Insets.lg),
           child: const Icon(Icons.mark_email_unread),
         ),
         secondaryBackground: Container(
           color: theme.colorScheme.primaryContainer,
           alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 16),
+          padding: const EdgeInsets.only(right: Insets.lg),
           child: const Icon(Icons.done),
         ),
         child: Column(
@@ -76,8 +77,7 @@ class _NotificationCardState extends State<NotificationCard> {
             ListTile(
               leading: Icon(
                 widget.item.notificationType.icon,
-                color:
-                    widget.item.isNew ? theme.colorScheme.primary : null,
+                color: widget.item.isNew ? theme.colorScheme.primary : null,
               ),
               title: Text(
                 '${widget.formatter.format(widget.item.createdOn)} - ${widget.item.title}',
@@ -88,8 +88,9 @@ class _NotificationCardState extends State<NotificationCard> {
               subtitle: Text(
                 widget.item.body,
                 maxLines: _expanded ? null : 2,
-                overflow:
-                    _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                overflow: _expanded
+                    ? TextOverflow.visible
+                    : TextOverflow.ellipsis,
               ),
               onTap: () => setState(() => _expanded = !_expanded),
             ),

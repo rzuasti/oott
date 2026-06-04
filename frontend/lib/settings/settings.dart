@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../main.dart';
 import '../theme/app_colors.dart';
+import '../theme/dimens.dart';
 import '../utils/oott_api.dart';
 import '../utils/pref_utils.dart';
 import '../utils/ui_snackbars.dart';
@@ -21,6 +22,7 @@ class _SettingsState extends State<Settings> {
   bool _apiKeyVisible = false;
   bool _testOk = false;
   bool _connectionModified = false;
+  bool _isFirstRun = false;
   late String _selectedTheme;
 
   final _formKey = GlobalKey<FormState>();
@@ -28,6 +30,7 @@ class _SettingsState extends State<Settings> {
   @override
   void initState() {
     super.initState();
+    _isFirstRun = (PrefUtil.getValue('base_url', '') as String).isEmpty;
     _baseUrlController.text = PrefUtil.getValue('base_url', '') as String;
     _apiKeyController.text = XOR().xorDecode(
       PrefUtil.getValue('api_key', '') as String,
@@ -100,6 +103,7 @@ class _SettingsState extends State<Settings> {
     final appColors = Theme.of(context).extension<AppColorExtension>()!;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final saveDisabled = _connectionModified && !_testOk;
 
     return SingleChildScrollView(
       child: Form(
@@ -107,8 +111,33 @@ class _SettingsState extends State<Settings> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Settings', style: textTheme.headlineSmall),
-            const SizedBox(height: 16),
+            if (_isFirstRun) ...[
+              Card(
+                color: colorScheme.secondaryContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(Insets.lg),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.waving_hand_outlined,
+                        color: colorScheme.onSecondaryContainer,
+                      ),
+                      const SizedBox(width: Insets.md),
+                      Expanded(
+                        child: Text(
+                          'Welcome to OOTT! Point the app at your server’s API '
+                          'below, then Test and Save to get started.',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSecondaryContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: Insets.lg),
+            ],
             TextFormField(
               controller: _baseUrlController,
               onChanged: _onConnectionChanged,
@@ -121,7 +150,7 @@ class _SettingsState extends State<Settings> {
                 hintText: 'For example http://192.168.0.1:3000/api',
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Insets.lg),
             TextFormField(
               controller: _apiKeyController,
               onChanged: _onConnectionChanged,
@@ -141,7 +170,7 @@ class _SettingsState extends State<Settings> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Insets.lg),
             DropdownButtonFormField<String>(
               initialValue: _selectedTheme,
               decoration: const InputDecoration(
@@ -162,17 +191,17 @@ class _SettingsState extends State<Settings> {
                 if (value != null) setState(() => _selectedTheme = value);
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Insets.lg),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                ElevatedButton.icon(
+                FilledButton.icon(
                   onPressed: () {
                     _testConnection();
                   },
                   label: const Text('Test'),
                   icon: Icon(_testOk ? Icons.check : Icons.play_arrow),
-                  style: ElevatedButton.styleFrom(
+                  style: FilledButton.styleFrom(
                     backgroundColor: _testOk
                         ? appColors.success
                         : colorScheme.secondary,
@@ -181,18 +210,26 @@ class _SettingsState extends State<Settings> {
                         : colorScheme.onSecondary,
                   ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: (_connectionModified && !_testOk) ? null : _save,
+                const SizedBox(width: Insets.sm),
+                FilledButton.icon(
+                  onPressed: saveDisabled ? null : _save,
                   label: const Text('Save'),
                   icon: const Icon(Icons.save),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                  ),
                 ),
               ],
             ),
+            if (saveDisabled) ...[
+              const SizedBox(height: Insets.sm),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'Test the connection before saving your changes.',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../theme/dimens.dart';
+
 // The version is read at runtime from the bundled package metadata
 // (frontend/pubspec.yaml), so it never needs to be hand-edited here.
 const _releaseDate = 'May 28, 2026';
@@ -18,18 +20,16 @@ class About extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(Insets.xxl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('About OOTT', style: textTheme.headlineSmall),
-          const SizedBox(height: 16),
           Text(
             'Easy to setup and use network device discovery and alert system. '
             'Notifies you when new or unknown devices join your local area network.',
             style: textTheme.bodyLarge,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Insets.sm),
           FutureBuilder<PackageInfo>(
             future: PackageInfo.fromPlatform(),
             builder: (context, snapshot) {
@@ -45,7 +45,7 @@ class About extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: Insets.xxl),
           _SurfaceContainer(
             colorScheme: colorScheme,
             child: Column(
@@ -60,17 +60,17 @@ class About extends StatelessWidget {
                 Divider(
                   height: 1,
                   color: colorScheme.outlineVariant,
-                  indent: 16,
-                  endIndent: 16,
+                  indent: Insets.lg,
+                  endIndent: Insets.lg,
                 ),
                 _LicenseRow(colorScheme: colorScheme, textTheme: textTheme),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Insets.lg),
           _SurfaceContainer(
             colorScheme: colorScheme,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(Insets.lg),
             child: _NoticesSection(textTheme: textTheme),
           ),
         ],
@@ -132,11 +132,14 @@ class _LinkRow extends StatelessWidget {
     return InkWell(
       onTap: _open,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        padding: const EdgeInsets.symmetric(
+          vertical: Insets.md,
+          horizontal: Insets.lg,
+        ),
         child: Row(
           children: [
             Icon(icon, size: 18, color: colorScheme.primary),
-            const SizedBox(width: 12),
+            const SizedBox(width: Insets.md),
             Text(
               label,
               style: textTheme.bodyMedium?.copyWith(
@@ -168,12 +171,15 @@ class _LicenseRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: const EdgeInsets.symmetric(
+        vertical: Insets.md,
+        horizontal: Insets.lg,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(Icons.gavel, size: 18, color: colorScheme.primary),
-          const SizedBox(width: 12),
+          const SizedBox(width: Insets.md),
           Flexible(
             child: Wrap(
               children: [
@@ -214,7 +220,7 @@ class _NoticesSection extends StatelessWidget {
           'OOTT, Copyright (C) 2024-2026 Ricardo Zuasti',
           style: textTheme.bodyMedium,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: Insets.sm),
         Text(
           'This product includes software developed by third parties and distributed '
           'under the Apache License, Version 2.0.',
@@ -222,7 +228,7 @@ class _NoticesSection extends StatelessWidget {
             color: colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Insets.md),
         ..._thirdPartyComponents.map(
           (c) => _ThirdPartyEntry(component: c, textTheme: textTheme),
         ),
@@ -241,7 +247,7 @@ class _ThirdPartyEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: Insets.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

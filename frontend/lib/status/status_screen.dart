@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/dimens.dart';
 import '../widgets/arp_scanner_card.dart';
 import '../widgets/dhcp_scanner_card.dart';
 import '../widgets/mdns_scanner_card.dart';
@@ -15,16 +16,14 @@ class StatusScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Status', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 20),
           const ArpScannerCard(),
-          const SizedBox(height: 8),
+          const SizedBox(height: Insets.sm),
           const MdnsScannerCard(),
-          const SizedBox(height: 8),
+          const SizedBox(height: Insets.sm),
           const SsdpScannerCard(),
-          const SizedBox(height: 8),
+          const SizedBox(height: Insets.sm),
           const DhcpScannerCard(),
-          const SizedBox(height: 8),
+          const SizedBox(height: Insets.sm),
           const SnmpScannerCard(),
         ],
       ),
