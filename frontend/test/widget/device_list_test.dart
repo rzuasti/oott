@@ -100,4 +100,30 @@ void main() {
 
     await tearDownTree(tester);
   });
+
+  testWidgets('pulling the list down refetches devices', (tester) async {
+    // A single reply list whose contents are swapped before the pull, so the
+    // same route re-serializes fresh data on the refresh request.
+    final devices = <Map<String, dynamic>>[
+      deviceJson(macAddress: '00:00:00:00:00:01'),
+    ];
+    adapter.onGet('/devices', (server) => server.reply(200, devices));
+
+    await pumpScreen(tester, const DeviceList());
+    await pumpUntilFound(tester, find.byType(DeviceRowWide));
+    expect(find.byType(DeviceRowWide), findsOneWidget);
+
+    // The next fetch returns an extra device; a pull-down should pick it up.
+    devices.add(deviceJson(macAddress: '00:00:00:00:00:02'));
+    await tester.fling(
+      find.byType(CustomScrollView),
+      const Offset(0, 300),
+      1000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DeviceRowWide), findsNWidgets(2));
+
+    await tearDownTree(tester);
+  });
 }

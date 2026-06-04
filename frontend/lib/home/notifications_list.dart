@@ -126,7 +126,7 @@ class _NotificationsListState extends State<NotificationsList>
     final token = CancelToken();
     _fetchToken = token;
     setState(() {
-      _isLoading = true;
+      _isLoading = _items.isEmpty;
       _error = null;
     });
     try {
@@ -217,12 +217,16 @@ class _NotificationsListState extends State<NotificationsList>
       children: [
         _buildNotificationsHeader(context),
         Expanded(
-          child: CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              ..._buildNotificationSlivers(context),
-              ...widget.trailingSlivers,
-            ],
+          child: RefreshIndicator(
+            onRefresh: () => _fetchPage(_currentPage),
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                ..._buildNotificationSlivers(context),
+                ...widget.trailingSlivers,
+              ],
+            ),
           ),
         ),
       ],

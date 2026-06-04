@@ -105,4 +105,46 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('pulling the list down refetches notifications', (tester) async {
+    tester.view.physicalSize = const Size(400, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    // A single reply list whose contents are swapped before the pull, so the
+    // same route re-serializes fresh data on the refresh request.
+    final items = <Map<String, dynamic>>[
+      notificationJson(id: 1, title: 'Before refresh'),
+    ];
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(200, items),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 6},
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: gruvboxDarkTheme,
+        home: const Scaffold(body: NotificationsList()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Before refresh'), findsOneWidget);
+
+    // The next fetch returns fresh data; a pull-down should pick it up.
+    items
+      ..clear()
+      ..add(notificationJson(id: 2, title: 'After refresh'));
+    await tester.fling(
+      find.byType(CustomScrollView),
+      const Offset(0, 300),
+      1000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('After refresh'), findsOneWidget);
+    expect(find.textContaining('Before refresh'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+  });
 }
