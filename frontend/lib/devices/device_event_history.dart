@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../model/device.dart';
 import '../model/device_event.dart';
 import '../utils/oott_api.dart';
+import '../widgets/filter_selector.dart';
 
 enum _TimeRange {
   today('Today'),
@@ -128,18 +129,14 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SegmentedButton<_TimeRange>(
-            segments: _TimeRange.values
-                .map((r) => ButtonSegment(value: r, label: Text(r.label)))
-                .toList(),
-            selected: {_selectedRange},
-            onSelectionChanged: (selection) {
-              setState(() => _selectedRange = selection.first);
-              _loadEvents();
-            },
-          ),
+        FilterSelector<_TimeRange>(
+          values: _TimeRange.values,
+          selected: _selectedRange,
+          labelOf: (r) => r.label,
+          onSelected: (range) {
+            setState(() => _selectedRange = range);
+            _loadEvents();
+          },
         ),
         const SizedBox(height: 16),
         if (events.isEmpty)

@@ -23,7 +23,9 @@ Widget _harness({
 }
 
 void main() {
-  testWidgets('wide layout shows chips and reports selection', (tester) async {
+  testWidgets('wide layout shows segmented pills and reports selection', (
+    tester,
+  ) async {
     String? picked;
     await tester.pumpWidget(
       _harness(
@@ -33,9 +35,12 @@ void main() {
       ),
     );
 
-    // All three options are visible as chips at once.
-    expect(find.byType(ChoiceChip), findsNWidgets(3));
+    // All three options are visible as segments at once.
+    expect(find.byType(SegmentedButton<String>), findsOneWidget);
     expect(find.byType(PopupMenuButton<String>), findsNothing);
+    expect(find.text('New'), findsOneWidget);
+    expect(find.text('Old'), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
 
     await tester.tap(find.text('Old'));
     expect(picked, 'Old');
@@ -51,8 +56,8 @@ void main() {
       ),
     );
 
-    // Collapsed: no chips, a single button showing the current selection.
-    expect(find.byType(ChoiceChip), findsNothing);
+    // Collapsed: no segmented pills, a single button showing the selection.
+    expect(find.byType(SegmentedButton<String>), findsNothing);
     expect(find.byType(PopupMenuButton<String>), findsOneWidget);
     expect(find.text('New'), findsOneWidget);
     expect(find.text('Old'), findsNothing);

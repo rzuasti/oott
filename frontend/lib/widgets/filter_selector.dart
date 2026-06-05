@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../theme/dimens.dart';
 
-/// A single-select filter control that adapts to the available width.
+/// A single-select control that adapts to the available width.
 ///
-/// On wide (tablet/desktop) layouts the options are laid out as a row of
-/// [ChoiceChip]s. On narrow (phone) layouts, where a full row of chips competes
-/// for horizontal space with neighbouring actions, it collapses to a compact
-/// dropdown button showing the current selection.
+/// On wide (tablet/desktop) layouts the options are laid out as a
+/// [SegmentedButton] of pills. On narrow (phone) layouts, where a full row of
+/// pills competes for horizontal space with neighbouring actions, it collapses
+/// to a compact dropdown button showing the current selection.
 class FilterSelector<T> extends StatelessWidget {
   const FilterSelector({
     super.key,
@@ -32,27 +32,26 @@ class FilterSelector<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
-    return isWide ? _buildChips(context) : _buildDropdown(context);
+    return isWide ? _buildSegmented(context) : _buildDropdown(context);
   }
 
-  Widget _buildChips(BuildContext context) {
+  Widget _buildSegmented(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(
         horizontal: Insets.sm,
         vertical: Insets.xs,
       ),
-      child: Wrap(
-        spacing: Insets.sm,
-        children: values
+      child: SegmentedButton<T>(
+        showSelectedIcon: false,
+        segments: values
             .map(
-              (value) => ChoiceChip(
-                label: Text(labelOf(value)),
-                selected: selected == value,
-                onSelected: (_) => onSelected(value),
-              ),
+              (value) =>
+                  ButtonSegment<T>(value: value, label: Text(labelOf(value))),
             )
             .toList(),
+        selected: {selected},
+        onSelectionChanged: (selection) => onSelected(selection.first),
       ),
     );
   }

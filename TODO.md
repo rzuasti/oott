@@ -28,15 +28,7 @@
 - [ ] Review the whole codebase for dead code, duplication and simplicity
 - [ ] In the devices list, add an order by type (in the wide version it should be over the icon on the left of the list)
 - [ ] How expensive it is to get the total number of pages and implement a go to last page
-- [ ] Mobile - Device details - Chart buttons not fully visible, replace with combo only for narrow devices
-- [x] Mobile - Implement pull to refresh on the notifications and devices list
-- [x] Mobile - reduce lists length (# of items) so they fit on a phone in one screen (use iPhone latest gen and Google phone latest gen)
-- [x] Mobile - In the devices list the filters and sort buttons overlap (dont fit in the screen)
-- [x] When changing pages (either list) the items should change to placeholders while loading
-- [x] The notifications list should not refresh coldly every time. It should add/remove notifications with an animation as if a stack
-- [x] Make gruvbox the default theme
-- [x] Can we add front-end tests?
-- [x] Break down oott_api.dart in modules
+- [x] Mobile - Device details - Chart buttons not fully visible, replace with combo only for narrow devices
 
 ## Improve engine
 
