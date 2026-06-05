@@ -72,7 +72,11 @@ class DeviceListHeaderDelegate extends SliverPersistentHeaderDelegate {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
-                  const SizedBox(width: _iconWidth),
+                  _IconHeaderCell(
+                    active: sortColumn,
+                    ascending: ascending,
+                    onTap: onTap,
+                  ),
                   for (final spec in _columnSpecs)
                     _HeaderCell(
                       flex: spec.flex,
@@ -152,6 +156,53 @@ class _HeaderCell extends StatelessWidget {
   }
 }
 
+// The leading device-type column shows only an icon per row, so its header is a
+// compact icon button that sorts by device type rather than a labelled cell.
+class _IconHeaderCell extends StatelessWidget {
+  final DeviceSortColumn active;
+  final bool ascending;
+  final void Function(DeviceSortColumn column) onTap;
+
+  const _IconHeaderCell({
+    required this.active,
+    required this.ascending,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isActive = active == DeviceSortColumn.deviceType;
+    final color = isActive
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
+    return SizedBox(
+      width: _iconWidth,
+      child: InkWell(
+        onTap: () => onTap(DeviceSortColumn.deviceType),
+        child: Tooltip(
+          message: 'Sort by device type',
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.devices, size: 18, color: color),
+                if (isActive)
+                  Icon(
+                    ascending ? Icons.arrow_upward : Icons.arrow_downward,
+                    size: 14,
+                    color: color,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class DeviceRowWide extends StatelessWidget {
   final Device device;
   final FriendlyDateFormatter formatter;
@@ -217,6 +268,9 @@ Widget _cellContent(
   FriendlyDateFormatter formatter,
 ) {
   switch (column) {
+    case DeviceSortColumn.deviceType:
+      // The device type is shown via the leading icon column, never a text cell.
+      return const SizedBox.shrink();
     case DeviceSortColumn.name:
       return _OverflowTooltipText(
         text: _displayName(device),

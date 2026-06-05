@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 enum DeviceSortColumn {
+  deviceType('Device Type', 'device_type'),
   name('Name', 'name'),
   owner('Owner', 'owner'),
   macAddress('MAC Address', 'mac_address'),

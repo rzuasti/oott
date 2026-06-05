@@ -101,6 +101,68 @@ void main() {
     await tearDownTree(tester);
   });
 
+  testWidgets('tapping the device-type header sorts by device type', (
+    tester,
+  ) async {
+    // Default ordering (last_seen, desc) returns two devices.
+    adapter.onGet(
+      '/devices',
+      (server) => server.reply(200, [
+        deviceJson(macAddress: '00:00:00:00:00:01'),
+        deviceJson(macAddress: '00:00:00:00:00:02'),
+      ]),
+      queryParameters: {
+        'is_registered': false,
+        'sort_by': 'last_seen',
+        'sort_order': 'desc',
+        'page_offset': 0,
+        'page_limit': 11,
+      },
+    );
+    // Sorting by device type (asc) returns a single, distinguishable device.
+    adapter.onGet(
+      '/devices',
+      (server) =>
+          server.reply(200, [deviceJson(macAddress: '00:00:00:00:00:03')]),
+      queryParameters: {
+        'is_registered': false,
+        'sort_by': 'device_type',
+        'sort_order': 'asc',
+        'page_offset': 0,
+        'page_limit': 11,
+      },
+    );
+
+    await pumpScreen(tester, const DeviceList());
+    await pumpUntilFound(tester, find.byType(DeviceRowWide));
+    expect(find.byType(DeviceRowWide), findsNWidgets(2));
+
+    await tester.tap(find.byTooltip('Sort by device type'));
+    for (var i = 0;
+        i < 40 && find.byType(DeviceRowWide).evaluate().length != 1;
+        i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(find.byType(DeviceRowWide), findsOneWidget);
+
+    await tearDownTree(tester);
+  });
+
+  testWidgets('the sort sheet offers ordering by device type', (tester) async {
+    adapter.onGet('/devices', (server) => server.reply(200, [deviceJson()]));
+
+    // A phone-width viewport so the compact layout with the sort button shows.
+    await pumpScreen(tester, const DeviceList(), size: const Size(500, 900));
+    await pumpUntilFound(tester, find.byType(DeviceRowCompact));
+
+    await tester.tap(find.byTooltip('Sort'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Device Type'), findsOneWidget);
+
+    await tearDownTree(tester);
+  });
+
   testWidgets('pulling the list down refetches devices', (tester) async {
     // A single reply list whose contents are swapped before the pull, so the
     // same route re-serializes fresh data on the refresh request.
