@@ -20,10 +20,15 @@
 
 ## Backend
 
+- [ ] In the active scanners status, it should count the number of distinct devices it saw on the last scan (avoid duplicates)
 - [ ] Implement the pushover API call directly to support HTML content and review notification text to use it
 
 ## Frontend
 
+- [ ] Review the whole codebase for dead code, duplication and simplicity
+- [ ] In the devices list, add an order by type (in the wide version it should be over the icon on the left of the list)
+- [ ] How expensive it is to get the total number of pages and implement a go to last page
+- [ ] Mobile - Device details - Chart buttons not fully visible, replace with combo only for narrow devices
 - [x] Mobile - Implement pull to refresh on the notifications and devices list
 - [x] Mobile - reduce lists length (# of items) so they fit on a phone in one screen (use iPhone latest gen and Google phone latest gen)
 - [x] Mobile - In the devices list the filters and sort buttons overlap (dont fit in the screen)
