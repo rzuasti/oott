@@ -1,12 +1,14 @@
 # OOTT ToDo list
 
 - [ ] Add support for push notifications to the app (iOS and Android)
+- [ ] Modify the release script to check that gh is logged in and that frontend tests are run before releasing
 - [x] README.md - Add section about securing access (reverse proxy, never expose to the internet, etc.)
 - [x] README.md - Simplify storage section (remove the calculations - just leave the results)
 
 ## Release plan for 0.2.0
 - [x] Test Android UI on emulator
-- [ ] Release 0.1.0
+- [x] Release 0.1.0
+- [ ] Fix bugs and release 0.1.1
 - [ ] Install in test server (docker) following documented process
 - [ ] Install test app on iPhone
 - [ ] Test in-house for 1 week
@@ -20,11 +22,14 @@
 
 ## Backend
 
+- [ ] In notifications, when the vendor is empty put (unknown)
 - [x] In the active scanners status, it should count the number of distinct devices it saw on the last scan (avoid duplicates)
 - [ ] Implement the pushover API call directly to support HTML content and review notification text to use it
 
 ## Frontend
 
+- [ ] When the user goes to the / URI in a production server redirect him to /web
+- [ ] Add a link to the API docs (/api/docs) in the navigation (new window - only visible in wide)
 - [x] Review the whole codebase for dead code, duplication and simplicity
 - [x] In the devices list, add an order by type (in the wide version it should be over the icon on the left of the list)
 - [x] How expensive it is to get the total number of pages and implement a go to last page

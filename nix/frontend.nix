@@ -18,4 +18,10 @@ in
 
     # Build the web bundle (the backend serves these assets).
     targetFlutterPlatform = "web";
+
+    # The backend serves these assets under `/web/` (see web_server::serve), so
+    # the bundle must be built with a matching base href. Without this the built
+    # index.html keeps the default `<base href="/">` and every asset reference
+    # resolves to the site root, 404s, and the page renders blank.
+    flutterBuildFlags = ["--base-href=/web/"];
   }

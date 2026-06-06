@@ -13,7 +13,7 @@ use axum::Json;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::middleware::Next;
-use axum::response::Response;
+use axum::response::{Redirect, Response};
 use axum::routing::{delete, get, post, put};
 use axum::{Router, http};
 use log::{debug, error, info};
@@ -170,8 +170,10 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .layer(ServiceBuilder::new().layer(cors_layer))
         .route(
             "/",
-            get(|| async { "Go to /web for the UI or to /api for the better UI." }),
+            get(|| async { "Go to /web for the UI or to /api/docs for the API explorer." }),
         )
+        // The API explorer lives at /api/docs; redirect the bare /api for convenience.
+        .route("/api", get(|| async { Redirect::temporary("/api/docs") }))
         .nest_service("/web", static_files)
         .merge(SwaggerUi::new("/api/docs").url("/api/docs/openapi.json", ApiDoc::openapi()));
 
