@@ -168,10 +168,8 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         )
         .route_layer(axum::middleware::from_fn(auth))
         .layer(ServiceBuilder::new().layer(cors_layer))
-        .route(
-            "/",
-            get(|| async { "Go to /web for the UI or to /api/docs for the API explorer." }),
-        )
+        // Send visitors straight to the UI; the bare "/" has no content of its own.
+        .route("/", get(|| async { Redirect::temporary("/web") }))
         // The API explorer lives at /api/docs; redirect the bare /api for convenience.
         .route("/api", get(|| async { Redirect::temporary("/api/docs") }))
         .nest_service("/web", static_files)

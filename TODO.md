@@ -26,7 +26,7 @@
 
 ## Frontend
 
-- [ ] When the user goes to the / URI in a production server redirect him to /web
+- [x] When the user goes to the / URI in a production server redirect him to /web
 - [ ] Add a link to the API docs (/api/docs) in the navigation (new window - only visible in wide)
 
 ## Improve engine
