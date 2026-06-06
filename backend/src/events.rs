@@ -196,9 +196,6 @@ fn render_new_device(device: &Device) -> (String, String) {
     writeln!(body, "  Vendor: {}", vendor_or_placeholder(device)).unwrap();
     writeln!(body, "  Type: {}", device_type_or_placeholder(device)).unwrap();
     writeln!(body).unwrap();
-    writeln!(body, "Status").unwrap();
-    writeln!(body, "  {}", registration_line(device)).unwrap();
-    writeln!(body).unwrap();
     write!(
         body,
         "If you do not recognise this device, consider investigating before \
@@ -688,7 +685,9 @@ mod tests {
         assert!(body.contains("Name: printer.local"));
         assert!(body.contains("Vendor: Apple, Inc."));
         assert!(body.contains("Type: Smartphone"));
-        assert!(body.contains("Not registered"));
+        // New devices are never registered, so the status block is omitted entirely.
+        assert!(!body.contains("Status"));
+        assert!(!body.contains("registered"));
         assert!(body.contains("If you do not recognise this device"));
         // Private data must never appear in the body.
         assert!(!body.contains("aa:bb:cc:dd:ee:ff"));

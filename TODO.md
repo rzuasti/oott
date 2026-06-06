@@ -20,7 +20,7 @@
 
 ## Backend
 
-- [ ] In notifications, when its a new device(s) found notification, remove the status block (new devices are never registered)
+- [x] In notifications, when its a new device(s) found notification, remove the status block (new devices are never registered)
 - [x] In notifications, when the vendor is empty put (unknown)
 - [ ] Implement the pushover API call directly to support HTML content and review notification text to use it
 
