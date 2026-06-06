@@ -1,7 +1,7 @@
 # OOTT ToDo list
 
 - [ ] Add support for push notifications to the app (iOS and Android)
-- [ ] Modify the release script to check that gh is logged in and that frontend tests are run before releasing
+- [x] Modify the release script to check that gh is logged in and that frontend tests are run before releasing
 
 ## Release plan for 0.2.0
 - [x] Test Android UI on emulator
