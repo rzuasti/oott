@@ -12,6 +12,25 @@ Format
 - Keep this header comment in place; the extractor ignores it.
 -->
 
+## v0.1.1 — 2026-06-06
+
+A maintenance release with bug fixes and small refinements on top of v0.1.0.
+
+### Fixes
+- Fixed a blank `/web` UI when running under the bundled server: the Flutter web
+  bundle is now built with `--base-href=/web/` so its asset URLs resolve against
+  the mount point instead of the site root.
+- The bare `/` URL now redirects to the `/web` UI.
+
+### Improvements
+- Added an `/api` → `/api/docs` redirect and corrected the root guidance text to
+  point at the API explorer (`/api/docs`).
+- Added an "API Docs" link to the wide navigation rail.
+- New-device notifications no longer include the status block, which only ever
+  read "Not registered" and added no information.
+- Absent names, vendors, and device types now render consistently as a dash,
+  both in notifications and across the web UI.
+
 ## v0.1.0 — 2026-06-06
 
 First public release of OOTT — an easy to setup network device discovery and
