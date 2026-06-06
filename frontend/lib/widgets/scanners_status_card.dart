@@ -1,20 +1,27 @@
-import 'dart:async';
-
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../model/arp_scanner_status.dart';
-import '../model/dhcp_scanner_status.dart';
-import '../model/mdns_scanner_status.dart';
-import '../model/snmp_scanner_status.dart';
-import '../model/ssdp_scanner_status.dart';
+import '../model/active_scanner_status.dart';
+import '../model/passive_scanner_status.dart';
 import '../navigation.dart';
 import '../theme/app_colors.dart';
 import '../utils/backend_reachability.dart';
 import '../utils/duration_formatter.dart';
 import '../utils/oott_api.dart';
+import '../utils/periodic_rebuild.dart';
 import '../utils/polled_value.dart';
 import 'polled_stale_indicator.dart';
+
+/// One scanner shown in the combined card: its display name, the polled status,
+/// and how to turn the current value into a (colour, one-line text) summary.
+class _Scanner {
+  final String name;
+  final PolledValue polled;
+  final (Color, String) Function(BuildContext, PolledFreshness) resolve;
+
+  const _Scanner(this.name, this.polled, this.resolve);
+}
 
 class ScannersStatusCard extends StatefulWidget {
   const ScannersStatusCard({super.key});
@@ -24,51 +31,42 @@ class ScannersStatusCard extends StatefulWidget {
 }
 
 class _ScannersStatusCardState extends State<ScannersStatusCard>
-    with RouteAware, WidgetsBindingObserver {
-  late final PolledValue<ArpScannerStatus> _arp;
-  late final PolledValue<MdnsScannerStatus> _mdns;
-  late final PolledValue<SsdpScannerStatus> _ssdp;
-  late final PolledValue<DhcpScannerStatus> _dhcp;
-  late final PolledValue<SnmpScannerStatus> _snmp;
-  Timer? _tickTimer;
+    with
+        RouteAware,
+        WidgetsBindingObserver,
+        PeriodicRebuild<ScannersStatusCard> {
+  late final List<_Scanner> _scanners;
+
+  PolledValue<T> _poll<T>(
+    Future<T> Function({CancelToken? cancelToken}) fetch,
+  ) => PolledValue<T>(
+    fetch: fetch,
+    pollInterval: const Duration(seconds: 5),
+    staleErrorAfter: const Duration(seconds: 30),
+  );
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _arp = PolledValue<ArpScannerStatus>(
-      fetch: ({cancelToken}) =>
-          BackendAPI.instance.getArpScannerStatus(cancelToken: cancelToken),
-      pollInterval: const Duration(seconds: 5),
-      staleErrorAfter: const Duration(seconds: 30),
-    );
-    _mdns = PolledValue<MdnsScannerStatus>(
-      fetch: ({cancelToken}) =>
-          BackendAPI.instance.getMdnsScannerStatus(cancelToken: cancelToken),
-      pollInterval: const Duration(seconds: 5),
-      staleErrorAfter: const Duration(seconds: 30),
-    );
-    _ssdp = PolledValue<SsdpScannerStatus>(
-      fetch: ({cancelToken}) =>
-          BackendAPI.instance.getSsdpScannerStatus(cancelToken: cancelToken),
-      pollInterval: const Duration(seconds: 5),
-      staleErrorAfter: const Duration(seconds: 30),
-    );
-    _dhcp = PolledValue<DhcpScannerStatus>(
-      fetch: ({cancelToken}) =>
-          BackendAPI.instance.getDhcpScannerStatus(cancelToken: cancelToken),
-      pollInterval: const Duration(seconds: 5),
-      staleErrorAfter: const Duration(seconds: 30),
-    );
-    _snmp = PolledValue<SnmpScannerStatus>(
-      fetch: ({cancelToken}) =>
-          BackendAPI.instance.getSnmpScannerStatus(cancelToken: cancelToken),
-      pollInterval: const Duration(seconds: 5),
-      staleErrorAfter: const Duration(seconds: 30),
-    );
-    _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
+    final api = BackendAPI.instance;
+    final arp = _poll(api.getArpScannerStatus);
+    final mdns = _poll(api.getMdnsScannerStatus);
+    final ssdp = _poll(api.getSsdpScannerStatus);
+    final dhcp = _poll(api.getDhcpScannerStatus);
+    final snmp = _poll(api.getSnmpScannerStatus);
+    _scanners = [
+      _Scanner('ARP', arp, (c, f) => _resolve(c, arp, f, _activeStatus)),
+      _Scanner('mDNS', mdns, (c, f) => _resolve(c, mdns, f, _passiveStatus)),
+      _Scanner(
+        'SSDP/UPnP',
+        ssdp,
+        (c, f) => _resolve(c, ssdp, f, _passiveStatus),
+      ),
+      _Scanner('DHCP', dhcp, (c, f) => _resolve(c, dhcp, f, _passiveStatus)),
+      _Scanner('SNMP', snmp, (c, f) => _resolve(c, snmp, f, _activeStatus)),
+    ];
+    startRebuildTicker();
   }
 
   @override
@@ -100,36 +98,26 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
   }
 
   void _pausePolling() {
-    _arp.pause();
-    _mdns.pause();
-    _ssdp.pause();
-    _dhcp.pause();
-    _snmp.pause();
-    _tickTimer?.cancel();
-    _tickTimer = null;
+    for (final scanner in _scanners) {
+      scanner.polled.pause();
+    }
+    stopRebuildTicker();
   }
 
   void _resumePolling() {
-    _arp.resume();
-    _mdns.resume();
-    _ssdp.resume();
-    _dhcp.resume();
-    _snmp.resume();
-    _tickTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
+    for (final scanner in _scanners) {
+      scanner.polled.resume();
+    }
+    startRebuildTicker();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     routeObserver.unsubscribe(this);
-    _tickTimer?.cancel();
-    _arp.dispose();
-    _mdns.dispose();
-    _ssdp.dispose();
-    _dhcp.dispose();
-    _snmp.dispose();
+    for (final scanner in _scanners) {
+      scanner.polled.dispose();
+    }
     super.dispose();
   }
 
@@ -137,24 +125,15 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: Listenable.merge([
-        _arp,
-        _mdns,
-        _ssdp,
-        _dhcp,
-        _snmp,
+        ..._scanners.map((s) => s.polled),
         BackendReachability.instance,
       ]),
       builder: (context, _) {
-        final arpFreshness = effectiveFreshness(_arp);
-        final mdnsFreshness = effectiveFreshness(_mdns);
-        final ssdpFreshness = effectiveFreshness(_ssdp);
-        final dhcpFreshness = effectiveFreshness(_dhcp);
-        final snmpFreshness = effectiveFreshness(_snmp);
-        if (arpFreshness == PolledFreshness.initialLoading ||
-            mdnsFreshness == PolledFreshness.initialLoading ||
-            ssdpFreshness == PolledFreshness.initialLoading ||
-            dhcpFreshness == PolledFreshness.initialLoading ||
-            snmpFreshness == PolledFreshness.initialLoading) {
+        final freshness = {
+          for (final scanner in _scanners)
+            scanner: effectiveFreshness(scanner.polled),
+        };
+        if (freshness.values.any((f) => f == PolledFreshness.initialLoading)) {
           return const Card(
             child: Padding(
               padding: EdgeInsets.all(16),
@@ -162,12 +141,6 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
             ),
           );
         }
-
-        final (arpColor, arpText) = _resolveArp(context, arpFreshness);
-        final (mdnsColor, mdnsText) = _resolveMdns(context, mdnsFreshness);
-        final (ssdpColor, ssdpText) = _resolveSsdp(context, ssdpFreshness);
-        final (dhcpColor, dhcpText) = _resolveDhcp(context, dhcpFreshness);
-        final (snmpColor, snmpText) = _resolveSnmp(context, snmpFreshness);
 
         return Card(
           clipBehavior: Clip.antiAlias,
@@ -183,50 +156,14 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 12),
-                  _scannerRow(
-                    context,
-                    arpColor,
-                    'ARP',
-                    arpText,
-                    _arp,
-                    arpFreshness,
-                  ),
-                  const SizedBox(height: 8),
-                  _scannerRow(
-                    context,
-                    mdnsColor,
-                    'mDNS',
-                    mdnsText,
-                    _mdns,
-                    mdnsFreshness,
-                  ),
-                  const SizedBox(height: 8),
-                  _scannerRow(
-                    context,
-                    ssdpColor,
-                    'SSDP/UPnP',
-                    ssdpText,
-                    _ssdp,
-                    ssdpFreshness,
-                  ),
-                  const SizedBox(height: 8),
-                  _scannerRow(
-                    context,
-                    dhcpColor,
-                    'DHCP',
-                    dhcpText,
-                    _dhcp,
-                    dhcpFreshness,
-                  ),
-                  const SizedBox(height: 8),
-                  _scannerRow(
-                    context,
-                    snmpColor,
-                    'SNMP',
-                    snmpText,
-                    _snmp,
-                    snmpFreshness,
-                  ),
+                  for (var i = 0; i < _scanners.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 8),
+                    _scannerRow(
+                      context,
+                      _scanners[i],
+                      freshness[_scanners[i]]!,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -238,15 +175,16 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
 
   Widget _scannerRow(
     BuildContext context,
-    Color color,
-    String name,
-    String statusText,
-    PolledValue polled,
+    _Scanner scanner,
     PolledFreshness freshness,
   ) {
+    final (color, statusText) = scanner.resolve(context, freshness);
     Widget dot = Icon(Icons.circle, color: color, size: 12);
     if (freshness == PolledFreshness.error) {
-      dot = Tooltip(message: polled.lastErrorMessage ?? 'Error', child: dot);
+      dot = Tooltip(
+        message: scanner.polled.lastErrorMessage ?? 'Error',
+        child: dot,
+      );
     }
     return Row(
       children: [
@@ -255,10 +193,10 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
         Expanded(
           child: Row(
             children: [
-              Text(name, style: Theme.of(context).textTheme.bodyMedium),
+              Text(scanner.name, style: Theme.of(context).textTheme.bodyMedium),
               if (freshness == PolledFreshness.stale) ...[
                 const SizedBox(width: 6),
-                PolledStaleIndicator(polled: polled),
+                PolledStaleIndicator(polled: scanner.polled),
               ],
             ],
           ),
@@ -274,18 +212,32 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     );
   }
 
-  (Color, String) _resolveArp(BuildContext context, PolledFreshness freshness) {
+  /// Wraps the shape-specific [compute] with the shared error handling and
+  /// elapsed-time calculation common to every scanner row.
+  (Color, String) _resolve<T>(
+    BuildContext context,
+    PolledValue<T> polled,
+    PolledFreshness freshness,
+    (Color, String) Function(BuildContext, T, double) compute,
+  ) {
+    if (freshness == PolledFreshness.error) {
+      return (Theme.of(context).colorScheme.error, 'Error');
+    }
+    final elapsed = DateTime.now()
+        .difference(polled.lastSuccessAt!)
+        .inSeconds
+        .toDouble();
+    return compute(context, polled.value as T, elapsed);
+  }
+
+  (Color, String) _activeStatus(
+    BuildContext context,
+    ActiveScannerStatus status,
+    double elapsed,
+  ) {
     final theme = Theme.of(context);
     final successColor = theme.extension<AppColorExtension>()!.success;
     final neutralColor = theme.colorScheme.outline;
-    if (freshness == PolledFreshness.error) {
-      return (theme.colorScheme.error, 'Error');
-    }
-    final status = _arp.value!;
-    final elapsed = DateTime.now()
-        .difference(_arp.lastSuccessAt!)
-        .inSeconds
-        .toDouble();
     if (status.isRunning) {
       final secs = (status.runningForSeconds ?? 0) + elapsed;
       return (successColor, 'Running for ${formatSeconds(secs)}');
@@ -300,106 +252,20 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
     return (neutralColor, 'Not started');
   }
 
-  (Color, String) _resolveMdns(
+  (Color, String) _passiveStatus(
     BuildContext context,
-    PolledFreshness freshness,
+    PassiveScannerStatus status,
+    double elapsed,
   ) {
     final theme = Theme.of(context);
     final successColor = theme.extension<AppColorExtension>()!.success;
     final neutralColor = theme.colorScheme.outline;
-    if (freshness == PolledFreshness.error) {
-      return (theme.colorScheme.error, 'Error');
-    }
-    final status = _mdns.value!;
-    final elapsed = DateTime.now()
-        .difference(_mdns.lastSuccessAt!)
-        .inSeconds
-        .toDouble();
     if (status.isListening) {
       if (status.lastDeviceSeenSecondsAgo != null) {
         final secs = status.lastDeviceSeenSecondsAgo! + elapsed;
         return (successColor, 'Last device seen ${formatSeconds(secs)} ago');
       }
       return (successColor, 'No devices seen yet');
-    }
-    return (neutralColor, 'Not started');
-  }
-
-  (Color, String) _resolveSsdp(
-    BuildContext context,
-    PolledFreshness freshness,
-  ) {
-    final theme = Theme.of(context);
-    final successColor = theme.extension<AppColorExtension>()!.success;
-    final neutralColor = theme.colorScheme.outline;
-    if (freshness == PolledFreshness.error) {
-      return (theme.colorScheme.error, 'Error');
-    }
-    final status = _ssdp.value!;
-    final elapsed = DateTime.now()
-        .difference(_ssdp.lastSuccessAt!)
-        .inSeconds
-        .toDouble();
-    if (status.isListening) {
-      if (status.lastDeviceSeenSecondsAgo != null) {
-        final secs = status.lastDeviceSeenSecondsAgo! + elapsed;
-        return (successColor, 'Last device seen ${formatSeconds(secs)} ago');
-      }
-      return (successColor, 'No devices seen yet');
-    }
-    return (neutralColor, 'Not started');
-  }
-
-  (Color, String) _resolveDhcp(
-    BuildContext context,
-    PolledFreshness freshness,
-  ) {
-    final theme = Theme.of(context);
-    final successColor = theme.extension<AppColorExtension>()!.success;
-    final neutralColor = theme.colorScheme.outline;
-    if (freshness == PolledFreshness.error) {
-      return (theme.colorScheme.error, 'Error');
-    }
-    final status = _dhcp.value!;
-    final elapsed = DateTime.now()
-        .difference(_dhcp.lastSuccessAt!)
-        .inSeconds
-        .toDouble();
-    if (status.isListening) {
-      if (status.lastDeviceSeenSecondsAgo != null) {
-        final secs = status.lastDeviceSeenSecondsAgo! + elapsed;
-        return (successColor, 'Last device seen ${formatSeconds(secs)} ago');
-      }
-      return (successColor, 'No devices seen yet');
-    }
-    return (neutralColor, 'Not started');
-  }
-
-  (Color, String) _resolveSnmp(
-    BuildContext context,
-    PolledFreshness freshness,
-  ) {
-    final theme = Theme.of(context);
-    final successColor = theme.extension<AppColorExtension>()!.success;
-    final neutralColor = theme.colorScheme.outline;
-    if (freshness == PolledFreshness.error) {
-      return (theme.colorScheme.error, 'Error');
-    }
-    final status = _snmp.value!;
-    final elapsed = DateTime.now()
-        .difference(_snmp.lastSuccessAt!)
-        .inSeconds
-        .toDouble();
-    if (status.isRunning) {
-      final secs = (status.runningForSeconds ?? 0) + elapsed;
-      return (successColor, 'Running for ${formatSeconds(secs)}');
-    }
-    if (status.nextRunInSeconds != null) {
-      final remaining = (status.nextRunInSeconds! - elapsed).clamp(
-        0.0,
-        double.infinity,
-      );
-      return (neutralColor, 'Next run in ${formatSeconds(remaining)}');
     }
     return (neutralColor, 'Not started');
   }

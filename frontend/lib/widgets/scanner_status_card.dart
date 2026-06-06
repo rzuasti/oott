@@ -1,21 +1,24 @@
-import 'dart:async';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../utils/backend_reachability.dart';
+import '../utils/periodic_rebuild.dart';
 import '../utils/polled_value.dart';
 import 'polled_stale_indicator.dart';
 
 typedef ScannerStatus = ({Color color, String label, List<String> sublabels});
 
 typedef ScannerStatusResolver<T> =
-    ScannerStatus Function(BuildContext context, T value, double elapsedSeconds);
+    ScannerStatus Function(
+      BuildContext context,
+      T value,
+      double elapsedSeconds,
+    );
 
 /// Generic card that polls a scanner status endpoint and renders the result
-/// using the provided [resolver]. The two scanner cards (ARP, mDNS) are thin
-/// wrappers over this widget.
+/// using the provided [resolver]. The per-scanner detail cards are configured
+/// over this widget in `scanner_status_cards.dart`.
 class ScannerStatusCard<T> extends StatefulWidget {
   const ScannerStatusCard({
     super.key,
@@ -32,9 +35,9 @@ class ScannerStatusCard<T> extends StatefulWidget {
   State<ScannerStatusCard<T>> createState() => _ScannerStatusCardState<T>();
 }
 
-class _ScannerStatusCardState<T> extends State<ScannerStatusCard<T>> {
+class _ScannerStatusCardState<T> extends State<ScannerStatusCard<T>>
+    with PeriodicRebuild<ScannerStatusCard<T>> {
   late final PolledValue<T> _polled;
-  Timer? _tickTimer;
 
   @override
   void initState() {
@@ -44,14 +47,11 @@ class _ScannerStatusCardState<T> extends State<ScannerStatusCard<T>> {
       pollInterval: const Duration(seconds: 5),
       staleErrorAfter: const Duration(seconds: 30),
     );
-    _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
+    startRebuildTicker();
   }
 
   @override
   void dispose() {
-    _tickTimer?.cancel();
     _polled.dispose();
     super.dispose();
   }
@@ -124,7 +124,10 @@ class _ScannerStatusCardState<T> extends State<ScannerStatusCard<T>> {
     );
   }
 
-  ScannerStatus _resolveStatus(BuildContext context, PolledFreshness freshness) {
+  ScannerStatus _resolveStatus(
+    BuildContext context,
+    PolledFreshness freshness,
+  ) {
     if (freshness == PolledFreshness.error) {
       return (
         color: Theme.of(context).colorScheme.error,

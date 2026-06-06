@@ -1,18 +1,20 @@
-class MdnsScannerStatus {
+/// Status of a passive scanner (one that listens continuously, e.g. mDNS, SSDP,
+/// DHCP). Mirrors the backend's `PassiveSnapshot` / `PassiveScannerStatusResponse`.
+class PassiveScannerStatus {
   final bool isListening;
   final double? listeningForSeconds;
   final int devicesSeen;
   final double? lastDeviceSeenSecondsAgo;
 
-  const MdnsScannerStatus({
+  const PassiveScannerStatus({
     required this.isListening,
     this.listeningForSeconds,
     required this.devicesSeen,
     this.lastDeviceSeenSecondsAgo,
   });
 
-  factory MdnsScannerStatus.fromJson(Map<String, dynamic> json) {
-    return MdnsScannerStatus(
+  factory PassiveScannerStatus.fromJson(Map<String, dynamic> json) {
+    return PassiveScannerStatus(
       isListening: json['is_listening'] as bool,
       listeningForSeconds: (json['listening_for_seconds'] as num?)?.toDouble(),
       devicesSeen: (json['devices_seen'] as num).toInt(),

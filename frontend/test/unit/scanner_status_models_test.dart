@@ -1,16 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:frontend/model/arp_scanner_status.dart';
-import 'package:frontend/model/dhcp_scanner_status.dart';
-import 'package:frontend/model/mdns_scanner_status.dart';
-import 'package:frontend/model/snmp_scanner_status.dart';
-import 'package:frontend/model/ssdp_scanner_status.dart';
+import 'package:frontend/model/active_scanner_status.dart';
+import 'package:frontend/model/passive_scanner_status.dart';
 
 import '../helpers/fixtures.dart';
 
 void main() {
-  group('interval scanners (ARP, SNMP)', () {
-    test('ArpScannerStatus.fromJson maps populated fields', () {
-      final status = ArpScannerStatus.fromJson(
+  group('active scanners (ARP, SNMP)', () {
+    test('ActiveScannerStatus.fromJson maps populated fields', () {
+      final status = ActiveScannerStatus.fromJson(
         intervalScannerJson(
           isRunning: true,
           runningForSeconds: 12.5,
@@ -27,28 +24,19 @@ void main() {
       expect(status.lastScanSecondsAgo, 5.0);
     });
 
-    test('ArpScannerStatus.fromJson tolerates null optionals', () {
-      final status = ArpScannerStatus.fromJson(intervalScannerJson());
+    test('ActiveScannerStatus.fromJson tolerates null optionals', () {
+      final status = ActiveScannerStatus.fromJson(intervalScannerJson());
 
       expect(status.isRunning, isFalse);
       expect(status.runningForSeconds, isNull);
       expect(status.nextRunInSeconds, isNull);
       expect(status.lastScanDevicesSeen, isNull);
     });
-
-    test('SnmpScannerStatus.fromJson maps fields', () {
-      final status = SnmpScannerStatus.fromJson(
-        intervalScannerJson(isRunning: true, runningForSeconds: 3),
-      );
-
-      expect(status.isRunning, isTrue);
-      expect(status.runningForSeconds, 3.0);
-    });
   });
 
-  group('listener scanners (mDNS, SSDP, DHCP)', () {
-    test('MdnsScannerStatus.fromJson maps populated fields', () {
-      final status = MdnsScannerStatus.fromJson(
+  group('passive scanners (mDNS, SSDP, DHCP)', () {
+    test('PassiveScannerStatus.fromJson maps populated fields', () {
+      final status = PassiveScannerStatus.fromJson(
         listenerScannerJson(
           isListening: true,
           listeningForSeconds: 99.0,
@@ -63,9 +51,9 @@ void main() {
       expect(status.lastDeviceSeenSecondsAgo, 8.0);
     });
 
-    test('SsdpScannerStatus.fromJson requires devicesSeen and tolerates nulls',
-        () {
-      final status = SsdpScannerStatus.fromJson(
+    test('PassiveScannerStatus.fromJson requires devicesSeen and tolerates '
+        'nulls', () {
+      final status = PassiveScannerStatus.fromJson(
         listenerScannerJson(devicesSeen: 0),
       );
 
@@ -73,15 +61,6 @@ void main() {
       expect(status.devicesSeen, 0);
       expect(status.listeningForSeconds, isNull);
       expect(status.lastDeviceSeenSecondsAgo, isNull);
-    });
-
-    test('DhcpScannerStatus.fromJson maps fields', () {
-      final status = DhcpScannerStatus.fromJson(
-        listenerScannerJson(isListening: true, devicesSeen: 2),
-      );
-
-      expect(status.isListening, isTrue);
-      expect(status.devicesSeen, 2);
     });
   });
 }

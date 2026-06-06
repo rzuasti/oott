@@ -1,9 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../utils/backend_reachability.dart';
 import '../utils/duration_formatter.dart';
+import '../utils/periodic_rebuild.dart';
 import '../utils/polled_value.dart';
 
 class PolledStaleIndicator extends StatefulWidget {
@@ -15,21 +14,12 @@ class PolledStaleIndicator extends StatefulWidget {
   State<PolledStaleIndicator> createState() => _PolledStaleIndicatorState();
 }
 
-class _PolledStaleIndicatorState extends State<PolledStaleIndicator> {
-  Timer? _ticker;
-
+class _PolledStaleIndicatorState extends State<PolledStaleIndicator>
+    with PeriodicRebuild<PolledStaleIndicator> {
   @override
   void initState() {
     super.initState();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
+    startRebuildTicker();
   }
 
   @override

@@ -1,26 +1,18 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../model/notification.dart' as oott_model;
 import '../navigation.dart';
-import '../theme/dimens.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
+import '../utils/paginated_list_state.dart';
 import '../utils/ui_snackbars.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/filter_selector.dart';
 import '../widgets/pagination_bar.dart';
-import '../widgets/pagination_progress.dart';
 import '../widgets/skeleton.dart';
 import 'notification_card.dart';
-
-// Phones show fewer notifications so the list and its pagination controls fit
-// on screen at once on the common current phones (e.g. iPhone 15, Pixel 8);
-// wider layouts have the vertical room for a couple more.
-const _phonePageSize = 4;
-const _widePageSize = 5;
 
 // Durations for the list's enter/exit animations.
 const _insertDuration = Duration(milliseconds: 300);
@@ -52,15 +44,14 @@ class NotificationsList extends StatefulWidget {
 }
 
 class _NotificationsListState extends State<NotificationsList>
-    with RouteAware, WidgetsBindingObserver {
+    with
+        RouteAware,
+        WidgetsBindingObserver,
+        PaginatedListState<NotificationsList> {
   _NotificationFilter _filter = _NotificationFilter.newOnly;
   Timer? _notificationTimer;
 
-  int _currentPage = 0;
-  bool _didInitialFetch = false;
   List<oott_model.Notification> _items = [];
-  bool _isLoading = false;
-  bool _isPaging = false;
 
   // Drives the animated list. Recreated on every reset (filter/page change,
   // initial load) so the new dataset mounts fresh without per-row animations;
@@ -70,16 +61,15 @@ class _NotificationsListState extends State<NotificationsList>
   final Set<int> _flashIds = {};
   final FriendlyDateFormatter _formatter = FriendlyDateFormatter();
 
-  int get _pageSize => MediaQuery.sizeOf(context).width < Breakpoints.medium
-      ? _phonePageSize
-      : _widePageSize;
-  // Total notifications matching the current filter, used to show how many pages
-  // exist and to offer "go to last page".
-  int _totalCount = 0;
-  int get _totalPages => (_totalCount / _pageSize).ceil().clamp(1, 1 << 30);
-  String? _error;
-  CancelToken? _fetchToken;
-  final ScrollController _scrollController = ScrollController();
+  // Phones show fewer notifications so the list and its pagination controls fit
+  // on screen at once on the common current phones (e.g. iPhone 15, Pixel 8);
+  // wider layouts have the vertical room for a couple more.
+  @override
+  int get phonePageSize => 4;
+  @override
+  int get widePageSize => 5;
+  @override
+  bool get isListEmpty => _items.isEmpty;
 
   @override
   void initState() {
@@ -97,8 +87,8 @@ class _NotificationsListState extends State<NotificationsList>
     }
     // Deferred from initState so the page size can read the screen width from
     // MediaQuery, which is only available once dependencies are in place.
-    if (!_didInitialFetch) {
-      _didInitialFetch = true;
+    if (!didInitialFetch) {
+      didInitialFetch = true;
       _fetchPage(0);
     }
   }
@@ -111,7 +101,7 @@ class _NotificationsListState extends State<NotificationsList>
 
   @override
   void didPopNext() {
-    _fetchPage(_currentPage, animateDiff: true);
+    _fetchPage(currentPage, animateDiff: true);
     _startTimer();
   }
 
@@ -121,7 +111,7 @@ class _NotificationsListState extends State<NotificationsList>
       _notificationTimer?.cancel();
       _notificationTimer = null;
     } else if (state == AppLifecycleState.resumed) {
-      _fetchPage(_currentPage, animateDiff: true);
+      _fetchPage(currentPage, animateDiff: true);
       _startTimer();
     }
   }
@@ -130,7 +120,7 @@ class _NotificationsListState extends State<NotificationsList>
     _notificationTimer?.cancel();
     _notificationTimer = Timer.periodic(
       const Duration(minutes: 1),
-      (_) => _fetchPage(_currentPage, animateDiff: true),
+      (_) => _fetchPage(currentPage, animateDiff: true),
     );
   }
 
@@ -139,10 +129,6 @@ class _NotificationsListState extends State<NotificationsList>
     WidgetsBinding.instance.removeObserver(this);
     routeObserver.unsubscribe(this);
     _notificationTimer?.cancel();
-    _fetchToken?.cancel();
-    _scrollController.dispose();
-    // Clear any in-flight cue so it doesn't linger after leaving the page.
-    paginationLoading.value = false;
     super.dispose();
   }
 
@@ -161,63 +147,42 @@ class _NotificationsListState extends State<NotificationsList>
     bool scrollToTop = false,
     bool paging = false,
     bool animateDiff = false,
-  }) async {
-    if (scrollToTop && _scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-    _fetchToken?.cancel();
-    final token = CancelToken();
-    _fetchToken = token;
-    setState(() {
-      _isLoading = _items.isEmpty;
-      _isPaging = paging;
-      _error = null;
-    });
-    paginationLoading.value = paging;
-    try {
-      final result = await BackendAPI.instance.listNotifications(
+  }) {
+    return runFetch(
+      page,
+      scrollToTop: scrollToTop,
+      paging: paging,
+      fetch: (page, perPage, token) => BackendAPI.instance.listNotifications(
         _filter.isNew,
         page: page,
-        perPage: _pageSize,
+        perPage: perPage,
         cancelToken: token,
-      );
-      if (!mounted || token != _fetchToken) return;
-      paginationLoading.value = false;
-      if (animateDiff && !_isLoading) {
-        // Merge into the live list so changes animate. Scalars are updated
-        // without setState here; _reconcile schedules the rebuild itself so it
-        // can defer swapping in the empty state until exit animations finish.
-        _currentPage = page;
-        _totalCount = result.totalCount;
-        _isLoading = false;
-        _isPaging = false;
-        _reconcile(result.items);
-        return;
-      }
-      // Reset: a fresh dataset. Recreate the list key so the animated list
-      // mounts anew and shows the rows immediately, without insert animations.
-      setState(() {
-        _listKey = GlobalKey();
-        _currentPage = page;
-        _totalCount = result.totalCount;
-        _items = result.items;
-        _isLoading = false;
-        _isPaging = false;
-      });
-    } catch (e) {
-      if (!mounted || token != _fetchToken) return;
-      if (e is DioException && e.type == DioExceptionType.cancel) return;
-      setState(() {
-        _error = dioErrorToUserMessage(e);
-        _isLoading = false;
-        _isPaging = false;
-      });
-      paginationLoading.value = false;
-    }
+      ),
+      onResult: (result) {
+        if (animateDiff && !isLoading) {
+          // Merge into the live list so changes animate. Scalars are updated
+          // without setState here; _reconcile schedules the rebuild itself so
+          // it can defer swapping in the empty state until exit animations
+          // finish.
+          currentPage = page;
+          totalCount = result.totalCount;
+          isLoading = false;
+          isPaging = false;
+          _reconcile(result.items);
+          return;
+        }
+        // Reset: a fresh dataset. Recreate the list key so the animated list
+        // mounts anew and shows the rows immediately, without insert animations.
+        setState(() {
+          _listKey = GlobalKey();
+          currentPage = page;
+          totalCount = result.totalCount;
+          _items = result.items;
+          isLoading = false;
+          isPaging = false;
+        });
+      },
+    );
   }
 
   Future<void> _markAllAsRead() async {
@@ -229,7 +194,7 @@ class _NotificationsListState extends State<NotificationsList>
       return;
     }
     if (!mounted) return;
-    _fetchPage(_currentPage, animateDiff: true);
+    _fetchPage(currentPage, animateDiff: true);
     UISnackbars.showSuccess(context, 'All notifications marked as read');
   }
 
@@ -304,7 +269,7 @@ class _NotificationsListState extends State<NotificationsList>
   /// [_removeItem] directly so they don't double-count against a fresh total.
   void _removeAndSettle(int id, {required bool animated}) {
     _removeItem(id, animated: animated);
-    if (_totalCount > 0) _totalCount--;
+    if (totalCount > 0) totalCount--;
     _afterStructuralChange();
   }
 
@@ -369,9 +334,9 @@ class _NotificationsListState extends State<NotificationsList>
         _buildNotificationsHeader(context),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () => _fetchPage(_currentPage, animateDiff: true),
+            onRefresh: () => _fetchPage(currentPage, animateDiff: true),
             child: CustomScrollView(
-              controller: _scrollController,
+              controller: scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 ..._buildNotificationSlivers(context),
@@ -417,15 +382,15 @@ class _NotificationsListState extends State<NotificationsList>
   }
 
   List<Widget> _buildNotificationSlivers(BuildContext context) {
-    if (_isLoading) {
+    if (isLoading) {
       return [const SliverToBoxAdapter(child: ListSkeleton(rows: 4))];
     }
-    if (_error != null) {
+    if (error != null) {
       return [
         SliverFillRemaining(
           child: Center(
             child: Text(
-              'Error: $_error',
+              'Error: $error',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
@@ -444,12 +409,12 @@ class _NotificationsListState extends State<NotificationsList>
     }
     return [
       _buildNotificationSliver(),
-      if (_currentPage > 0 || _totalPages > 1)
+      if (currentPage > 0 || totalPages > 1)
         SliverToBoxAdapter(
           child: PaginationBar(
-            currentPage: _currentPage,
-            totalPages: _totalPages,
-            isLoading: _isPaging,
+            currentPage: currentPage,
+            totalPages: totalPages,
+            isLoading: isPaging,
             onPageChanged: (page) =>
                 _fetchPage(page, scrollToTop: true, paging: true),
           ),

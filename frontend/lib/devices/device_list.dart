@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,20 +9,14 @@ import '../navigation.dart';
 import '../theme/dimens.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
+import '../utils/paginated_list_state.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/filter_selector.dart';
 import '../widgets/pagination_bar.dart';
-import '../widgets/pagination_progress.dart';
 import '../widgets/skeleton.dart';
 import 'device_list_filter.dart';
 import 'device_list_rows.dart';
 import 'device_list_sort.dart';
-
-// Phones show fewer devices so the list and its pagination controls fit on
-// screen at once on the common current phones (e.g. iPhone 15, Pixel 8); the
-// wider table layout has the vertical room for a full page.
-const _phonePageSize = 5;
-const _widePageSize = 10;
 
 class DeviceList extends StatefulWidget {
   const DeviceList({super.key});
@@ -32,12 +25,10 @@ class DeviceList extends StatefulWidget {
   State<DeviceList> createState() => _DeviceListState();
 }
 
-class _DeviceListState extends State<DeviceList> with RouteAware {
+class _DeviceListState extends State<DeviceList>
+    with RouteAware, PaginatedListState<DeviceList> {
   DeviceFilter _filter = DeviceFilter.newDevices;
   List<Device> _devices = [];
-  bool _isLoading = true;
-  bool _isPaging = false;
-  String? _error;
   final TextEditingController _ownerController = TextEditingController();
   DeviceType? _typeFilter;
   Timer? _ownerDebounce;
@@ -45,22 +36,20 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
   DeviceSortColumn _sortColumn = DeviceSortColumn.lastSeen;
   bool _sortAscending = false;
 
-  int _currentPage = 0;
-  // Total devices matching the current filters, used to show how many pages
-  // exist and to offer "go to last page".
-  int _totalCount = 0;
-  bool _didInitialFetch = false;
-  CancelToken? _fetchToken;
-  final ScrollController _scrollController = ScrollController();
-
-  int get _pageSize => MediaQuery.sizeOf(context).width < Breakpoints.medium
-      ? _phonePageSize
-      : _widePageSize;
-  int get _totalPages => (_totalCount / _pageSize).ceil().clamp(1, 1 << 30);
+  // Phones show fewer devices so the list and its pagination controls fit on
+  // screen at once on the common current phones (e.g. iPhone 15, Pixel 8); the
+  // wider table layout has the vertical room for a full page.
+  @override
+  int get phonePageSize => 5;
+  @override
+  int get widePageSize => 10;
+  @override
+  bool get isListEmpty => _devices.isEmpty;
 
   @override
   void initState() {
     super.initState();
+    isLoading = true;
     _ownerController.addListener(_onOwnerChanged);
   }
 
@@ -73,26 +62,22 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
     }
     // Deferred from initState so the page size can read the screen width from
     // MediaQuery, which is only available once dependencies are in place.
-    if (!_didInitialFetch) {
-      _didInitialFetch = true;
+    if (!didInitialFetch) {
+      didInitialFetch = true;
       _fetchPage(0);
     }
   }
 
   @override
   void didPopNext() {
-    _fetchPage(_currentPage);
+    _fetchPage(currentPage);
   }
 
   @override
   void dispose() {
     routeObserver.unsubscribe(this);
     _ownerDebounce?.cancel();
-    _fetchToken?.cancel();
     _ownerController.dispose();
-    _scrollController.dispose();
-    // Clear any in-flight cue so it doesn't linger after leaving the page.
-    paginationLoading.value = false;
     super.dispose();
   }
 
@@ -113,57 +98,34 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
     int page, {
     bool scrollToTop = false,
     bool paging = false,
-  }) async {
-    if (scrollToTop && _scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-    _fetchToken?.cancel();
-    final token = CancelToken();
-    _fetchToken = token;
-    setState(() {
-      _isLoading = _devices.isEmpty;
-      _isPaging = paging;
-      _error = null;
-    });
-    paginationLoading.value = paging;
-    try {
-      bool? isRegistered;
-      if (_filter == DeviceFilter.newDevices) isRegistered = false;
-      if (_filter == DeviceFilter.registered) isRegistered = true;
-
-      final result = await BackendAPI.instance.listDevices(
+  }) {
+    bool? isRegistered;
+    if (_filter == DeviceFilter.newDevices) isRegistered = false;
+    if (_filter == DeviceFilter.registered) isRegistered = true;
+    return runFetch(
+      page,
+      scrollToTop: scrollToTop,
+      paging: paging,
+      fetch: (page, perPage, token) => BackendAPI.instance.listDevices(
         isRegistered: isRegistered,
         owner: _ownerController.text.isEmpty ? null : _ownerController.text,
         deviceType: _typeFilter,
         sortBy: _sortColumn.apiName,
         sortAscending: _sortAscending,
         page: page,
-        perPage: _pageSize,
+        perPage: perPage,
         cancelToken: token,
-      );
-      if (!mounted || token != _fetchToken) return;
-      setState(() {
-        _currentPage = page;
-        _totalCount = result.totalCount;
-        _devices = result.items;
-        _isLoading = false;
-        _isPaging = false;
-      });
-      paginationLoading.value = false;
-    } catch (e) {
-      if (!mounted || token != _fetchToken) return;
-      if (e is DioException && e.type == DioExceptionType.cancel) return;
-      setState(() {
-        _error = dioErrorToUserMessage(e);
-        _isLoading = false;
-        _isPaging = false;
-      });
-      paginationLoading.value = false;
-    }
+      ),
+      onResult: (result) {
+        setState(() {
+          currentPage = page;
+          totalCount = result.totalCount;
+          _devices = result.items;
+          isLoading = false;
+          isPaging = false;
+        });
+      },
+    );
   }
 
   void _onSortHeaderTapped(DeviceSortColumn column) {
@@ -295,13 +257,13 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
   }
 
   Widget _buildBody(BuildContext context, bool isWide) {
-    if (_isLoading) {
+    if (isLoading) {
       return const ListSkeleton();
     }
-    if (_error != null) {
+    if (error != null) {
       return Center(
         child: Text(
-          'Error: $_error',
+          'Error: $error',
           style: TextStyle(color: Theme.of(context).colorScheme.error),
         ),
       );
@@ -317,9 +279,9 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
 
     final formatter = FriendlyDateFormatter();
     return RefreshIndicator(
-      onRefresh: () => _fetchPage(_currentPage),
+      onRefresh: () => _fetchPage(currentPage),
       child: CustomScrollView(
-        controller: _scrollController,
+        controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           if (isWide)
@@ -340,24 +302,24 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
                       key: ValueKey(device.macAddress),
                       device: device,
                       formatter: formatter,
-                      onRefresh: () => _fetchPage(_currentPage),
+                      onRefresh: () => _fetchPage(currentPage),
                     )
                   : DeviceRowCompact(
                       key: ValueKey(device.macAddress),
                       device: device,
                       formatter: formatter,
-                      onRefresh: () => _fetchPage(_currentPage),
+                      onRefresh: () => _fetchPage(currentPage),
                     );
             },
             separatorBuilder: (_, _) =>
                 isWide ? const Divider(height: 1) : const SizedBox.shrink(),
           ),
-          if (_currentPage > 0 || _totalPages > 1)
+          if (currentPage > 0 || totalPages > 1)
             SliverToBoxAdapter(
               child: PaginationBar(
-                currentPage: _currentPage,
-                totalPages: _totalPages,
-                isLoading: _isPaging,
+                currentPage: currentPage,
+                totalPages: totalPages,
+                isLoading: isPaging,
                 onPageChanged: (page) =>
                     _fetchPage(page, scrollToTop: true, paging: true),
               ),
