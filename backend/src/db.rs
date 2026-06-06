@@ -27,18 +27,20 @@ lazy_static! {
         build(
             r2d2_sqlite::SqliteConnectionManager::file(get_settings().database.path.as_str())
                 .with_init(|conn| {
-                    // Tune every pooled connection for the concurrent access pattern of this
-                    // app (five scanners + web server + retention sharing the pool):
-                    // - WAL lets readers and a writer proceed concurrently instead of blocking.
-                    // - synchronous=NORMAL is the safe, recommended pairing with WAL and avoids
-                    //   an fsync on every commit (the default FULL fsyncs on each write).
+                    // Per-connection pragmas. These must be set on every pooled connection (they
+                    // are not persisted in the database file). The WAL journal mode is NOT set
+                    // here: it is a persistent property of the database file and is enabled once
+                    // in `init_db`. Setting it per connection instead races several concurrent WAL
+                    // switches when r2d2 eagerly opens the pool at startup, producing transient
+                    // "disk I/O error" / "database is locked" failures.
                     // - busy_timeout makes a connection wait for a lock rather than failing
                     //   immediately with "database is locked".
+                    // - synchronous=NORMAL is the safe, recommended pairing with WAL and avoids
+                    //   an fsync on every commit (the default FULL fsyncs on each write).
                     // - foreign_keys are off by default in SQLite and must be set per connection.
                     conn.execute_batch(
-                        "PRAGMA journal_mode = WAL;
+                        "PRAGMA busy_timeout = 5000;
                          PRAGMA synchronous = NORMAL;
-                         PRAGMA busy_timeout = 5000;
                          PRAGMA foreign_keys = ON;",
                     )
                 })
@@ -94,6 +96,13 @@ pub async fn init_db() -> Result<(), DbError> {
     debug!("Getting database connection");
 
     let mut conn = get_db_connection()?;
+
+    // Enable WAL once on the shared database file. WAL is a persistent property of the file, so it
+    // survives across connections and restarts and only needs to be set a single time, here, before
+    // the scanners and web server start. Doing it per pooled connection instead races several
+    // concurrent WAL switches at startup ("disk I/O error" / "database is locked").
+    debug!("Ensuring the database is in WAL journal mode.");
+    conn.execute_batch("PRAGMA journal_mode = WAL;")?;
 
     debug!("Executing database migrations if needed.");
 
