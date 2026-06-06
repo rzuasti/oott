@@ -35,60 +35,62 @@ void main() {
     expect(summary.totalRegistered, 7);
   });
 
-  test('listDevices sends filter + pagination params and trims extra item',
-      () async {
-    adapter.onGet(
-      '/devices',
-      (server) => server.reply(200, [
-        deviceJson(macAddress: '00:00:00:00:00:01'),
-        deviceJson(macAddress: '00:00:00:00:00:02'),
-        deviceJson(macAddress: '00:00:00:00:00:03'),
-      ]),
-      queryParameters: {
-        'is_registered': false,
-        'device_type': 'laptop',
-        'sort_by': 'last_seen',
-        'sort_order': 'asc',
-        'page_offset': 0,
-        'page_limit': 3,
-      },
-    );
+  test(
+    'listDevices sends filter + pagination params and reports the total',
+    () async {
+      adapter.onGet(
+        '/devices',
+        (server) => server.reply(
+          200,
+          pagedListJson([
+            deviceJson(macAddress: '00:00:00:00:00:01'),
+            deviceJson(macAddress: '00:00:00:00:00:02'),
+          ], totalCount: 12),
+        ),
+        queryParameters: {
+          'is_registered': false,
+          'device_type': 'laptop',
+          'sort_by': 'last_seen',
+          'sort_order': 'asc',
+          'page_offset': 0,
+          'page_limit': 2,
+        },
+      );
 
-    final result = await BackendAPI.instance.listDevices(
-      isRegistered: false,
-      deviceType: DeviceType.laptop,
-      sortBy: 'last_seen',
-      sortAscending: true,
-      page: 0,
-      perPage: 2,
-    );
+      final result = await BackendAPI.instance.listDevices(
+        isRegistered: false,
+        deviceType: DeviceType.laptop,
+        sortBy: 'last_seen',
+        sortAscending: true,
+        page: 0,
+        perPage: 2,
+      );
 
-    expect(result.items, hasLength(2));
-    expect(result.hasNextPage, isTrue);
-  });
+      expect(result.items, hasLength(2));
+      expect(result.totalCount, 12);
+    },
+  );
 
-  test('listDevices reports no next page when fewer than perPage+1 returned',
-      () async {
-    adapter.onGet(
-      '/devices',
-      (server) => server.reply(200, [deviceJson()]),
-    );
+  test(
+    'listDevices reports the total when a single page is returned',
+    () async {
+      adapter.onGet(
+        '/devices',
+        (server) => server.reply(200, pagedListJson([deviceJson()])),
+      );
 
-    final result = await BackendAPI.instance.listDevices(perPage: 2);
+      final result = await BackendAPI.instance.listDevices(perPage: 2);
 
-    expect(result.items, hasLength(1));
-    expect(result.hasNextPage, isFalse);
-  });
+      expect(result.items, hasLength(1));
+      expect(result.totalCount, 1);
+    },
+  );
 
   test('listDevices maps the unknown device type to an empty filter', () async {
     adapter.onGet(
       '/devices',
-      (server) => server.reply(200, <dynamic>[]),
-      queryParameters: {
-        'device_type': '',
-        'page_offset': 0,
-        'page_limit': 11,
-      },
+      (server) => server.reply(200, pagedListJson([])),
+      queryParameters: {'device_type': '', 'page_offset': 0, 'page_limit': 10},
     );
 
     final result = await BackendAPI.instance.listDevices(

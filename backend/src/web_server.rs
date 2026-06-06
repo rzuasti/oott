@@ -2,8 +2,8 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 
 use crate::model::device_events::{DeviceEvent, DeviceEventScanner, DeviceEventType};
-use crate::model::devices::{Device, DeviceSummary};
-use crate::model::notifications::{Notification, NotificationType};
+use crate::model::devices::{Device, DeviceListResponse, DeviceSummary};
+use crate::model::notifications::{Notification, NotificationListResponse, NotificationType};
 use crate::settings::get_settings;
 use crate::web_server::devices::{RegisterDevicePayload, UpdateDevicePayload};
 use crate::web_server::scanner_status::{
@@ -66,8 +66,10 @@ pub mod utils;
     ),
     components(schemas(
         Device,
+        DeviceListResponse,
         DeviceSummary,
         Notification,
+        NotificationListResponse,
         NotificationType,
         RegisterDevicePayload,
         UpdateDevicePayload,

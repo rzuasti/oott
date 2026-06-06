@@ -62,6 +62,30 @@ pub fn list(
     Ok(notifications)
 }
 
+// Counts the notifications matching the given filter, ignoring paging. Used to
+// report the total number of pages alongside a `list` page.
+pub fn count(is_new: Option<bool>) -> Result<i64, DbError> {
+    debug!("Counting notifications");
+    let conn = db::get_db_connection();
+
+    let mut sql_statement = "SELECT COUNT(*) FROM notifications WHERE 1=1".to_string();
+    let mut params: Vec<rusqlite::types::Value> = Vec::new();
+
+    if let Some(is_new) = is_new {
+        debug!("Adding filter is_new={}", is_new);
+        sql_statement.push_str(" AND is_new=?");
+        params.push(is_new.into());
+    }
+
+    let count: i64 = conn.query_row(
+        sql_statement.as_str(),
+        params_from_iter(params.iter()),
+        |row| row.get(0),
+    )?;
+
+    Ok(count)
+}
+
 pub fn insert(notification: Notification) -> Result<i64, DbError> {
     let conn = db::get_db_connection();
     let mac_address = notification.mac_address.as_deref().map(normalize_mac);
@@ -360,10 +384,7 @@ mod tests {
             NotificationType::DeviceOnlineAfterTime,
             "Wrong notification type (should be DeviceOnlineAfterTime)"
         );
-        assert!(
-            inserted_notification.is_new,
-            "Notification should be new"
-        );
+        assert!(inserted_notification.is_new, "Notification should be new");
         assert_eq!(
             inserted_notification.created_on, created_on,
             "Wrong created_on (should be ${created_on})"
@@ -502,10 +523,7 @@ mod tests {
             NotificationType::DeviceOnlineAfterTime,
             "Wrong notification type (should be DeviceOnlineAfterTime)"
         );
-        assert!(
-            inserted_notification.is_new,
-            "Notification should be new"
-        );
+        assert!(inserted_notification.is_new, "Notification should be new");
         assert_eq!(
             inserted_notification.created_on, created_on,
             "Wrong created_on (should be ${created_on})"
@@ -576,7 +594,8 @@ mod tests {
 
         // Check date of notification 1
         let notification1 = notifications
-            .iter().find(|notification| notification.id == 1)
+            .iter()
+            .find(|notification| notification.id == 1)
             .unwrap();
 
         // 2026-01-03 14:13:12 - UTC
@@ -588,7 +607,8 @@ mod tests {
 
         // Check title of notification 3
         let notification3 = notifications
-            .iter().find(|notification| notification.id == 3)
+            .iter()
+            .find(|notification| notification.id == 3)
             .unwrap();
 
         assert_eq!(
@@ -599,7 +619,8 @@ mod tests {
 
         // Check body of notification 5
         let notification5 = notifications
-            .iter().find(|notification| notification.id == 5)
+            .iter()
+            .find(|notification| notification.id == 5)
             .unwrap();
 
         assert_eq!(
@@ -646,6 +667,46 @@ mod tests {
         assert!(
             second_page.iter().len() >= 1,
             "Second page should have at least 1 notification"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_count() {
+        tests_common::setup().await;
+
+        // The count must match an unpaginated list for each filter.
+        let all = count(None).unwrap();
+        assert_eq!(
+            all,
+            list(None, None, None).unwrap().len() as i64,
+            "Count of all notifications should match the unpaginated list length"
+        );
+
+        let new = count(Some(true)).unwrap();
+        assert_eq!(
+            new,
+            list(Some(true), None, None).unwrap().len() as i64,
+            "Count of new notifications should match the unpaginated list length"
+        );
+
+        let old = count(Some(false)).unwrap();
+        assert_eq!(
+            old,
+            list(Some(false), None, None).unwrap().len() as i64,
+            "Count of old notifications should match the unpaginated list length"
+        );
+
+        // New + old must add up to the total, and the count must be independent
+        // of paging.
+        assert_eq!(
+            new + old,
+            all,
+            "New and old counts should add up to the total"
+        );
+        assert_eq!(
+            count(Some(true)).unwrap(),
+            new,
+            "Count should ignore paging parameters"
         );
     }
 }

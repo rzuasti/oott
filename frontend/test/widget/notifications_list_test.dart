@@ -20,11 +20,14 @@ void main() {
     (tester) async {
       adapter.onGet(
         '/notifications',
-        (server) => server.reply(200, [
-          notificationJson(id: 1, title: 'First', body: 'First body'),
-          notificationJson(id: 2, title: 'Second', body: 'Second body'),
-        ]),
-        queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 6},
+        (server) => server.reply(
+          200,
+          pagedListJson([
+            notificationJson(id: 1, title: 'First', body: 'First body'),
+            notificationJson(id: 2, title: 'Second', body: 'Second body'),
+          ]),
+        ),
+        queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
       );
       adapter.onGet('/notifications/1', (server) => server.reply(200, null));
 
@@ -64,20 +67,20 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
 
     // The 400px-wide viewport above is a phone, so the list uses the smaller
-    // phone page size of 4 (requesting page_limit 5 to detect a next page).
+    // phone page size of 4. A total of 8 spans two pages.
     List<Map<String, dynamic>> page(int firstId) => List.generate(
-      5,
+      4,
       (i) => notificationJson(id: firstId + i, title: 'Item ${firstId + i}'),
     );
     adapter.onGet(
       '/notifications',
-      (server) => server.reply(200, page(1)),
-      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
+      (server) => server.reply(200, pagedListJson(page(1), totalCount: 8)),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 4},
     );
     adapter.onGet(
       '/notifications',
-      (server) => server.reply(200, page(6)),
-      queryParameters: {'is_new': true, 'page_offset': 4, 'page_limit': 5},
+      (server) => server.reply(200, pagedListJson(page(5), totalCount: 8)),
+      queryParameters: {'is_new': true, 'page_offset': 4, 'page_limit': 4},
     );
 
     await tester.pumpWidget(
@@ -100,10 +103,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(position().pixels, greaterThan(0));
 
-    // Advance a page: the list should jump back to the top.
+    // Advance a page: the list should jump back to the top, showing page two's
+    // first item (id 5).
     await tester.tap(find.byTooltip('Next page'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Item 7'), findsWidgets);
+    expect(find.textContaining('Item 5'), findsWidgets);
     expect(position().pixels, 0);
 
     await tester.pumpWidget(const SizedBox());
@@ -121,8 +125,8 @@ void main() {
     ];
     adapter.onGet(
       '/notifications',
-      (server) => server.reply(200, items),
-      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
+      (server) => server.reply(200, pagedListJson(items)),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 4},
     );
 
     await tester.pumpWidget(
@@ -156,11 +160,14 @@ void main() {
   ) async {
     adapter.onGet(
       '/notifications',
-      (server) => server.reply(200, [
-        notificationJson(id: 1, title: 'First'),
-        notificationJson(id: 2, title: 'Second'),
-      ]),
-      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 6},
+      (server) => server.reply(
+        200,
+        pagedListJson([
+          notificationJson(id: 1, title: 'First'),
+          notificationJson(id: 2, title: 'Second'),
+        ]),
+      ),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
     );
     adapter.onGet('/notifications/1', (server) => server.reply(200, null));
 
@@ -208,8 +215,8 @@ void main() {
     ];
     adapter.onGet(
       '/notifications',
-      (server) => server.reply(200, items),
-      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
+      (server) => server.reply(200, pagedListJson(items)),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 4},
     );
 
     await tester.pumpWidget(
@@ -262,8 +269,8 @@ void main() {
     ];
     adapter.onGet(
       '/notifications',
-      (server) => server.reply(200, items),
-      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
+      (server) => server.reply(200, pagedListJson(items)),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 4},
     );
 
     await tester.pumpWidget(
@@ -295,13 +302,19 @@ void main() {
   ) async {
     adapter.onGet(
       '/notifications',
-      (server) => server.reply(200, [notificationJson(id: 1, title: 'Kept')]),
-      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 6},
+      (server) => server.reply(
+        200,
+        pagedListJson([notificationJson(id: 1, title: 'Kept')]),
+      ),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
     );
     adapter.onGet(
       '/notifications',
-      (server) => server.reply(200, [notificationJson(id: 1, title: 'Kept')]),
-      queryParameters: {'is_new': '', 'page_offset': 0, 'page_limit': 6},
+      (server) => server.reply(
+        200,
+        pagedListJson([notificationJson(id: 1, title: 'Kept')]),
+      ),
+      queryParameters: {'is_new': '', 'page_offset': 0, 'page_limit': 5},
     );
     adapter.onGet('/notifications/1', (server) => server.reply(200, null));
 
@@ -336,16 +349,21 @@ void main() {
   ) async {
     adapter.onGet(
       '/notifications',
-      (server) =>
-          server.reply(200, [notificationJson(id: 1, title: 'New one')]),
-      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 6},
+      (server) => server.reply(
+        200,
+        pagedListJson([notificationJson(id: 1, title: 'New one')]),
+      ),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
     );
     adapter.onGet(
       '/notifications',
-      (server) => server.reply(200, [
-        notificationJson(id: 2, title: 'Old one', isNew: false),
-      ]),
-      queryParameters: {'is_new': false, 'page_offset': 0, 'page_limit': 6},
+      (server) => server.reply(
+        200,
+        pagedListJson([
+          notificationJson(id: 2, title: 'Old one', isNew: false),
+        ]),
+      ),
+      queryParameters: {'is_new': false, 'page_offset': 0, 'page_limit': 5},
     );
 
     await tester.pumpWidget(
@@ -362,6 +380,83 @@ void main() {
 
     expect(find.textContaining('Old one'), findsOneWidget);
     expect(find.textContaining('New one'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the last-page button jumps to the final page', (tester) async {
+    // Wide default surface → page size 5. A total of 12 spans three pages.
+    List<Map<String, dynamic>> page(int firstId, int count) => List.generate(
+      count,
+      (i) => notificationJson(id: firstId + i, title: 'Item ${firstId + i}'),
+    );
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(200, pagedListJson(page(1, 5), totalCount: 12)),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
+    );
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(200, pagedListJson(page(11, 2), totalCount: 12)),
+      queryParameters: {'is_new': true, 'page_offset': 10, 'page_limit': 5},
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: gruvboxDarkTheme,
+        home: const Scaffold(body: NotificationsList()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Page 1 of 3'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Last page'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Page 3 of 3'), findsOneWidget);
+    expect(find.textContaining('Item 11'), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('marking read under "New" decrements the page total', (
+    tester,
+  ) async {
+    // Wide default surface → page size 5. A total of 11 spans three pages;
+    // dropping one locally should leave ten, i.e. two pages.
+    adapter.onGet(
+      '/notifications',
+      (server) => server.reply(
+        200,
+        pagedListJson(
+          List.generate(
+            5,
+            (i) => notificationJson(id: i + 1, title: 'Item ${i + 1}'),
+          ),
+          totalCount: 11,
+        ),
+      ),
+      queryParameters: {'is_new': true, 'page_offset': 0, 'page_limit': 5},
+    );
+    adapter.onGet('/notifications/1', (server) => server.reply(200, null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: gruvboxDarkTheme,
+        home: const Scaffold(body: NotificationsList()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Page 1 of 3'), findsOneWidget);
+
+    // Mark the first item read; under "New" it leaves the list and the total
+    // drops by one without a re-fetch.
+    await tester.tap(find.byType(ListTile).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mark as read'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Page 1 of 2'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
   });

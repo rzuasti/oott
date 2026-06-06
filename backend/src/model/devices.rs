@@ -28,6 +28,14 @@ pub struct Device {
     pub name: Option<String>,
 }
 
+// A page of devices plus the total number of devices matching the request's
+// filters, so the front-end can show how many pages exist.
+#[derive(Clone, Serialize, Deserialize, ToSchema)]
+pub struct DeviceListResponse {
+    pub items: Vec<Device>,
+    pub total_count: i64,
+}
+
 impl Device {
     pub fn new(
         mac_address: String,

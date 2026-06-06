@@ -27,7 +27,7 @@
 
 - [ ] Review the whole codebase for dead code, duplication and simplicity
 - [x] In the devices list, add an order by type (in the wide version it should be over the icon on the left of the list)
-- [ ] How expensive it is to get the total number of pages and implement a go to last page
+- [x] How expensive it is to get the total number of pages and implement a go to last page
 - [x] Mobile - Device details - Chart buttons not fully visible, replace with combo only for narrow devices
 
 ## Improve engine

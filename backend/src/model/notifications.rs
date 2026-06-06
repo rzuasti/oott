@@ -18,6 +18,14 @@ pub struct Notification {
     pub mac_address: Option<String>,
 }
 
+// A page of notifications plus the total number of notifications matching the
+// request's filters, so the front-end can show how many pages exist.
+#[derive(Clone, Serialize, Deserialize, ToSchema)]
+pub struct NotificationListResponse {
+    pub items: Vec<Notification>,
+    pub total_count: i64,
+}
+
 impl Notification {
     pub fn new(
         created_on: DateTime<Utc>,

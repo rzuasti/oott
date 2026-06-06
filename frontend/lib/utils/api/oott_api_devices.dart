@@ -5,7 +5,7 @@ extension DeviceApi on BackendAPI {
   Future<Device> getDevice(String macAddress) =>
       _getModel('/devices/$macAddress', Device.fromJson);
 
-  Future<({List<Device> items, bool hasNextPage})> listDevices({
+  Future<({List<Device> items, int totalCount})> listDevices({
     bool? isRegistered,
     String? owner,
     DeviceType? deviceType,
@@ -28,7 +28,7 @@ extension DeviceApi on BackendAPI {
       params['sort_order'] = sortAscending ? 'asc' : 'desc';
     }
     params['page_offset'] = page * perPage;
-    params['page_limit'] = perPage + 1;
+    params['page_limit'] = perPage;
 
     final response = await _dio.get(
       '/devices',
@@ -37,9 +37,8 @@ extension DeviceApi on BackendAPI {
     );
 
     return _paginate(
-      response.data as List,
+      response.data as Map<String, dynamic>,
       (item) => Device.fromJson(item as Map<String, dynamic>),
-      perPage,
     );
   }
 

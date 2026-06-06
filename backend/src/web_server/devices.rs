@@ -10,7 +10,7 @@ use utoipa::ToSchema;
 
 use crate::{
     db,
-    model::devices::{Device, DeviceSummary},
+    model::devices::{Device, DeviceListResponse, DeviceSummary},
 };
 
 use crate::web_server::utils;
@@ -32,14 +32,14 @@ use crate::web_server::utils;
         ("page_limit" = Option<i64>, Query, description = "Maximum number of results to return"),
     ),
     responses(
-        (status = 200, description = "List of devices", body = Vec<Device>),
+        (status = 200, description = "List of devices", body = DeviceListResponse),
         (status = 500, description = "Internal server error"),
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn list(
     Query(params): Query<HashMap<String, String>>,
-) -> Result<Json<Vec<Device>>, StatusCode> {
+) -> Result<Json<DeviceListResponse>, StatusCode> {
     let is_registered: Option<bool> = utils::parse_parameter_bool(&params, "is_registered");
     let last_seen_from: Option<DateTime<Utc>> =
         utils::parse_parameter_date(&params, "last_seen_from");
@@ -52,24 +52,41 @@ pub async fn list(
     let page_offset: Option<i64> = utils::parse_parameter_int(&params, "page_offset");
     let page_limit: Option<i64> = utils::parse_parameter_int(&params, "page_limit");
 
-    match db::devices::list_devices(
+    let items = match db::devices::list_devices(
+        is_registered,
+        last_seen_from,
+        last_seen_to,
+        owner.clone(),
+        device_type.clone(),
+        vendor.clone(),
+        sort_by,
+        sort_order,
+        page_offset,
+        page_limit,
+    ) {
+        Ok(value) => value,
+        Err(err) => {
+            error!("Error listing devices: {}", err);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    let total_count = match db::devices::count_devices(
         is_registered,
         last_seen_from,
         last_seen_to,
         owner,
         device_type,
         vendor,
-        sort_by,
-        sort_order,
-        page_offset,
-        page_limit,
     ) {
-        Ok(value) => Ok(Json(value)),
+        Ok(value) => value,
         Err(err) => {
-            error!("Error listing devices: {}", err);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            error!("Error counting devices: {}", err);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
-    }
+    };
+
+    Ok(Json(DeviceListResponse { items, total_count }))
 }
 
 #[utoipa::path(

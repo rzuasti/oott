@@ -73,7 +73,10 @@ class _NotificationsListState extends State<NotificationsList>
   int get _pageSize => MediaQuery.sizeOf(context).width < Breakpoints.medium
       ? _phonePageSize
       : _widePageSize;
-  bool _hasNextPage = false;
+  // Total notifications matching the current filter, used to show how many pages
+  // exist and to offer "go to last page".
+  int _totalCount = 0;
+  int get _totalPages => (_totalCount / _pageSize).ceil().clamp(1, 1 << 30);
   String? _error;
   CancelToken? _fetchToken;
   final ScrollController _scrollController = ScrollController();
@@ -189,7 +192,7 @@ class _NotificationsListState extends State<NotificationsList>
         // without setState here; _reconcile schedules the rebuild itself so it
         // can defer swapping in the empty state until exit animations finish.
         _currentPage = page;
-        _hasNextPage = result.hasNextPage;
+        _totalCount = result.totalCount;
         _isLoading = false;
         _isPaging = false;
         _reconcile(result.items);
@@ -200,7 +203,7 @@ class _NotificationsListState extends State<NotificationsList>
       setState(() {
         _listKey = GlobalKey();
         _currentPage = page;
-        _hasNextPage = result.hasNextPage;
+        _totalCount = result.totalCount;
         _items = result.items;
         _isLoading = false;
         _isPaging = false;
@@ -293,10 +296,15 @@ class _NotificationsListState extends State<NotificationsList>
     );
   }
 
-  /// Removes an item in response to a card action, then refreshes the
-  /// surrounding chrome (header button, pagination, empty state).
+  /// Removes an item in response to a card action (swipe or mark read/unread
+  /// that drops it from the current filter), then refreshes the surrounding
+  /// chrome (header button, pagination, empty state). The total is decremented
+  /// locally so the page count stays accurate without re-fetching; background
+  /// refreshes re-sync it from the backend. Removals driven by [_reconcile] use
+  /// [_removeItem] directly so they don't double-count against a fresh total.
   void _removeAndSettle(int id, {required bool animated}) {
     _removeItem(id, animated: animated);
+    if (_totalCount > 0) _totalCount--;
     _afterStructuralChange();
   }
 
@@ -436,11 +444,11 @@ class _NotificationsListState extends State<NotificationsList>
     }
     return [
       _buildNotificationSliver(),
-      if (_currentPage > 0 || _hasNextPage)
+      if (_currentPage > 0 || _totalPages > 1)
         SliverToBoxAdapter(
           child: PaginationBar(
             currentPage: _currentPage,
-            hasNextPage: _hasNextPage,
+            totalPages: _totalPages,
             isLoading: _isPaging,
             onPageChanged: (page) =>
                 _fetchPage(page, scrollToTop: true, paging: true),

@@ -46,7 +46,9 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
   bool _sortAscending = false;
 
   int _currentPage = 0;
-  bool _hasNextPage = false;
+  // Total devices matching the current filters, used to show how many pages
+  // exist and to offer "go to last page".
+  int _totalCount = 0;
   bool _didInitialFetch = false;
   CancelToken? _fetchToken;
   final ScrollController _scrollController = ScrollController();
@@ -54,6 +56,7 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
   int get _pageSize => MediaQuery.sizeOf(context).width < Breakpoints.medium
       ? _phonePageSize
       : _widePageSize;
+  int get _totalPages => (_totalCount / _pageSize).ceil().clamp(1, 1 << 30);
 
   @override
   void initState() {
@@ -145,7 +148,7 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
       if (!mounted || token != _fetchToken) return;
       setState(() {
         _currentPage = page;
-        _hasNextPage = result.hasNextPage;
+        _totalCount = result.totalCount;
         _devices = result.items;
         _isLoading = false;
         _isPaging = false;
@@ -349,11 +352,11 @@ class _DeviceListState extends State<DeviceList> with RouteAware {
             separatorBuilder: (_, _) =>
                 isWide ? const Divider(height: 1) : const SizedBox.shrink(),
           ),
-          if (_currentPage > 0 || _hasNextPage)
+          if (_currentPage > 0 || _totalPages > 1)
             SliverToBoxAdapter(
               child: PaginationBar(
                 currentPage: _currentPage,
-                hasNextPage: _hasNextPage,
+                totalPages: _totalPages,
                 isLoading: _isPaging,
                 onPageChanged: (page) =>
                     _fetchPage(page, scrollToTop: true, paging: true),

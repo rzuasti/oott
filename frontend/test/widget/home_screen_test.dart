@@ -17,9 +17,10 @@ void main() {
   void stubHomeEndpoints() {
     adapter.onGet(
       '/notifications',
-      (server) => server.reply(200, [
-        notificationJson(id: 1, title: 'New device found'),
-      ]),
+      (server) => server.reply(
+        200,
+        pagedListJson([notificationJson(id: 1, title: 'New device found')]),
+      ),
     );
     adapter.onGet(
       '/devices/summary',
@@ -47,8 +48,9 @@ void main() {
     );
   }
 
-  testWidgets('shows notifications, the device summary and scanner statuses',
-      (tester) async {
+  testWidgets('shows notifications, the device summary and scanner statuses', (
+    tester,
+  ) async {
     stubHomeEndpoints();
 
     // Below the 700px breakpoint the home screen uses its single-column layout,

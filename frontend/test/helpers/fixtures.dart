@@ -74,6 +74,14 @@ Map<String, dynamic> notificationJson({
   'mac_address': macAddress,
 };
 
+/// Wraps a page of items in the paged-list response shape the list endpoints
+/// return: `{items: [...], total_count: N}`. [totalCount] defaults to the page
+/// length, so single-page stubs stay terse; pass it to simulate more pages.
+Map<String, dynamic> pagedListJson(
+  List<Map<String, dynamic>> items, {
+  int? totalCount,
+}) => {'items': items, 'total_count': totalCount ?? items.length};
+
 /// Shape shared by the ARP and SNMP scanners (run-on-interval scanners).
 Map<String, dynamic> intervalScannerJson({
   bool isRunning = false,

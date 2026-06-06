@@ -87,19 +87,15 @@ class BackendAPI {
     return fromJson(response.data as Map<String, dynamic>);
   }
 
-  /// Splits a "fetch one extra item" page into its items and a [hasNextPage]
-  /// flag. Callers request `perPage + 1` items so a full extra item signals
-  /// that another page exists.
-  ({List<T> items, bool hasNextPage}) _paginate<T>(
-    List<dynamic> data,
+  /// Decodes a paged list response of the shape `{items: [...], total_count: N}`
+  /// into the page's items and the total number of rows matching the request's
+  /// filters. The total lets callers report how many pages exist and offer a
+  /// "go to last page" control.
+  ({List<T> items, int totalCount}) _paginate<T>(
+    Map<String, dynamic> data,
     T Function(dynamic) fromItem,
-    int perPage,
   ) {
-    final results = data.map(fromItem).toList();
-    final hasNextPage = results.length > perPage;
-    return (
-      items: hasNextPage ? results.take(perPage).toList() : results,
-      hasNextPage: hasNextPage,
-    );
+    final items = (data['items'] as List<dynamic>).map(fromItem).toList();
+    return (items: items, totalCount: data['total_count'] as int);
   }
 }

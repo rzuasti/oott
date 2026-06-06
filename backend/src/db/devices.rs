@@ -30,6 +30,53 @@ fn resolve_sort_direction(sort_order: Option<&str>) -> &'static str {
     }
 }
 
+// Builds the shared `WHERE` clause (and its bound parameters) used by both
+// `list_devices` and `count_devices`, so the page and its total count always
+// apply the exact same filters. The returned clause starts with "WHERE 1=1" so
+// callers can append further SQL (ordering, paging) unconditionally.
+fn build_device_filters(
+    is_registered: Option<bool>,
+    last_seen_from: Option<DateTime<Utc>>,
+    last_seen_to: Option<DateTime<Utc>>,
+    owner: Option<String>,
+    device_type: Option<String>,
+    vendor: Option<String>,
+) -> (String, Vec<rusqlite::types::Value>) {
+    let mut clause = "WHERE 1=1 ".to_string();
+    let mut params: Vec<rusqlite::types::Value> = Vec::new();
+    if let Some(is_registered) = is_registered {
+        debug!("Adding filter is_registered={}", is_registered);
+        clause.push_str("AND is_registered=? ");
+        params.push(is_registered.into());
+    };
+    if let Some(last_seen_from) = last_seen_from {
+        debug!("Adding filter last_seen>={}", last_seen_from.to_rfc3339());
+        clause.push_str("AND last_seen>=? ");
+        params.push(last_seen_from.to_rfc3339().into());
+    };
+    if let Some(last_seen_to) = last_seen_to {
+        debug!("Adding filter last_seen<={}", last_seen_to.to_rfc3339());
+        clause.push_str("AND last_seen<=? ");
+        params.push(last_seen_to.to_rfc3339().into());
+    };
+    if let Some(owner) = owner {
+        debug!("Adding filter owner={}", owner);
+        clause.push_str("AND owner LIKE ? ");
+        params.push(format!("%{}%", owner).into());
+    };
+    if let Some(device_type) = device_type {
+        debug!("Adding filter device_type={}", device_type);
+        clause.push_str("AND device_type=? ");
+        params.push(device_type.into());
+    }
+    if let Some(vendor) = vendor {
+        debug!("Adding filter vendor={}", vendor);
+        clause.push_str("AND vendor=? ");
+        params.push(vendor.into());
+    }
+    (clause, params)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn list_devices(
     is_registered: Option<bool>,
@@ -47,38 +94,18 @@ pub fn list_devices(
     let conn = db::get_db_connection();
 
     // Prepare SQL and parameters
-    let mut sql_statement = "SELECT mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type, name FROM devices WHERE 1=1 ".to_string();
-    let mut params: Vec<rusqlite::types::Value> = Vec::new();
-    if let Some(is_registered) = is_registered {
-        debug!("Adding filter is_registered={}", is_registered);
-        sql_statement.push_str("AND is_registered=? ");
-        params.push(is_registered.into());
-    };
-    if let Some(last_seen_from) = last_seen_from {
-        debug!("Adding filter last_seen>={}", last_seen_from.to_rfc3339());
-        sql_statement.push_str("AND last_seen>=? ");
-        params.push(last_seen_from.to_rfc3339().into());
-    };
-    if let Some(last_seen_to) = last_seen_to {
-        debug!("Adding filter last_seen<={}", last_seen_to.to_rfc3339());
-        sql_statement.push_str("AND last_seen<=? ");
-        params.push(last_seen_to.to_rfc3339().into());
-    };
-    if let Some(owner) = owner {
-        debug!("Adding filter owner={}", owner);
-        sql_statement.push_str("AND owner LIKE ? ");
-        params.push(format!("%{}%", owner).into());
-    };
-    if let Some(device_type) = device_type {
-        debug!("Adding filter device_type={}", device_type);
-        sql_statement.push_str("AND device_type=? ");
-        params.push(device_type.into());
-    }
-    if let Some(vendor) = vendor {
-        debug!("Adding filter vendor={}", vendor);
-        sql_statement.push_str("AND vendor=? ");
-        params.push(vendor.into());
-    }
+    let (filters, mut params) = build_device_filters(
+        is_registered,
+        last_seen_from,
+        last_seen_to,
+        owner,
+        device_type,
+        vendor,
+    );
+    let mut sql_statement = format!(
+        "SELECT mac_address, ipv4_address, vendor, last_seen, is_registered, owner, device_type, name FROM devices {}",
+        filters
+    );
 
     // List order — both column and direction are validated against a whitelist so user input
     // is never interpolated raw. A secondary `mac_address ASC` keeps paging deterministic when
@@ -120,6 +147,38 @@ pub fn list_devices(
         .collect::<Result<_, _>>()?;
 
     Ok(devices)
+}
+
+// Counts the devices matching the given filters, ignoring paging. Used to report
+// the total number of pages alongside a `list_devices` page.
+pub fn count_devices(
+    is_registered: Option<bool>,
+    last_seen_from: Option<DateTime<Utc>>,
+    last_seen_to: Option<DateTime<Utc>>,
+    owner: Option<String>,
+    device_type: Option<String>,
+    vendor: Option<String>,
+) -> Result<i64, DbError> {
+    debug!("Counting devices");
+    let conn = db::get_db_connection();
+
+    let (filters, params) = build_device_filters(
+        is_registered,
+        last_seen_from,
+        last_seen_to,
+        owner,
+        device_type,
+        vendor,
+    );
+    let sql_statement = format!("SELECT COUNT(*) FROM devices {}", filters);
+
+    let count: i64 = conn.query_row(
+        sql_statement.as_str(),
+        params_from_iter(params.iter()),
+        |row| row.get(0),
+    )?;
+
+    Ok(count)
 }
 
 // Read device from its MAC address
@@ -368,7 +427,8 @@ mod tests {
         assert!(devices.len() >= 3, "There should be at least 3 devices");
         // Validate 1 device data
         let device = devices
-            .iter().find(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
+            .iter()
+            .find(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
             .unwrap();
 
         validate_device(
@@ -386,9 +446,19 @@ mod tests {
         );
 
         // List registered devices
-        let devices: Vec<Device> =
-            list_devices(Some(true), None, None, None, None, None, None, None, None, None)
-                .unwrap();
+        let devices: Vec<Device> = list_devices(
+            Some(true),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
 
         assert!(
             devices.len() >= 2,
@@ -397,22 +467,22 @@ mod tests {
         // Device aa:aa:aa:aa:aa:aa should not be present
         assert!(
             devices
-                .iter().find(|item| item.mac_address == "aa:aa:aa:aa:aa:aa")
+                .iter()
+                .find(|item| item.mac_address == "aa:aa:aa:aa:aa:aa")
                 .is_none(),
             "Device aa:aa:aa:aa:aa:aa should not be present"
         );
 
         // All devices should be registered
         assert!(
-            devices
-                .iter().find(|item| !item.is_registered)
-                .is_none(),
+            devices.iter().find(|item| !item.is_registered).is_none(),
             "There should not be any non-registered devices"
         );
 
         // Validate 1 device
         let device = devices
-            .iter().find(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
+            .iter()
+            .find(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
             .unwrap();
 
         validate_device(
@@ -479,7 +549,8 @@ mod tests {
         assert!(!devices.is_empty(), "There should be at least one device");
         assert!(
             devices
-                .iter().find(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
+                .iter()
+                .find(|item| item.mac_address == "bb:bb:bb:bb:bb:bb")
                 .is_some(),
             "Device bb:bb:bb:bb:bb:bb should be present"
         );
@@ -526,7 +597,10 @@ mod tests {
         let macs_desc: Vec<&str> = by_mac_desc.iter().map(|d| d.mac_address.as_str()).collect();
         let mut sorted_macs_desc = macs_desc.clone();
         sorted_macs_desc.sort_by(|a, b| b.cmp(a));
-        assert_eq!(macs_desc, sorted_macs_desc, "mac_address desc should be sorted reversed");
+        assert_eq!(
+            macs_desc, sorted_macs_desc,
+            "mac_address desc should be sorted reversed"
+        );
 
         // Sort by owner ascending — empty-string owners (unregistered) come first lexically.
         let by_owner_asc = list_devices(
@@ -561,9 +635,13 @@ mod tests {
             None,
         )
         .unwrap();
-        let default_sorted = list_devices(None, None, None, None, None, None, None, None, None, None).unwrap();
+        let default_sorted =
+            list_devices(None, None, None, None, None, None, None, None, None, None).unwrap();
         let invalid_macs: Vec<&str> = invalid.iter().map(|d| d.mac_address.as_str()).collect();
-        let default_macs: Vec<&str> = default_sorted.iter().map(|d| d.mac_address.as_str()).collect();
+        let default_macs: Vec<&str> = default_sorted
+            .iter()
+            .map(|d| d.mac_address.as_str())
+            .collect();
         assert_eq!(
             invalid_macs, default_macs,
             "invalid sort_by must fall back to the default ordering"
@@ -615,6 +693,51 @@ mod tests {
                 .iter()
                 .any(|d| second_page.iter().any(|s| s.mac_address == d.mac_address)),
             "First and second pages should not share devices"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_count_devices() {
+        tests_common::setup().await;
+
+        // Count must match an unpaginated list, independent of paging, for both
+        // no filter and a representative filter combination.
+        let total = count_devices(None, None, None, None, None, None).unwrap();
+        assert_eq!(
+            total,
+            list_devices(None, None, None, None, None, None, None, None, None, None)
+                .unwrap()
+                .len() as i64,
+            "Count of all devices should match the unpaginated list length"
+        );
+
+        // Paging the list must not change the count.
+        let total_paged = count_devices(None, None, None, None, None, None).unwrap();
+        assert_eq!(total_paged, total, "Count should ignore paging");
+
+        // Filtered count matches the filtered unpaginated list.
+        let registered = count_devices(Some(true), None, None, None, None, None).unwrap();
+        assert_eq!(
+            registered,
+            list_devices(
+                Some(true),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap()
+            .len() as i64,
+            "Count of registered devices should match the filtered list length"
+        );
+        assert!(
+            registered <= total,
+            "Filtered count should not exceed the total"
         );
     }
 

@@ -8,7 +8,11 @@ use axum::{
 };
 use log::error;
 
-use crate::{db, model::notifications::Notification, web_server::utils};
+use crate::{
+    db,
+    model::notifications::{Notification, NotificationListResponse},
+    web_server::utils,
+};
 
 #[utoipa::path(
     get,
@@ -118,23 +122,33 @@ pub async fn mark_all_as_old() -> impl IntoResponse {
         ("page_limit" = Option<i64>, Query, description = "Maximum number of results to return"),
     ),
     responses(
-        (status = 200, description = "List of notifications", body = Vec<Notification>),
+        (status = 200, description = "List of notifications", body = NotificationListResponse),
         (status = 500, description = "Internal server error"),
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn list(
     Query(params): Query<HashMap<String, String>>,
-) -> Result<Json<Vec<Notification>>, StatusCode> {
+) -> Result<Json<NotificationListResponse>, StatusCode> {
     let is_new: Option<bool> = utils::parse_parameter_bool(&params, "is_new");
     let page_offset: Option<i64> = utils::parse_parameter_int(&params, "page_offset");
     let page_limit: Option<i64> = utils::parse_parameter_int(&params, "page_limit");
 
-    match db::notifications::list(is_new, page_offset, page_limit) {
-        Ok(value) => Ok(Json(value)),
+    let items = match db::notifications::list(is_new, page_offset, page_limit) {
+        Ok(value) => value,
         Err(err) => {
             error!("Error listing notifications: {}", err);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
-    }
+    };
+
+    let total_count = match db::notifications::count(is_new) {
+        Ok(value) => value,
+        Err(err) => {
+            error!("Error counting notifications: {}", err);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    Ok(Json(NotificationListResponse { items, total_count }))
 }

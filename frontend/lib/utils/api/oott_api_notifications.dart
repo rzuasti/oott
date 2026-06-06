@@ -14,7 +14,7 @@ extension NotificationApi on BackendAPI {
     await _dio.post('/notifications/mark_all_as_old');
   }
 
-  Future<({List<Notification> items, bool hasNextPage})> listNotifications(
+  Future<({List<Notification> items, int totalCount})> listNotifications(
     bool? isNew, {
     int page = 0,
     int perPage = 5,
@@ -25,15 +25,14 @@ extension NotificationApi on BackendAPI {
       queryParameters: {
         'is_new': isNew ?? '',
         'page_offset': page * perPage,
-        'page_limit': perPage + 1,
+        'page_limit': perPage,
       },
       cancelToken: cancelToken,
     );
 
     return _paginate(
-      response.data as List<dynamic>,
+      response.data as Map<String, dynamic>,
       (item) => Notification.fromJson(item),
-      perPage,
     );
   }
 }

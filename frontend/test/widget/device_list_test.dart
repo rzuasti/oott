@@ -18,10 +18,13 @@ void main() {
   testWidgets('renders device rows after loading', (tester) async {
     adapter.onGet(
       '/devices',
-      (server) => server.reply(200, [
-        deviceJson(macAddress: '00:00:00:00:00:01', owner: 'alice'),
-        deviceJson(macAddress: '00:00:00:00:00:02', owner: 'bob'),
-      ]),
+      (server) => server.reply(
+        200,
+        pagedListJson([
+          deviceJson(macAddress: '00:00:00:00:00:01', owner: 'alice'),
+          deviceJson(macAddress: '00:00:00:00:00:02', owner: 'bob'),
+        ]),
+      ),
     );
 
     await pumpScreen(tester, const DeviceList());
@@ -35,7 +38,7 @@ void main() {
   testWidgets('shows the empty message when there are no devices', (
     tester,
   ) async {
-    adapter.onGet('/devices', (server) => server.reply(200, <dynamic>[]));
+    adapter.onGet('/devices', (server) => server.reply(200, pagedListJson([])));
 
     await pumpScreen(tester, const DeviceList());
     await pumpUntilFound(tester, find.text('No unregistered devices'));
@@ -63,16 +66,19 @@ void main() {
   testWidgets('changing pages scrolls back to the top of the list', (
     tester,
   ) async {
-    // 11 devices: a full page of 10 plus one, so the pagination bar appears.
+    // A total of 11 across two pages of 10, so the pagination bar appears.
     adapter.onGet(
       '/devices',
       (server) => server.reply(
         200,
-        List.generate(
-          11,
-          (i) => deviceJson(
-            macAddress: '00:00:00:00:00:${i.toString().padLeft(2, '0')}',
+        pagedListJson(
+          List.generate(
+            10,
+            (i) => deviceJson(
+              macAddress: '00:00:00:00:00:${i.toString().padLeft(2, '0')}',
+            ),
           ),
+          totalCount: 11,
         ),
       ),
     );
@@ -107,29 +113,34 @@ void main() {
     // Default ordering (last_seen, desc) returns two devices.
     adapter.onGet(
       '/devices',
-      (server) => server.reply(200, [
-        deviceJson(macAddress: '00:00:00:00:00:01'),
-        deviceJson(macAddress: '00:00:00:00:00:02'),
-      ]),
+      (server) => server.reply(
+        200,
+        pagedListJson([
+          deviceJson(macAddress: '00:00:00:00:00:01'),
+          deviceJson(macAddress: '00:00:00:00:00:02'),
+        ]),
+      ),
       queryParameters: {
         'is_registered': false,
         'sort_by': 'last_seen',
         'sort_order': 'desc',
         'page_offset': 0,
-        'page_limit': 11,
+        'page_limit': 10,
       },
     );
     // Sorting by device type (asc) returns a single, distinguishable device.
     adapter.onGet(
       '/devices',
-      (server) =>
-          server.reply(200, [deviceJson(macAddress: '00:00:00:00:00:03')]),
+      (server) => server.reply(
+        200,
+        pagedListJson([deviceJson(macAddress: '00:00:00:00:00:03')]),
+      ),
       queryParameters: {
         'is_registered': false,
         'sort_by': 'device_type',
         'sort_order': 'asc',
         'page_offset': 0,
-        'page_limit': 11,
+        'page_limit': 10,
       },
     );
 
@@ -138,9 +149,11 @@ void main() {
     expect(find.byType(DeviceRowWide), findsNWidgets(2));
 
     await tester.tap(find.byTooltip('Sort by device type'));
-    for (var i = 0;
-        i < 40 && find.byType(DeviceRowWide).evaluate().length != 1;
-        i++) {
+    for (
+      var i = 0;
+      i < 40 && find.byType(DeviceRowWide).evaluate().length != 1;
+      i++
+    ) {
       await tester.pump(const Duration(milliseconds: 10));
     }
     expect(find.byType(DeviceRowWide), findsOneWidget);
@@ -149,7 +162,10 @@ void main() {
   });
 
   testWidgets('the sort sheet offers ordering by device type', (tester) async {
-    adapter.onGet('/devices', (server) => server.reply(200, [deviceJson()]));
+    adapter.onGet(
+      '/devices',
+      (server) => server.reply(200, pagedListJson([deviceJson()])),
+    );
 
     // A phone-width viewport so the compact layout with the sort button shows.
     await pumpScreen(tester, const DeviceList(), size: const Size(500, 900));
@@ -169,7 +185,10 @@ void main() {
     final devices = <Map<String, dynamic>>[
       deviceJson(macAddress: '00:00:00:00:00:01'),
     ];
-    adapter.onGet('/devices', (server) => server.reply(200, devices));
+    adapter.onGet(
+      '/devices',
+      (server) => server.reply(200, pagedListJson(devices)),
+    );
 
     await pumpScreen(tester, const DeviceList());
     await pumpUntilFound(tester, find.byType(DeviceRowWide));
@@ -185,6 +204,51 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(DeviceRowWide), findsNWidgets(2));
+
+    await tearDownTree(tester);
+  });
+
+  testWidgets('the last-page button jumps to the final page', (tester) async {
+    // Wide viewport → page size 10. A total of 25 spans three pages.
+    List<Map<String, dynamic>> page(int first, int count) => List.generate(
+      count,
+      (i) => deviceJson(
+        macAddress: '00:00:00:00:00:${(first + i).toString().padLeft(2, '0')}',
+      ),
+    );
+    adapter.onGet(
+      '/devices',
+      (server) => server.reply(200, pagedListJson(page(0, 10), totalCount: 25)),
+      queryParameters: {
+        'is_registered': false,
+        'sort_by': 'last_seen',
+        'sort_order': 'desc',
+        'page_offset': 0,
+        'page_limit': 10,
+      },
+    );
+    adapter.onGet(
+      '/devices',
+      (server) => server.reply(200, pagedListJson(page(20, 5), totalCount: 25)),
+      queryParameters: {
+        'is_registered': false,
+        'sort_by': 'last_seen',
+        'sort_order': 'desc',
+        'page_offset': 20,
+        'page_limit': 10,
+      },
+    );
+
+    // A tall viewport so the full page of rows and the pagination bar are all
+    // on screen at once (no scrolling needed to reach the last-page button).
+    await pumpScreen(tester, const DeviceList(), size: const Size(900, 2000));
+    await pumpUntilFound(tester, find.byType(DeviceRowWide));
+    expect(find.text('Page 1 of 3'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Last page'));
+    await pumpUntilFound(tester, find.text('Page 3 of 3'));
+
+    expect(find.text('Page 3 of 3'), findsOneWidget);
 
     await tearDownTree(tester);
   });
