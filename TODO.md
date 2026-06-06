@@ -1,8 +1,8 @@
 # OOTT ToDo list
 
 - [ ] Add support for push notifications to the app (iOS and Android)
-- [ ] README.md - Add section about securing access (reverse proxy, never expose to the internet, etc.)
-- [ ] README.md - Simplify storage section (remove the calculations - just leave the results)
+- [x] README.md - Add section about securing access (reverse proxy, never expose to the internet, etc.)
+- [x] README.md - Simplify storage section (remove the calculations - just leave the results)
 
 ## Release plan for 0.2.0
 - [x] Test Android UI on emulator
