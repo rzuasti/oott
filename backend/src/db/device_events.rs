@@ -8,7 +8,7 @@ use crate::model::device_events::{DeviceEvent, DeviceEventScanner};
 use crate::utils::network::normalize_mac;
 
 pub fn insert(event: DeviceEvent) -> Result<i64, DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
     let mac_address = normalize_mac(&event.mac_address);
 
     match conn.execute(
@@ -42,7 +42,7 @@ pub fn recent_duplicate_exists(
     scanner: &DeviceEventScanner,
     since: DateTime<Utc>,
 ) -> Result<bool, DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
     let mac_address = normalize_mac(mac_address);
 
     let count: i64 = conn.query_row(
@@ -66,7 +66,7 @@ pub fn list(
     page_limit: Option<i64>,
 ) -> Result<Vec<DeviceEvent>, DbError> {
     debug!("Listing device events");
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
 
     let mut sql_statement =
         "SELECT id, mac_address, created_on, event_type, ipv4_address, vendor, scanner FROM device_events WHERE 1=1"
@@ -111,7 +111,7 @@ pub fn list(
 }
 
 pub fn purge_older_than(cutoff: DateTime<Utc>) -> Result<usize, DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
 
     match conn.execute(
         "DELETE FROM device_events WHERE created_on < ?1",
@@ -130,7 +130,13 @@ pub fn purge_older_than(cutoff: DateTime<Utc>) -> Result<usize, DbError> {
 
 #[cfg(test)]
 fn read(id: i64) -> Option<DeviceEvent> {
-    let conn = db::get_db_connection();
+    let conn = match db::get_db_connection() {
+        Ok(conn) => conn,
+        Err(error) => {
+            error!("Error obtaining database connection: {error}");
+            return None;
+        }
+    };
 
     let result: Result<DeviceEvent, rusqlite::Error> = conn.query_one(
         "SELECT id, mac_address, created_on, event_type, ipv4_address, vendor, scanner FROM device_events WHERE id=?1",

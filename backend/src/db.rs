@@ -26,19 +26,43 @@ lazy_static! {
         max_size(10).
         build(
             r2d2_sqlite::SqliteConnectionManager::file(get_settings().database.path.as_str())
+                .with_init(|conn| {
+                    // Tune every pooled connection for the concurrent access pattern of this
+                    // app (five scanners + web server + retention sharing the pool):
+                    // - WAL lets readers and a writer proceed concurrently instead of blocking.
+                    // - synchronous=NORMAL is the safe, recommended pairing with WAL and avoids
+                    //   an fsync on every commit (the default FULL fsyncs on each write).
+                    // - busy_timeout makes a connection wait for a lock rather than failing
+                    //   immediately with "database is locked".
+                    // - foreign_keys are off by default in SQLite and must be set per connection.
+                    conn.execute_batch(
+                        "PRAGMA journal_mode = WAL;
+                         PRAGMA synchronous = NORMAL;
+                         PRAGMA busy_timeout = 5000;
+                         PRAGMA foreign_keys = ON;",
+                    )
+                })
         ).unwrap();
 }
 
-pub fn get_db_connection() -> PooledConnection<SqliteConnectionManager> {
-    let result = POOL.get();
+pub fn get_db_connection() -> Result<PooledConnection<SqliteConnectionManager>, DbError> {
+    POOL.get().map_err(|error| {
+        error!("Error obtaining database connection from the pool: {error}");
+        DbError::from(error)
+    })
+}
 
-    match result {
-        Ok(value) => value,
-        Err(error) => {
-            error!("Error obtaining database connection from the pool: {error}");
-            panic!("Error obtaining database connection from the pool: {error}");
-        }
-    }
+// Runs a blocking database operation on tokio's blocking thread pool so it never stalls an async
+// worker thread. The DB layer uses synchronous `rusqlite`, so axum handlers must wrap their DB
+// work in this rather than calling `db::*` functions inline.
+pub async fn run_blocking<F, T>(f: F) -> T
+where
+    F: FnOnce() -> T + Send + 'static,
+    T: Send + 'static,
+{
+    tokio::task::spawn_blocking(f)
+        .await
+        .expect("blocking database task panicked")
 }
 
 // Appends the shared `LIMIT ? OFFSET ?` paging clause (and its bound parameters) to a list query
@@ -69,7 +93,7 @@ pub async fn init_db() -> Result<(), DbError> {
 
     debug!("Getting database connection");
 
-    let mut conn = get_db_connection();
+    let mut conn = get_db_connection()?;
 
     debug!("Executing database migrations if needed.");
 

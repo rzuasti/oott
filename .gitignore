@@ -2,5 +2,7 @@
 /backend/target
 /result
 oott.db
+oott.db-wal
+oott.db-shm
 oott.toml
 /.claude

@@ -13,7 +13,7 @@ pub fn list(
     page_limit: Option<i64>,
 ) -> Result<Vec<Notification>, DbError> {
     debug!("Listing notifications");
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
 
     let mut sql_statement =
         "SELECT id, created_on, notification_type, title, body, is_new, mac_address FROM notifications WHERE 1=1"
@@ -57,7 +57,7 @@ pub fn list(
 // report the total number of pages alongside a `list` page.
 pub fn count(is_new: Option<bool>) -> Result<i64, DbError> {
     debug!("Counting notifications");
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
 
     let mut sql_statement = "SELECT COUNT(*) FROM notifications WHERE 1=1".to_string();
     let mut params: Vec<rusqlite::types::Value> = Vec::new();
@@ -78,7 +78,7 @@ pub fn count(is_new: Option<bool>) -> Result<i64, DbError> {
 }
 
 pub fn insert(notification: Notification) -> Result<i64, DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
     let mac_address = notification.mac_address.as_deref().map(normalize_mac);
 
     match conn.execute(
@@ -96,7 +96,7 @@ pub fn insert(notification: Notification) -> Result<i64, DbError> {
 }
 
 pub fn mark_as_old(id: i64) -> Result<(), DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
 
     match conn.execute("UPDATE notifications SET is_new=0 WHERE id=?1", params![id]) {
         Ok(_) => {
@@ -111,7 +111,7 @@ pub fn mark_as_old(id: i64) -> Result<(), DbError> {
 }
 
 pub fn mark_as_new(id: i64) -> Result<(), DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
 
     match conn.execute("UPDATE notifications SET is_new=1 WHERE id=?1", params![id]) {
         Ok(_) => {
@@ -126,7 +126,7 @@ pub fn mark_as_new(id: i64) -> Result<(), DbError> {
 }
 
 pub fn mark_all_as_old() -> Result<(), DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
 
     match conn.execute("UPDATE notifications SET is_new=0 WHERE is_new=1", []) {
         Ok(_) => {
@@ -141,7 +141,7 @@ pub fn mark_all_as_old() -> Result<(), DbError> {
 }
 
 pub fn purge_older_than(cutoff: DateTime<Utc>) -> Result<usize, DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
 
     match conn.execute(
         "DELETE FROM notifications WHERE created_on < ?1",
@@ -159,7 +159,13 @@ pub fn purge_older_than(cutoff: DateTime<Utc>) -> Result<usize, DbError> {
 }
 
 pub fn read(id: i64) -> Option<Notification> {
-    let conn = db::get_db_connection();
+    let conn = match db::get_db_connection() {
+        Ok(conn) => conn,
+        Err(error) => {
+            error!("Error obtaining database connection: {error}");
+            return None;
+        }
+    };
 
     let result: Result<Notification, rusqlite::Error> = conn.query_one(
         "SELECT id, created_on, notification_type, title, body, is_new, mac_address FROM notifications WHERE id=?1",

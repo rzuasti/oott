@@ -36,7 +36,7 @@ pub async fn setup() {
     // Initialize database
     db::init_db().await.unwrap();
     info!("Initializing database for testing.");
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection().expect("failed to get a database connection for tests");
     debug!("Running database setup scripts for testing.");
 
     for entry in TEST_MIGRATIONS_DIR.entries() {

@@ -63,7 +63,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     scanners::dhcp::status::STATUS.init();
     scanners::snmp::status::STATUS.init();
 
-    // Start the device scanners, web server, and retention cleaner in parallel
+    // Start the device scanners, web server, retention cleaner, and notification delivery loop in
+    // parallel. Notification delivery runs on its own task so a slow Pushover never stalls a scan.
     tokio::join!(
         scanners::arp::scanner::scan(),
         scanners::mdns::scanner::listen(),
@@ -71,7 +72,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         scanners::dhcp::scanner::listen(),
         scanners::snmp::scanner::scan(),
         web_server::serve(),
-        retention::run()
+        retention::run(),
+        events::run_delivery()
     )
     .0
 }

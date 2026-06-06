@@ -52,41 +52,44 @@ pub async fn list(
     let page_offset: Option<i64> = utils::parse_parameter(&params, "page_offset");
     let page_limit: Option<i64> = utils::parse_parameter(&params, "page_limit");
 
-    let items = match db::devices::list_devices(
-        is_registered,
-        last_seen_from,
-        last_seen_to,
-        owner.clone(),
-        device_type.clone(),
-        vendor.clone(),
-        sort_by,
-        sort_order,
-        page_offset,
-        page_limit,
-    ) {
-        Ok(value) => value,
-        Err(err) => {
-            error!("Error listing devices: {}", err);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
+    db::run_blocking(move || {
+        let items = match db::devices::list_devices(
+            is_registered,
+            last_seen_from,
+            last_seen_to,
+            owner.clone(),
+            device_type.clone(),
+            vendor.clone(),
+            sort_by,
+            sort_order,
+            page_offset,
+            page_limit,
+        ) {
+            Ok(value) => value,
+            Err(err) => {
+                error!("Error listing devices: {}", err);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
 
-    let total_count = match db::devices::count_devices(
-        is_registered,
-        last_seen_from,
-        last_seen_to,
-        owner,
-        device_type,
-        vendor,
-    ) {
-        Ok(value) => value,
-        Err(err) => {
-            error!("Error counting devices: {}", err);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
+        let total_count = match db::devices::count_devices(
+            is_registered,
+            last_seen_from,
+            last_seen_to,
+            owner,
+            device_type,
+            vendor,
+        ) {
+            Ok(value) => value,
+            Err(err) => {
+                error!("Error counting devices: {}", err);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
 
-    Ok(Json(DeviceListResponse { items, total_count }))
+        Ok(Json(DeviceListResponse { items, total_count }))
+    })
+    .await
 }
 
 #[utoipa::path(
@@ -103,10 +106,11 @@ pub async fn list(
     security(("bearer_auth" = []))
 )]
 pub async fn read(Path(mac_address): Path<String>) -> Result<Json<Device>, StatusCode> {
-    match db::devices::read(mac_address) {
+    db::run_blocking(move || match db::devices::read(mac_address) {
         Some(value) => Ok(Json(value)),
         None => Err(StatusCode::NOT_FOUND),
-    }
+    })
+    .await
 }
 
 #[utoipa::path(
@@ -128,38 +132,41 @@ pub async fn register(Json(payload): Json<RegisterDevicePayload>) -> impl IntoRe
         payload.mac_address, payload.owner, payload.device_type
     );
 
-    let device = match db::devices::read(payload.mac_address.clone()) {
-        Some(value) => value,
-        None => {
+    db::run_blocking(move || {
+        let device = match db::devices::read(payload.mac_address.clone()) {
+            Some(value) => value,
+            None => {
+                return (
+                    axum::http::StatusCode::NOT_FOUND,
+                    "Device not found or could not be read",
+                );
+            }
+        };
+
+        if device.is_registered {
             return (
-                axum::http::StatusCode::NOT_FOUND,
-                "Device not found or could not be read",
+                axum::http::StatusCode::CONFLICT,
+                "Device already registered",
             );
         }
-    };
 
-    if device.is_registered {
-        return (
-            axum::http::StatusCode::CONFLICT,
-            "Device already registered",
-        );
-    }
-
-    match db::devices::register(
-        payload.mac_address,
-        payload.owner,
-        payload.device_type,
-        payload.name,
-    ) {
-        Ok(_) => (axum::http::StatusCode::CREATED, "Device registered"),
-        Err(err) => {
-            error!("Error registering device in the database: {}", err);
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "Error registering device in the server, check your logs",
-            )
+        match db::devices::register(
+            payload.mac_address,
+            payload.owner,
+            payload.device_type,
+            payload.name,
+        ) {
+            Ok(_) => (axum::http::StatusCode::CREATED, "Device registered"),
+            Err(err) => {
+                error!("Error registering device in the database: {}", err);
+                (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    "Error registering device in the server, check your logs",
+                )
+            }
         }
-    }
+    })
+    .await
 }
 
 #[utoipa::path(
@@ -187,39 +194,42 @@ pub async fn update(
         mac_address, payload.owner, payload.device_type, payload.vendor, payload.name
     );
 
-    let device = match db::devices::read(mac_address.clone()) {
-        Some(value) => value,
-        None => {
+    db::run_blocking(move || {
+        let device = match db::devices::read(mac_address.clone()) {
+            Some(value) => value,
+            None => {
+                return (
+                    axum::http::StatusCode::NOT_FOUND,
+                    "Device not found or could not be read",
+                );
+            }
+        };
+
+        if !device.is_registered {
             return (
-                axum::http::StatusCode::NOT_FOUND,
-                "Device not found or could not be read",
+                axum::http::StatusCode::CONFLICT,
+                "Device is not registered, register it before modifying",
             );
         }
-    };
 
-    if !device.is_registered {
-        return (
-            axum::http::StatusCode::CONFLICT,
-            "Device is not registered, register it before modifying",
-        );
-    }
-
-    match db::devices::update(
-        mac_address,
-        payload.owner,
-        payload.device_type,
-        payload.vendor,
-        payload.name,
-    ) {
-        Ok(_) => (axum::http::StatusCode::OK, "Device updated"),
-        Err(err) => {
-            error!("Error updating device in the database: {}", err);
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "Error updating device in the server, check your logs",
-            )
+        match db::devices::update(
+            mac_address,
+            payload.owner,
+            payload.device_type,
+            payload.vendor,
+            payload.name,
+        ) {
+            Ok(_) => (axum::http::StatusCode::OK, "Device updated"),
+            Err(err) => {
+                error!("Error updating device in the database: {}", err);
+                (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    "Error updating device in the server, check your logs",
+                )
+            }
         }
-    }
+    })
+    .await
 }
 
 #[utoipa::path(
@@ -238,33 +248,36 @@ pub async fn update(
     security(("bearer_auth" = []))
 )]
 pub async fn unregister(Path(mac_address): Path<String>) -> impl IntoResponse {
-    let device = match db::devices::read(mac_address.clone()) {
-        Some(value) => value,
-        None => {
+    db::run_blocking(move || {
+        let device = match db::devices::read(mac_address.clone()) {
+            Some(value) => value,
+            None => {
+                return (
+                    axum::http::StatusCode::NOT_FOUND,
+                    "Device not found or could not be read",
+                );
+            }
+        };
+
+        if !device.is_registered {
             return (
-                axum::http::StatusCode::NOT_FOUND,
-                "Device not found or could not be read",
+                axum::http::StatusCode::CONFLICT,
+                "Device not registered, you cannot un-register it again",
             );
         }
-    };
 
-    if !device.is_registered {
-        return (
-            axum::http::StatusCode::CONFLICT,
-            "Device not registered, you cannot un-register it again",
-        );
-    }
-
-    match db::devices::unregister(mac_address) {
-        Ok(_) => (axum::http::StatusCode::OK, "Device un-registered"),
-        Err(err) => {
-            error!("Error updating device in the database: {}", err);
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "Error updating device in the server, check your logs",
-            )
+        match db::devices::unregister(mac_address) {
+            Ok(_) => (axum::http::StatusCode::OK, "Device un-registered"),
+            Err(err) => {
+                error!("Error updating device in the database: {}", err);
+                (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    "Error updating device in the server, check your logs",
+                )
+            }
         }
-    }
+    })
+    .await
 }
 
 #[utoipa::path(
@@ -278,13 +291,14 @@ pub async fn unregister(Path(mac_address): Path<String>) -> impl IntoResponse {
     security(("bearer_auth" = []))
 )]
 pub async fn summary() -> Result<Json<DeviceSummary>, StatusCode> {
-    match db::devices::get_summary() {
+    db::run_blocking(move || match db::devices::get_summary() {
         Ok(value) => Ok(Json(value)),
         Err(err) => {
             error!("Error getting device summary: {}", err);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
-    }
+    })
+    .await
 }
 
 // Payload structs

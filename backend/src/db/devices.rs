@@ -91,7 +91,7 @@ pub fn list_devices(
     page_limit: Option<i64>,
 ) -> Result<Vec<Device>, DbError> {
     debug!("Listing devices");
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
 
     // Prepare SQL and parameters
     let (filters, mut params) = build_device_filters(
@@ -151,7 +151,7 @@ pub fn count_devices(
     vendor: Option<String>,
 ) -> Result<i64, DbError> {
     debug!("Counting devices");
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
 
     let (filters, params) = build_device_filters(
         is_registered,
@@ -174,7 +174,13 @@ pub fn count_devices(
 
 // Read device from its MAC address
 pub fn read(mac_address: String) -> Option<Device> {
-    let conn = db::get_db_connection();
+    let conn = match db::get_db_connection() {
+        Ok(conn) => conn,
+        Err(error) => {
+            error!("Error obtaining database connection: {error}");
+            return None;
+        }
+    };
     let mac_address = normalize_mac(&mac_address);
 
     let result: Result<Device, rusqlite::Error> = conn.query_one(
@@ -209,7 +215,7 @@ pub fn read(mac_address: String) -> Option<Device> {
 }
 
 pub fn insert(device: Device) -> Result<(), DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
     let mac_address = normalize_mac(&device.mac_address);
 
     match conn.execute(
@@ -228,7 +234,7 @@ pub fn insert(device: Device) -> Result<(), DbError> {
 
 pub fn get_summary() -> Result<DeviceSummary, DbError> {
     debug!("Getting device summary");
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
     let one_day_ago = (Utc::now() - Duration::days(1)).to_rfc3339();
     let one_week_ago = (Utc::now() - Duration::weeks(1)).to_rfc3339();
 
@@ -277,7 +283,7 @@ pub fn seen(
     device_type: String,
     name: Option<String>,
 ) -> Result<(), DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
     let mac_address = normalize_mac(&mac_address);
 
     let mut sql = "UPDATE devices SET ipv4_address=?, last_seen=?".to_string();
@@ -331,7 +337,7 @@ pub fn update(
     vendor: String,
     name: Option<String>,
 ) -> Result<(), DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
     let mac_address = normalize_mac(&mac_address);
 
     match conn.execute(
@@ -355,7 +361,7 @@ pub fn register(
     device_type: String,
     name: Option<String>,
 ) -> Result<(), DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
     let mac_address = normalize_mac(&mac_address);
 
     // Only write the name column when supplied, so a user registering without typing a name
@@ -382,7 +388,7 @@ pub fn register(
 }
 
 pub fn unregister(mac_address: String) -> Result<(), DbError> {
-    let conn = db::get_db_connection();
+    let conn = db::get_db_connection()?;
     let mac_address = normalize_mac(&mac_address);
 
     match conn.execute(

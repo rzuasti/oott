@@ -29,18 +29,21 @@ use crate::{
     security(("bearer_auth" = []))
 )]
 pub async fn read(Path(id): Path<i64>) -> Result<Json<Notification>, StatusCode> {
-    match db::notifications::mark_as_old(id) {
-        Ok(_) => {}
-        Err(err) => {
-            error!("Error marking notification (id={id}) as old: {}", err);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
+    db::run_blocking(move || {
+        match db::notifications::mark_as_old(id) {
+            Ok(_) => {}
+            Err(err) => {
+                error!("Error marking notification (id={id}) as old: {}", err);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
 
-    match db::notifications::read(id) {
-        Some(value) => Ok(Json(value)),
-        None => Err(StatusCode::NOT_FOUND),
-    }
+        match db::notifications::read(id) {
+            Some(value) => Ok(Json(value)),
+            None => Err(StatusCode::NOT_FOUND),
+        }
+    })
+    .await
 }
 
 #[utoipa::path(
@@ -57,10 +60,11 @@ pub async fn read(Path(id): Path<i64>) -> Result<Json<Notification>, StatusCode>
     security(("bearer_auth" = []))
 )]
 pub async fn read_without_flagging(Path(id): Path<i64>) -> Result<Json<Notification>, StatusCode> {
-    match db::notifications::read(id) {
+    db::run_blocking(move || match db::notifications::read(id) {
         Some(value) => Ok(Json(value)),
         None => Err(StatusCode::NOT_FOUND),
-    }
+    })
+    .await
 }
 
 #[utoipa::path(
@@ -77,7 +81,7 @@ pub async fn read_without_flagging(Path(id): Path<i64>) -> Result<Json<Notificat
     security(("bearer_auth" = []))
 )]
 pub async fn mark_as_new(Path(id): Path<i64>) -> impl IntoResponse {
-    match db::notifications::mark_as_new(id) {
+    db::run_blocking(move || match db::notifications::mark_as_new(id) {
         Ok(_) => (StatusCode::OK, "Notification marked as new"),
         Err(err) => {
             error!("Error marking notification (id={id}) as new: {}", err);
@@ -86,7 +90,8 @@ pub async fn mark_as_new(Path(id): Path<i64>) -> impl IntoResponse {
                 "Error updating notification in the server, check your logs",
             )
         }
-    }
+    })
+    .await
 }
 
 #[utoipa::path(
@@ -100,7 +105,7 @@ pub async fn mark_as_new(Path(id): Path<i64>) -> impl IntoResponse {
     security(("bearer_auth" = []))
 )]
 pub async fn mark_all_as_old() -> impl IntoResponse {
-    match db::notifications::mark_all_as_old() {
+    db::run_blocking(move || match db::notifications::mark_all_as_old() {
         Ok(_) => (StatusCode::OK, "All notifications marked as old"),
         Err(err) => {
             error!("Error marking all notifications as old: {}", err);
@@ -109,7 +114,8 @@ pub async fn mark_all_as_old() -> impl IntoResponse {
                 "Error updating notifications in the server, check your logs",
             )
         }
-    }
+    })
+    .await
 }
 
 #[utoipa::path(
@@ -134,21 +140,24 @@ pub async fn list(
     let page_offset: Option<i64> = utils::parse_parameter(&params, "page_offset");
     let page_limit: Option<i64> = utils::parse_parameter(&params, "page_limit");
 
-    let items = match db::notifications::list(is_new, page_offset, page_limit) {
-        Ok(value) => value,
-        Err(err) => {
-            error!("Error listing notifications: {}", err);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
+    db::run_blocking(move || {
+        let items = match db::notifications::list(is_new, page_offset, page_limit) {
+            Ok(value) => value,
+            Err(err) => {
+                error!("Error listing notifications: {}", err);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
 
-    let total_count = match db::notifications::count(is_new) {
-        Ok(value) => value,
-        Err(err) => {
-            error!("Error counting notifications: {}", err);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
+        let total_count = match db::notifications::count(is_new) {
+            Ok(value) => value,
+            Err(err) => {
+                error!("Error counting notifications: {}", err);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
 
-    Ok(Json(NotificationListResponse { items, total_count }))
+        Ok(Json(NotificationListResponse { items, total_count }))
+    })
+    .await
 }

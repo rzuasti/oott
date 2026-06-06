@@ -14,6 +14,82 @@ use crate::settings::get_settings;
 use chrono::{Local, Utc};
 use duration_string::DurationString;
 use log::{debug, error, info, warn};
+use once_cell::sync::OnceCell;
+use tokio::sync::mpsc;
+
+// A notification handed to the delivery loop. Delivery (a blocking Pushover HTTP call) runs on a
+// dedicated task so a slow or unreachable Pushover can never stall the scan loops.
+struct DeliveryRequest {
+    title: String,
+    body: String,
+}
+
+// Bounded so a stuck delivery loop cannot grow memory without limit; on overflow we drop and warn
+// (delivery is best-effort, matching the "never stop the loop" policy in the scanner pipeline).
+const DELIVERY_QUEUE_CAPACITY: usize = 100;
+
+static DELIVERY_TX: OnceCell<mpsc::Sender<DeliveryRequest>> = OnceCell::new();
+
+/// Owns the receiving end of the notification-delivery channel and delivers notifications off the
+/// scan loop. Run this as its own task (see `main`); it returns only if the channel is closed.
+pub async fn run_delivery() {
+    let (tx, mut rx) = mpsc::channel::<DeliveryRequest>(DELIVERY_QUEUE_CAPACITY);
+    if DELIVERY_TX.set(tx).is_err() {
+        error!("Notification delivery loop started more than once; ignoring");
+        return;
+    }
+
+    while let Some(request) = rx.recv().await {
+        deliver(request).await;
+    }
+}
+
+// Deliver a single notification according to the configured method. The Pushover call is blocking,
+// so it runs on the blocking thread pool rather than the delivery task's async thread.
+async fn deliver(request: DeliveryRequest) {
+    match get_settings().notifications.method.as_str() {
+        "pushover" => match &get_settings().notifications.pushover {
+            Some(config) => {
+                let config = config.clone();
+                let result = tokio::task::spawn_blocking(move || {
+                    pushover::send_message(&config, request.title, request.body)
+                })
+                .await;
+                match result {
+                    Ok(Ok(())) => {}
+                    Ok(Err(err)) => error!("Failed to deliver notification via Pushover: {err}"),
+                    Err(err) => error!("Notification delivery task panicked: {err}"),
+                }
+            }
+            None => {
+                error!(
+                    "Notification method is 'pushover' but no [notifications.pushover] section is \
+                     configured; cannot deliver notification."
+                );
+            }
+        },
+        other => {
+            warn!("Notification method set to '{other}'. Set logs to 'info' to see notifications.");
+            info!("Notification: {}", request.body);
+        }
+    }
+}
+
+// Hand a notification to the delivery loop. Never blocks: if the loop is not running (e.g. in
+// tests) or its queue is full, the notification is logged and dropped rather than stalling the
+// caller (a scan loop).
+fn enqueue_delivery(title: String, body: String) {
+    match DELIVERY_TX.get() {
+        Some(tx) => {
+            if let Err(err) = tx.try_send(DeliveryRequest { title, body }) {
+                warn!("Notification delivery queue unavailable; dropping notification: {err}");
+            }
+        }
+        None => {
+            info!("Notification (delivery loop not running): {body}");
+        }
+    }
+}
 
 // Device name for display in messages; falls back to "(unknown)" for devices with no
 // mDNS-discovered hostname (e.g. those found only via ARP).
@@ -177,30 +253,18 @@ fn render_device_changed(
     (title, body)
 }
 
-// Private helper function to deliver messages
+// Private helper function to record a notification and hand it off for delivery. Delivery happens
+// on a separate task (see `run_delivery`), so this returns as soon as the notification is persisted
+// and never blocks the caller on the (potentially slow) Pushover HTTP call.
 fn send_notification(notification: Notification) -> Result<(), Box<dyn Error>> {
     debug!("About to record notification in database");
-    db::notifications::insert(notification.clone())?;
 
-    debug!("About to send notification ({notification}).");
+    let title = notification.title.clone();
+    let body = notification.body.clone();
+    db::notifications::insert(notification)?;
 
-    match get_settings().notifications.method.as_str() {
-        "pushover" => match &get_settings().notifications.pushover {
-            Some(pushover) => {
-                pushover::send_message(pushover, notification.title, notification.body)?;
-            }
-            None => {
-                error!(
-                    "Notification method is 'pushover' but no [notifications.pushover] section is \
-                     configured; cannot deliver notification."
-                );
-            }
-        },
-        other => {
-            warn!("Notification method set to '{other}'. Set logs to 'info' to see notifications.");
-            info!("Notification: {}", notification.body);
-        }
-    };
+    debug!("Queued notification for delivery: {title}");
+    enqueue_delivery(title, body);
 
     Ok(())
 }
@@ -504,6 +568,27 @@ mod tests {
             after_mdns.len(),
             2,
             "A sighting from a different scanner should be recorded"
+        );
+    }
+
+    #[tokio::test]
+    async fn triggering_a_new_device_records_a_notification() {
+        crate::tests_common::setup().await;
+
+        let mac = "fa:ce:fa:ce:00:02".to_string();
+        let mut device = sample_device(Some("printer"));
+        device.mac_address = mac.clone();
+
+        // The delivery loop is not running in tests, so delivery is a no-op; the notification must
+        // still be persisted regardless of whether it is ever delivered.
+        trigger_new_device(device, DeviceEventScanner::Arp).unwrap();
+
+        let notifications = db::notifications::list(None, None, None).unwrap();
+        assert!(
+            notifications
+                .iter()
+                .any(|n| n.mac_address.as_deref() == Some(mac.as_str())),
+            "A new-device sighting should persist a notification"
         );
     }
 }
