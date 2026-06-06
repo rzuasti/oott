@@ -5,7 +5,7 @@
 - [ ] README.md - Simplify storage section (remove the calculations - just leave the results)
 
 ## Release plan for 0.2.0
-- [ ] Test Android UI on emulator
+- [x] Test Android UI on emulator
 - [ ] Release 0.1.0
 - [ ] Install in test server (docker) following documented process
 - [ ] Install test app on iPhone
