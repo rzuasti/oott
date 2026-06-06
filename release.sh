@@ -55,6 +55,7 @@ for f in "$CARGO_TOML" "$PUBSPEC" "$ABOUT" "$RELEASE_NOTES"; do
 done
 command -v gh  >/dev/null || die "gh CLI not found (needed for the GitHub release)."
 command -v nix >/dev/null || die "nix not found (needed to build the Docker image)."
+gh auth status >/dev/null 2>&1 || die "gh is not logged in. Run 'gh auth login' and try again (needed for the GitHub release)."
 
 OLD_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$CARGO_TOML" | head -n1)"
 [ -n "$OLD_VERSION" ] || die "Could not read the current version from $CARGO_TOML."
@@ -110,6 +111,9 @@ fi
 
 info "Running the backend tests..."
 ( cd backend && run ./run_tests.sh )
+
+info "Running the front-end tests..."
+( cd frontend && run ./run_tests.sh )
 
 run git add -A
 run git commit -m "Release $TAG"
