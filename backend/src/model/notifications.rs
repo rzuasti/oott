@@ -106,6 +106,7 @@ impl FromStr for NotificationType {
         match s {
             "NewDeviceFound" => Ok(NotificationType::NewDeviceFound),
             "DeviceOnlineAfterTime" => Ok(NotificationType::DeviceOnlineAfterTime),
+            "DeviceChanged" => Ok(NotificationType::DeviceChanged),
             _ => Ok(NotificationType::Other),
         }
     }

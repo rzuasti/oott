@@ -53,6 +53,6 @@ fn process_discovery(discovery: finder::DhcpDiscovery) {
         .unwrap_or_default();
     let device = build_device(mac.clone(), ipv4, &[], discovery.hostname);
 
-    pipeline::record_sighting(device, DeviceEventScanner::Dhcp);
+    pipeline::record_and_notify(device, DeviceEventScanner::Dhcp);
     status::STATUS.record_discovery(&mac);
 }

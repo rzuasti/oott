@@ -24,6 +24,28 @@ struct DeliveryRequest {
     body: String,
 }
 
+/// A notification-worthy change detected for one device during a sighting. The device event is
+/// recorded when this is produced (see `classify_*`); sending the notification is deferred so
+/// callers can either notify immediately (passive listeners, one device per event) or accumulate a
+/// whole scan and send one consolidated notification per type (active scanners).
+pub enum DeviceChange {
+    New(Device),
+    BackOnline {
+        device: Device,
+        absent_for: Duration,
+    },
+    Changed {
+        existing: Device,
+        new: Device,
+        ip_changed: bool,
+        vendor_changed: bool,
+    },
+}
+
+// At most this many devices are listed individually in a consolidated summary body; any beyond are
+// rolled into an "…and N more devices" line so the notification stays short.
+const SUMMARY_LIST_LIMIT: usize = 3;
+
 // Bounded so a stuck delivery loop cannot grow memory without limit; on overflow we drop and warn
 // (delivery is best-effort, matching the "never stop the loop" policy in the scanner pipeline).
 const DELIVERY_QUEUE_CAPACITY: usize = 100;
@@ -103,7 +125,7 @@ fn display_name(device: &Device) -> &str {
 
 // Identifier used in notification titles, so a Pushover preview is triageable
 // without opening the notification. Prefers the hostname, then the vendor, then a
-// short MAC suffix as a last resort.
+// masked MAC suffix (last two octets only) as a last resort, so no full MAC is ever exposed.
 fn title_identity(device: &Device) -> String {
     if let Some(name) = device.name.as_deref().filter(|name| !name.is_empty()) {
         return name.to_string();
@@ -112,12 +134,12 @@ fn title_identity(device: &Device) -> String {
         return device.vendor.clone();
     }
     let mac = &device.mac_address;
-    let suffix = if mac.len() > 8 {
-        &mac[mac.len() - 8..]
+    let suffix = if mac.len() > 5 {
+        &mac[mac.len() - 5..]
     } else {
         mac
     };
-    format!("MAC ...{suffix}")
+    format!("device …{suffix}")
 }
 
 fn device_type_or_unknown(device: &Device) -> &str {
@@ -159,8 +181,6 @@ fn render_new_device(device: &Device) -> (String, String) {
     writeln!(body).unwrap();
     writeln!(body, "Device").unwrap();
     writeln!(body, "  Name: {}", display_name(device)).unwrap();
-    writeln!(body, "  MAC address: {}", device.mac_address).unwrap();
-    writeln!(body, "  IP address: {}", device.ipv4_address).unwrap();
     writeln!(body, "  Vendor: {}", device.vendor).unwrap();
     writeln!(body, "  Type: {}", device_type_or_unknown(device)).unwrap();
     writeln!(body).unwrap();
@@ -191,8 +211,6 @@ fn render_device_back_online(device: &Device, duration_text: &str) -> (String, S
     writeln!(body).unwrap();
     writeln!(body, "Device").unwrap();
     writeln!(body, "  Name: {}", display_name(device)).unwrap();
-    writeln!(body, "  MAC address: {}", device.mac_address).unwrap();
-    writeln!(body, "  IP address: {}", device.ipv4_address).unwrap();
     writeln!(body, "  Vendor: {}", device.vendor).unwrap();
     writeln!(body, "  Type: {}", device_type_or_unknown(device)).unwrap();
     writeln!(body).unwrap();
@@ -223,7 +241,6 @@ fn render_device_changed(
     writeln!(body).unwrap();
     writeln!(body, "Device").unwrap();
     writeln!(body, "  Name: {}", display_name(new)).unwrap();
-    writeln!(body, "  MAC address: {} (unchanged)", new.mac_address).unwrap();
     writeln!(body, "  Type: {}", device_type_or_unknown(new)).unwrap();
     writeln!(body).unwrap();
     writeln!(body, "Status").unwrap();
@@ -231,12 +248,8 @@ fn render_device_changed(
     writeln!(body).unwrap();
     writeln!(body, "Changes").unwrap();
     if ip_changed {
-        writeln!(
-            body,
-            "  IP address: {} -> {}",
-            existing.ipv4_address, new.ipv4_address
-        )
-        .unwrap();
+        // The address values are private and deliberately omitted; the change itself is reported.
+        writeln!(body, "  IP address changed").unwrap();
     }
     if vendor_changed_flag {
         writeln!(body, "  Vendor: {} -> {}", existing.vendor, new.vendor).unwrap();
@@ -250,6 +263,104 @@ fn render_device_changed(
         )
         .unwrap();
     }
+    (title, body)
+}
+
+// Render the duration a device was absent for display (whole seconds, e.g. "12d").
+fn duration_text(absent_for: Duration) -> String {
+    String::from(DurationString::from(Duration::from_secs(
+        absent_for.as_secs(),
+    )))
+}
+
+// One line describing a device in a consolidated summary: its name, plus vendor and type when
+// known. No MAC or IP address is included.
+fn summary_device_line(device: &Device) -> String {
+    let mut line = display_name(device).to_string();
+    let mut details = Vec::new();
+    if !device.vendor.is_empty() {
+        details.push(device.vendor.clone());
+    }
+    if !device.device_type.is_empty() {
+        details.push(device.device_type.clone());
+    }
+    if !details.is_empty() {
+        write!(line, " ({})", details.join(", ")).unwrap();
+    }
+    line
+}
+
+// Append the capped device list shared by every summary body: up to SUMMARY_LIST_LIMIT devices,
+// then an "…and N more devices" line when there are more.
+fn write_device_summary(body: &mut String, devices: &[&Device]) {
+    for device in devices.iter().take(SUMMARY_LIST_LIMIT) {
+        writeln!(body, "  - {}", summary_device_line(device)).unwrap();
+    }
+    if devices.len() > SUMMARY_LIST_LIMIT {
+        writeln!(
+            body,
+            "  …and {} more devices",
+            devices.len() - SUMMARY_LIST_LIMIT
+        )
+        .unwrap();
+    }
+}
+
+fn render_new_devices_summary(devices: &[&Device]) -> (String, String) {
+    let title = format!("{} new devices found on your network", devices.len());
+    let mut body = String::new();
+    writeln!(
+        body,
+        "{} devices that have not been seen before joined your network.",
+        devices.len()
+    )
+    .unwrap();
+    writeln!(body).unwrap();
+    writeln!(body, "Devices").unwrap();
+    write_device_summary(&mut body, devices);
+    writeln!(body).unwrap();
+    write!(
+        body,
+        "If you do not recognise these devices, consider investigating before \
+         granting them continued access."
+    )
+    .unwrap();
+    (title, body)
+}
+
+fn render_back_online_summary(devices: &[&Device]) -> (String, String) {
+    let title = format!("{} devices back online", devices.len());
+    let mut body = String::new();
+    writeln!(
+        body,
+        "{} known devices returned to your network after being absent.",
+        devices.len()
+    )
+    .unwrap();
+    writeln!(body).unwrap();
+    writeln!(body, "Devices").unwrap();
+    write_device_summary(&mut body, devices);
+    (title, body)
+}
+
+fn render_changed_summary(devices: &[&Device]) -> (String, String) {
+    let title = format!("{} devices changed on your network", devices.len());
+    let mut body = String::new();
+    writeln!(
+        body,
+        "{} existing devices changed their network details (IP address and/or vendor).",
+        devices.len()
+    )
+    .unwrap();
+    writeln!(body).unwrap();
+    writeln!(body, "Devices").unwrap();
+    write_device_summary(&mut body, devices);
+    writeln!(body).unwrap();
+    write!(
+        body,
+        "A vendor change on the same device is unusual and may indicate MAC spoofing."
+    )
+    .unwrap();
     (title, body)
 }
 
@@ -296,10 +407,9 @@ fn record_event(event: DeviceEvent) {
     }
 }
 
-pub fn trigger_new_device(
-    device: Device,
-    scanner: DeviceEventScanner,
-) -> Result<(), Box<dyn Error>> {
+/// Record the device event for a brand-new device and return the change to notify about. Sending
+/// is deferred to `notify` so an active scan can consolidate many new devices into one notification.
+pub fn classify_new_device(device: Device, scanner: DeviceEventScanner) -> DeviceChange {
     record_event(DeviceEvent::new(
         device.mac_address.clone(),
         Utc::now(),
@@ -309,25 +419,16 @@ pub fn trigger_new_device(
         scanner,
     ));
 
-    let (title, body) = render_new_device(&device);
-    let notification = Notification::new(
-        Utc::now(),
-        NotificationType::NewDeviceFound,
-        title,
-        body,
-        true,
-        Some(device.mac_address.clone()),
-    );
-
-    send_notification(notification)?;
-    Ok(())
+    DeviceChange::New(device)
 }
 
-pub fn trigger_existing_device(
+/// Record the device-seen event for a known device and return any notification-worthy changes (it
+/// may return both a "back online" and a "changed" entry, or none). Sending is deferred to `notify`.
+pub fn classify_existing_device(
     existing_device: Device,
     new_device: Device,
     scanner: DeviceEventScanner,
-) -> Result<(), Box<dyn Error>> {
+) -> Vec<DeviceChange> {
     record_event(DeviceEvent::new(
         new_device.mac_address.clone(),
         Utc::now(),
@@ -337,54 +438,144 @@ pub fn trigger_existing_device(
         scanner,
     ));
 
-    // Notify if the device comes back online after not being seen for the configured period
+    let mut changes = Vec::new();
+
+    // The device came back online after not being seen for the configured period.
     let elapsed_since_last_seen: Duration = (Local::now().to_utc() - existing_device.last_seen)
         .to_std()
         .unwrap_or(Duration::from_secs(0));
-
     if elapsed_since_last_seen
         >= Duration::from(get_settings().notifications.notify_when_not_seen_for)
     {
-        let duration_text = String::from(DurationString::from(Duration::from_secs(
-            elapsed_since_last_seen.as_secs(),
-        )));
-        let (title, body) = render_device_back_online(&new_device, &duration_text);
-        let notification = Notification::new(
-            Utc::now(),
-            NotificationType::DeviceOnlineAfterTime,
-            title,
-            body,
-            true,
-            Some(new_device.mac_address.clone()),
-        );
-
-        send_notification(notification)?;
+        changes.push(DeviceChange::BackOnline {
+            device: new_device.clone(),
+            absent_for: elapsed_since_last_seen,
+        });
     }
 
-    // Notify if the devices vendor and/or IP changed
+    // The device's vendor and/or IP changed.
     let ip_changed = existing_device.ipv4_address != new_device.ipv4_address;
     let vendor_changed_flag = vendor_changed(&existing_device.vendor, &new_device.vendor);
-
     if ip_changed || vendor_changed_flag {
-        let (title, body) = render_device_changed(
-            &existing_device,
-            &new_device,
+        changes.push(DeviceChange::Changed {
+            existing: existing_device,
+            new: new_device,
             ip_changed,
-            vendor_changed_flag,
-        );
-        let notification = Notification::new(
-            Utc::now(),
-            NotificationType::DeviceChanged,
-            title,
-            body,
-            true,
-            Some(new_device.mac_address.clone()),
-        );
-
-        send_notification(notification)?;
+            vendor_changed: vendor_changed_flag,
+        });
     }
 
-    Ok(())
+    changes
+}
+
+/// Send notifications for the changes detected during a scan (or a single sighting). Changes are
+/// grouped by notification type: a type with exactly one change produces the usual single-device
+/// notification (carrying its MAC), while a type with two or more produces one consolidated summary
+/// with an empty MAC. Recording happens here; delivery is handed to the delivery task.
+pub fn notify(changes: Vec<DeviceChange>) {
+    let mut new_devices = Vec::new();
+    let mut back_online = Vec::new();
+    let mut changed = Vec::new();
+
+    for change in changes {
+        match change {
+            DeviceChange::New(device) => new_devices.push(device),
+            DeviceChange::BackOnline { device, absent_for } => {
+                back_online.push((device, absent_for))
+            }
+            DeviceChange::Changed {
+                existing,
+                new,
+                ip_changed,
+                vendor_changed,
+            } => changed.push((existing, new, ip_changed, vendor_changed)),
+        }
+    }
+
+    notify_new_devices(new_devices);
+    notify_back_online(back_online);
+    notify_changed(changed);
+}
+
+fn notify_new_devices(devices: Vec<Device>) {
+    match devices.as_slice() {
+        [] => {}
+        [device] => {
+            let (title, body) = render_new_device(device);
+            send(
+                NotificationType::NewDeviceFound,
+                title,
+                body,
+                Some(device.mac_address.clone()),
+            );
+        }
+        many => {
+            let refs: Vec<&Device> = many.iter().collect();
+            let (title, body) = render_new_devices_summary(&refs);
+            send(NotificationType::NewDeviceFound, title, body, None);
+        }
+    }
+}
+
+fn notify_back_online(devices: Vec<(Device, Duration)>) {
+    match devices.as_slice() {
+        [] => {}
+        [(device, absent_for)] => {
+            let (title, body) = render_device_back_online(device, &duration_text(*absent_for));
+            send(
+                NotificationType::DeviceOnlineAfterTime,
+                title,
+                body,
+                Some(device.mac_address.clone()),
+            );
+        }
+        many => {
+            let refs: Vec<&Device> = many.iter().map(|(device, _)| device).collect();
+            let (title, body) = render_back_online_summary(&refs);
+            send(NotificationType::DeviceOnlineAfterTime, title, body, None);
+        }
+    }
+}
+
+fn notify_changed(devices: Vec<(Device, Device, bool, bool)>) {
+    match devices.as_slice() {
+        [] => {}
+        [(existing, new, ip_changed, vendor_changed)] => {
+            let (title, body) = render_device_changed(existing, new, *ip_changed, *vendor_changed);
+            send(
+                NotificationType::DeviceChanged,
+                title,
+                body,
+                Some(new.mac_address.clone()),
+            );
+        }
+        many => {
+            let refs: Vec<&Device> = many.iter().map(|(_, new, _, _)| new).collect();
+            let (title, body) = render_changed_summary(&refs);
+            send(NotificationType::DeviceChanged, title, body, None);
+        }
+    }
+}
+
+// Build and record a notification, logging (rather than propagating) a persistence failure: a scan
+// loop must keep running even if a single notification cannot be stored.
+fn send(
+    notification_type: NotificationType,
+    title: String,
+    body: String,
+    mac_address: Option<String>,
+) {
+    let notification = Notification::new(
+        Utc::now(),
+        notification_type,
+        title,
+        body,
+        true,
+        mac_address,
+    );
+    if let Err(err) = send_notification(notification) {
+        error!("Failed to record notification: {err}");
+    }
 }
 
 #[cfg(test)]
@@ -425,15 +616,17 @@ mod tests {
     }
 
     #[test]
-    fn title_identity_prefers_name_then_vendor_then_mac_suffix() {
+    fn title_identity_prefers_name_then_vendor_then_masked_mac_suffix() {
         let mut device = sample_device(Some("bobs-iphone.local"));
         assert_eq!(title_identity(&device), "bobs-iphone.local");
 
         device.name = None;
         assert_eq!(title_identity(&device), "Apple, Inc.");
 
+        // No name and no vendor: fall back to a masked suffix (last two octets only), never the
+        // full MAC.
         device.vendor = "".to_string();
-        assert_eq!(title_identity(&device), "MAC ...dd:ee:ff");
+        assert_eq!(title_identity(&device), "device …ee:ff");
     }
 
     #[test]
@@ -458,18 +651,19 @@ mod tests {
     }
 
     #[test]
-    fn new_device_body_includes_all_fields_and_security_hint() {
+    fn new_device_body_includes_fields_and_security_hint_without_private_data() {
         let device = sample_device(Some("printer.local"));
         let (title, body) = render_new_device(&device);
 
         assert_eq!(title, "New device on your network: printer.local");
         assert!(body.contains("Name: printer.local"));
-        assert!(body.contains("MAC address: aa:bb:cc:dd:ee:ff"));
-        assert!(body.contains("IP address: 192.168.1.42"));
         assert!(body.contains("Vendor: Apple, Inc."));
         assert!(body.contains("Type: Smartphone"));
         assert!(body.contains("Not registered"));
         assert!(body.contains("If you do not recognise this device"));
+        // Private data must never appear in the body.
+        assert!(!body.contains("aa:bb:cc:dd:ee:ff"));
+        assert!(!body.contains("192.168.1.42"));
     }
 
     #[test]
@@ -501,10 +695,13 @@ mod tests {
         let (title, body) = render_device_changed(&existing, &new, true, false);
 
         assert_eq!(title, "Device changed IP: bobs-iphone.local");
-        assert!(body.contains("IP address: 192.168.1.42 -> 192.168.1.99"));
+        assert!(body.contains("IP address changed"));
         assert!(!body.contains("Vendor:"));
         assert!(!body.contains("MAC spoofing"));
-        assert!(body.contains("MAC address: aa:bb:cc:dd:ee:ff (unchanged)"));
+        // The changed IP values and the MAC are private and must not appear.
+        assert!(!body.contains("192.168.1.42"));
+        assert!(!body.contains("192.168.1.99"));
+        assert!(!body.contains("aa:bb:cc:dd:ee:ff"));
     }
 
     #[test]
@@ -531,9 +728,11 @@ mod tests {
         let (title, body) = render_device_changed(&existing, &new, true, true);
 
         assert_eq!(title, "Device changed IP and vendor: bobs-iphone.local");
-        assert!(body.contains("IP address: 192.168.1.42 -> 192.168.1.99"));
+        assert!(body.contains("IP address changed"));
         assert!(body.contains("Vendor: Apple, Inc. -> Samsung Electronics"));
         assert!(body.contains("MAC spoofing"));
+        assert!(!body.contains("192.168.1.42"));
+        assert!(!body.contains("192.168.1.99"));
     }
 
     #[tokio::test]
@@ -550,8 +749,8 @@ mod tests {
         let mac = device.mac_address.clone();
 
         // Two sightings from the same scanner within the dedup window: only one event recorded.
-        trigger_existing_device(device.clone(), device.clone(), DeviceEventScanner::Arp).unwrap();
-        trigger_existing_device(device.clone(), device.clone(), DeviceEventScanner::Arp).unwrap();
+        classify_existing_device(device.clone(), device.clone(), DeviceEventScanner::Arp);
+        classify_existing_device(device.clone(), device.clone(), DeviceEventScanner::Arp);
 
         let after_arp = db::device_events::list(Some(mac.clone()), None, None, None).unwrap();
         assert_eq!(
@@ -561,7 +760,7 @@ mod tests {
         );
 
         // A sighting from a different scanner is not a duplicate and is recorded.
-        trigger_existing_device(device.clone(), device.clone(), DeviceEventScanner::Mdns).unwrap();
+        classify_existing_device(device.clone(), device.clone(), DeviceEventScanner::Mdns);
 
         let after_mdns = db::device_events::list(Some(mac), None, None, None).unwrap();
         assert_eq!(
@@ -572,7 +771,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn triggering_a_new_device_records_a_notification() {
+    async fn notifying_one_new_device_persists_a_single_device_notification() {
         crate::tests_common::setup().await;
 
         let mac = "fa:ce:fa:ce:00:02".to_string();
@@ -581,14 +780,125 @@ mod tests {
 
         // The delivery loop is not running in tests, so delivery is a no-op; the notification must
         // still be persisted regardless of whether it is ever delivered.
-        trigger_new_device(device, DeviceEventScanner::Arp).unwrap();
+        notify(vec![classify_new_device(device, DeviceEventScanner::Arp)]);
 
         let notifications = db::notifications::list(None, None, None).unwrap();
         assert!(
             notifications
                 .iter()
                 .any(|n| n.mac_address.as_deref() == Some(mac.as_str())),
-            "A new-device sighting should persist a notification"
+            "A single new-device sighting should persist a notification carrying its MAC"
         );
+    }
+
+    fn new_device_change(mac: &str, name: &str) -> DeviceChange {
+        let mut device = sample_device(Some(name));
+        device.mac_address = mac.to_string();
+        DeviceChange::New(device)
+    }
+
+    // The test DB is shared across tests, so assertions scope to unique device names rather than
+    // global notification counts.
+    #[tokio::test]
+    async fn notifying_multiple_new_devices_consolidates_into_one_summary() {
+        crate::tests_common::setup().await;
+
+        notify(vec![
+            new_device_change("fa:ce:fa:ce:01:01", "consolidate-printer"),
+            new_device_change("fa:ce:fa:ce:01:02", "consolidate-laptop"),
+        ]);
+
+        let summaries: Vec<_> = db::notifications::list(None, None, None)
+            .unwrap()
+            .into_iter()
+            .filter(|n| {
+                n.notification_type == NotificationType::NewDeviceFound
+                    && n.body.contains("consolidate-printer")
+            })
+            .collect();
+
+        assert_eq!(
+            summaries.len(),
+            1,
+            "Two new devices in one scan should produce a single consolidated notification"
+        );
+        let summary = &summaries[0];
+        assert!(
+            summary.mac_address.is_none(),
+            "A multi-device notification must have an empty MAC address"
+        );
+        assert!(summary.title.contains('2'));
+        assert!(summary.body.contains("consolidate-laptop"));
+        // No private data, even in the consolidated body.
+        assert!(!summary.body.contains("fa:ce:fa:ce:01:01"));
+        assert!(!summary.body.contains("fa:ce:fa:ce:01:02"));
+    }
+
+    #[tokio::test]
+    async fn notify_groups_changes_by_type() {
+        crate::tests_common::setup().await;
+
+        let mut existing = sample_device(Some("group-server"));
+        existing.mac_address = "fa:ce:fa:ce:02:09".to_string();
+        let mut changed = existing.clone();
+        changed.ipv4_address = "192.168.1.250".to_string();
+
+        // Two new devices (consolidated) plus one changed device (single) in the same scan.
+        notify(vec![
+            new_device_change("fa:ce:fa:ce:02:01", "group-printer"),
+            new_device_change("fa:ce:fa:ce:02:02", "group-laptop"),
+            DeviceChange::Changed {
+                existing,
+                new: changed,
+                ip_changed: true,
+                vendor_changed: false,
+            },
+        ]);
+
+        let notifications = db::notifications::list(None, None, None).unwrap();
+        let new_summaries = notifications
+            .iter()
+            .filter(|n| {
+                n.notification_type == NotificationType::NewDeviceFound
+                    && n.body.contains("group-printer")
+            })
+            .count();
+        let changed_notifications: Vec<_> = notifications
+            .iter()
+            .filter(|n| {
+                n.notification_type == NotificationType::DeviceChanged
+                    && n.mac_address.as_deref() == Some("fa:ce:fa:ce:02:09")
+            })
+            .collect();
+
+        assert_eq!(
+            new_summaries, 1,
+            "Both new devices collapse into one notification"
+        );
+        assert_eq!(changed_notifications.len(), 1);
+        assert!(
+            changed_notifications[0].mac_address.is_some(),
+            "A single changed device keeps its MAC address"
+        );
+    }
+
+    #[test]
+    fn summary_lists_at_most_three_devices_then_counts_the_rest() {
+        let devices: Vec<Device> = (0..5)
+            .map(|i| {
+                let mut device = sample_device(Some(&format!("device-{i}")));
+                device.mac_address = format!("aa:bb:cc:00:00:0{i}");
+                device
+            })
+            .collect();
+        let refs: Vec<&Device> = devices.iter().collect();
+
+        let (_, body) = render_new_devices_summary(&refs);
+
+        assert!(body.contains("device-0"));
+        assert!(body.contains("device-1"));
+        assert!(body.contains("device-2"));
+        assert!(!body.contains("device-3"));
+        assert!(body.contains("…and 2 more devices"));
     }
 }

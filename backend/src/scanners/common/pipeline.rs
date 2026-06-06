@@ -1,21 +1,23 @@
 use log::{debug, error};
 
 use crate::db;
-use crate::events;
+use crate::events::{self, DeviceChange};
 use crate::model::device_events::DeviceEventScanner;
 use crate::model::devices::Device;
 
-/// Persist a device sighting and emit the matching event/notification, feeding every scanner
-/// (ARP, mDNS, SSDP, DHCP, SNMP) through one code path.
+/// Persist a device sighting and record its device event, then return any notification-worthy
+/// changes it produced (without sending). This feeds every scanner (ARP, mDNS, SSDP, DHCP, SNMP)
+/// through one code path. Active scanners accumulate the changes across a whole scan and pass them
+/// to `events::notify` once, consolidating per type; passive listeners use `record_and_notify`.
 ///
 /// When the device is already known, the sighting is reconciled with the stored record:
 /// - a previously stored hostname is kept rather than overwritten by this sighting's name;
 /// - a known IP address is kept when this sighting carries none (an empty string), so a DHCP
 ///   DISCOVER (which has no assigned IP) never clobbers a good address.
 ///
-/// Errors are logged and swallowed: a scan/listen loop must never stop because a single sighting
-/// failed to persist or a notification could not be delivered.
-pub fn record_sighting(mut device: Device, scanner: DeviceEventScanner) {
+/// Errors are logged and swallowed (an empty list is returned): a scan/listen loop must never stop
+/// because a single sighting failed to persist.
+pub fn record_sighting(mut device: Device, scanner: DeviceEventScanner) -> Vec<DeviceChange> {
     match db::devices::read(device.mac_address.clone()) {
         Some(recorded) => {
             debug!("Sighting of known device {}; updating", device.mac_address);
@@ -33,21 +35,26 @@ pub fn record_sighting(mut device: Device, scanner: DeviceEventScanner) {
                 device.name.clone(),
             ) {
                 error!("Failed to update device {}: {err}", device.mac_address);
-                return;
+                return Vec::new();
             }
-            // Ignoring errors: do not stop the loop if notification delivery fails.
-            events::trigger_existing_device(recorded, device, scanner).ok();
+            events::classify_existing_device(recorded, device, scanner)
         }
         None => {
             debug!("New device {} discovered; inserting", device.mac_address);
             if let Err(err) = db::devices::insert(device.clone()) {
                 error!("Failed to insert device {}: {err}", device.mac_address);
-                return;
+                return Vec::new();
             }
-            // Ignoring errors: do not stop the loop if notification delivery fails.
-            events::trigger_new_device(device, scanner).ok();
+            vec![events::classify_new_device(device, scanner)]
         }
     }
+}
+
+/// Record a single sighting and immediately send any resulting notification. Used by the passive
+/// listeners (mDNS, SSDP, DHCP), which process one device per event and so have nothing to
+/// consolidate across a scan.
+pub fn record_and_notify(device: Device, scanner: DeviceEventScanner) {
+    events::notify(record_sighting(device, scanner));
 }
 
 #[cfg(test)]

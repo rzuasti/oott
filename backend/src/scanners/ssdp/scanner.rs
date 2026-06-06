@@ -76,6 +76,6 @@ async fn process_announcement(
     // mirrors the mDNS scanner so build_device can still deduce a vendor for privacy MACs.
     let device = build_device(mac.clone(), src_ip.to_string(), &device_types, server_hint);
 
-    pipeline::record_sighting(device, DeviceEventScanner::Ssdp);
+    pipeline::record_and_notify(device, DeviceEventScanner::Ssdp);
     status::STATUS.record_discovery(&mac);
 }

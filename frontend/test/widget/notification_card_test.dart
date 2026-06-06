@@ -5,22 +5,27 @@ import 'package:frontend/model/notification.dart' as oott_model;
 import 'package:frontend/model/notification_type.dart';
 import 'package:frontend/utils/friendly_date_formatter.dart';
 
-oott_model.Notification _sampleNotification() => oott_model.Notification(
+oott_model.Notification _sampleNotification({
+  String? macAddress = 'AA:BB:CC:DD:EE:FF',
+}) => oott_model.Notification(
   id: 1,
   title: 'New device found',
   body: 'A long body that wraps across multiple lines when expanded.',
   notificationType: NotificationType.newDeviceFound,
   createdOn: DateTime(2026, 6, 4, 12),
   isNew: true,
-  macAddress: 'AA:BB:CC:DD:EE:FF',
+  macAddress: macAddress,
 );
 
-Future<void> _pumpCard(WidgetTester tester) async {
+Future<void> _pumpCard(
+  WidgetTester tester, {
+  String? macAddress = 'AA:BB:CC:DD:EE:FF',
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: NotificationCard(
-          item: _sampleNotification(),
+          item: _sampleNotification(macAddress: macAddress),
           formatter: FriendlyDateFormatter(),
           onSetRead: (_) async => true,
         ),
@@ -67,4 +72,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Mark as read'), findsNothing);
   });
+
+  testWidgets('shows a device link when the notification has a MAC address', (
+    tester,
+  ) async {
+    await _pumpCard(tester);
+
+    await tester.tap(find.byType(ListTile));
+    await tester.pumpAndSettle();
+
+    expect(find.text('View device'), findsOneWidget);
+  });
+
+  testWidgets(
+    'omits the device link for a multi-device notification (no MAC address)',
+    (tester) async {
+      await _pumpCard(tester, macAddress: null);
+
+      await tester.tap(find.byType(ListTile));
+      await tester.pumpAndSettle();
+
+      expect(find.text('View device'), findsNothing);
+    },
+  );
 }

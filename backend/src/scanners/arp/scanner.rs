@@ -1,5 +1,6 @@
 use super::finder;
 use super::status;
+use crate::events;
 use crate::model::device_events::DeviceEventScanner;
 use crate::scanners::common::pipeline;
 use crate::settings::get_settings;
@@ -23,11 +24,17 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
         info!("Found {} online devices", devices.len());
         status::STATUS.record_scan(&devices);
 
-        // Process found devices
+        // Process found devices, accumulating every change so the whole scan emits one
+        // consolidated notification per type (see events::notify) rather than one per device.
+        let mut changes = Vec::new();
         for device in devices.iter() {
             debug!("Online device found {}", device);
-            pipeline::record_sighting(device.clone(), DeviceEventScanner::Arp);
+            changes.extend(pipeline::record_sighting(
+                device.clone(),
+                DeviceEventScanner::Arp,
+            ));
         }
+        events::notify(changes);
 
         let wait = Duration::from(get_settings().arp_scanner.wait_between_scans);
         let next_scan_at = Utc::now() + chrono::Duration::from_std(wait).unwrap();

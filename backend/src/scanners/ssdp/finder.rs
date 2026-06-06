@@ -193,7 +193,10 @@ mod tests {
                     USN: uuid:abcd::upnp:rootdevice\r\n\r\n";
         let announcement = parse_announcement(body.as_bytes()).expect("alive packet");
         assert!(announcement.server.is_none());
-        assert_eq!(announcement.device_types, vec!["upnp:rootdevice".to_string()]);
+        assert_eq!(
+            announcement.device_types,
+            vec!["upnp:rootdevice".to_string()]
+        );
     }
 
     #[test]

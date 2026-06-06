@@ -82,6 +82,6 @@ async fn process_announcement(
         Some(hostname),
     );
 
-    pipeline::record_sighting(device, DeviceEventScanner::Mdns);
+    pipeline::record_and_notify(device, DeviceEventScanner::Mdns);
     status::STATUS.record_discovery(&mac);
 }
