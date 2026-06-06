@@ -374,8 +374,15 @@ void _onDestinationSelected(_NavDest destination, BuildContext context) {
 // Opens an external link in a new tab. Origin-relative paths (e.g. the API docs)
 // resolve against the current host, since the backend serves both the front-end
 // and the API docs from the same origin.
+// Resolves an external link against [base] (defaulting to the current page).
+// Origin-relative paths (e.g. "/api/docs") gain the current scheme and host so
+// the resulting URI is launchable; absolute URLs are returned unchanged.
+// Without this, launching a scheme-less URI fails when the app is served from
+// the backend (e.g. Docker).
+Uri resolveExternalUri(String url, {Uri? base}) => (base ?? Uri.base).resolve(url);
+
 Future<void> _openExternal(String url) async {
-  final uri = Uri.parse(url);
+  final uri = resolveExternalUri(url);
   if (await canLaunchUrl(uri)) {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
