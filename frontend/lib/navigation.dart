@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/about/about.dart';
 import 'package:frontend/settings/settings.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'devices/device_detail.dart';
 import 'devices/device_list.dart';
 import 'home/home_screen.dart';
@@ -12,27 +13,74 @@ import 'widgets/offline_banner.dart';
 import 'widgets/pagination_progress.dart';
 import 'routes.dart';
 
-typedef _NavDest = ({IconData icon, IconData activeIcon, String label});
+// A navigation entry. Most entries point to an in-app [route]; an entry with a
+// null route is an external link (see [externalUrl]) that opens in a new tab and
+// is never marked as selected. [wideOnly] entries appear solely in the wide-mode
+// navigation rail, not in the compact bottom navigation bar.
+typedef _NavDest = ({
+  IconData icon,
+  IconData activeIcon,
+  String label,
+  String? route,
+  String? externalUrl,
+  bool wideOnly,
+});
 
 const List<_NavDest> _destinations = [
-  (icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home'),
+  (
+    icon: Icons.home_outlined,
+    activeIcon: Icons.home,
+    label: 'Home',
+    route: Routes.home,
+    externalUrl: null,
+    wideOnly: false,
+  ),
   (
     icon: Icons.devices_other_outlined,
     activeIcon: Icons.devices_other,
     label: 'Devices',
+    route: Routes.devices,
+    externalUrl: null,
+    wideOnly: false,
   ),
   (
     icon: Icons.monitor_heart_outlined,
     activeIcon: Icons.monitor_heart,
     label: 'Status',
+    route: Routes.status,
+    externalUrl: null,
+    wideOnly: false,
   ),
   (
     icon: Icons.settings_outlined,
     activeIcon: Icons.settings,
     label: 'Settings',
+    route: Routes.settings,
+    externalUrl: null,
+    wideOnly: false,
   ),
-  (icon: Icons.info_outline, activeIcon: Icons.info, label: 'About'),
+  (
+    icon: Icons.menu_book_outlined,
+    activeIcon: Icons.menu_book,
+    label: 'API Docs',
+    route: null,
+    externalUrl: Routes.apiDocs,
+    wideOnly: true,
+  ),
+  (
+    icon: Icons.info_outline,
+    activeIcon: Icons.info,
+    label: 'About',
+    route: Routes.about,
+    externalUrl: null,
+    wideOnly: false,
+  ),
 ];
+
+// The compact bottom navigation bar omits wide-only entries (e.g. API Docs).
+final List<_NavDest> _barDestinations = _destinations
+    .where((d) => !d.wideOnly)
+    .toList();
 
 // Observer used to notify subscribed routes when another route is pushed
 // on top of or popped from them, so they can refresh stale data.
@@ -127,7 +175,7 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final selectedIndex = _calculateSelectedIndex(context);
+        final selectedIndex = _selectedIndex(_destinations, context);
         final width = constraints.maxWidth;
 
         if (width < Breakpoints.medium) {
@@ -149,10 +197,10 @@ class _MainShellState extends State<MainShell> {
               ),
             ),
             bottomNavigationBar: NavigationBar(
-              selectedIndex: selectedIndex,
+              selectedIndex: _selectedIndex(_barDestinations, context),
               onDestinationSelected: (index) =>
-                  _onDestinationSelected(index, context),
-              destinations: _destinations
+                  _onDestinationSelected(_barDestinations[index], context),
+              destinations: _barDestinations
                   .map(
                     (d) => NavigationDestination(
                       icon: Icon(d.icon),
@@ -195,7 +243,7 @@ class _MainShellState extends State<MainShell> {
                           .toList(),
                       selectedIndex: selectedIndex,
                       onDestinationSelected: (index) =>
-                          _onDestinationSelected(index, context),
+                          _onDestinationSelected(_destinations[index], context),
                     ),
                   ),
                   Expanded(
@@ -298,32 +346,37 @@ String? _redirectToSettings() {
       : null;
 }
 
-int _calculateSelectedIndex(BuildContext context) {
+// Index of the [destinations] entry matching the current location, defaulting to
+// the first entry (Home). External-link entries have no route and never match.
+int _selectedIndex(List<_NavDest> destinations, BuildContext context) {
   final location = GoRouterState.of(context).uri.path;
-  if (location == '/') return 0;
-  if (location.startsWith('/devices')) return 1;
-  if (location.startsWith('/status')) return 2;
-  if (location.startsWith('/settings')) return 3;
-  if (location.startsWith('/about')) return 4;
+  for (var i = 0; i < destinations.length; i++) {
+    final route = destinations[i].route;
+    if (route == null) continue;
+    if (route == Routes.home) {
+      if (location == Routes.home) return i;
+    } else if (location.startsWith(route)) {
+      return i;
+    }
+  }
   return 0;
 }
 
-void _onDestinationSelected(int index, BuildContext context) {
-  switch (index) {
-    case 0:
-      context.go(Routes.home);
-      break;
-    case 1:
-      context.go(Routes.devices);
-      break;
-    case 2:
-      context.go(Routes.status);
-      break;
-    case 3:
-      context.go(Routes.settings);
-      break;
-    case 4:
-      context.go(Routes.about);
-      break;
+void _onDestinationSelected(_NavDest destination, BuildContext context) {
+  final route = destination.route;
+  if (route != null) {
+    context.go(route);
+  } else if (destination.externalUrl != null) {
+    _openExternal(destination.externalUrl!);
+  }
+}
+
+// Opens an external link in a new tab. Origin-relative paths (e.g. the API docs)
+// resolve against the current host, since the backend serves both the front-end
+// and the API docs from the same origin.
+Future<void> _openExternal(String url) async {
+  final uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }

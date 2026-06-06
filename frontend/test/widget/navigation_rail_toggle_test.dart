@@ -86,5 +86,38 @@ void main() {
       expect(find.byTooltip('Collapse menu'), findsNothing);
       expect(find.byTooltip('Expand menu'), findsNothing);
     });
+
+    testWidgets('shows API Docs in the rail, just before About', (
+      tester,
+    ) async {
+      await pumpShell(tester, size: const Size(1200, 900));
+
+      final labels = rail(
+        tester,
+      ).destinations.map((d) => (d.label as Text).data).toList();
+
+      expect(labels, contains('API Docs'));
+      expect(labels.indexOf('API Docs'), labels.indexOf('About') - 1);
+    });
+  });
+
+  group('compact navigation bar', () {
+    setUp(() async {
+      await setUpBackendForTest();
+    });
+
+    testWidgets('omits the wide-only API Docs entry', (tester) async {
+      // Narrow width (< 600): the compact bottom NavigationBar is used.
+      await pumpShell(tester, size: const Size(400, 800));
+
+      final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      final labels = bar.destinations
+          .cast<NavigationDestination>()
+          .map((d) => d.label)
+          .toList();
+
+      expect(labels, contains('About'));
+      expect(labels, isNot(contains('API Docs')));
+    });
   });
 }

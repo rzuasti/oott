@@ -7,6 +7,10 @@ abstract final class Routes {
   static const String settings = '/settings';
   static const String about = '/about';
 
+  /// Backend-served API documentation. This is not an in-app route: it is opened
+  /// in a new tab, resolved against the configured backend origin.
+  static const String apiDocs = '/api/docs';
+
   /// Path segment for the device-detail route, nested under [devices].
   static const String deviceDetailSegment = ':macAddress';
 
