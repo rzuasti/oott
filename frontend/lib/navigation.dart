@@ -91,11 +91,36 @@ final GoRouter router = GoRouter(
   ],
 );
 
+// Preference key controlling whether the wide-mode navigation rail shows
+// labels (extended) or collapses to an icons-only compact view.
+const String _kNavRailExtendedPref = 'nav_rail_extended';
+
+// Fixed rail widths (M3 NavigationRail defaults), set explicitly so the
+// collapse/expand toggle can be positioned exactly within the rail.
+const double _kRailCompactWidth = 80;
+const double _kRailExtendedWidth = 256;
+
 // Application shell and navigation
-class MainShell extends StatelessWidget {
+class MainShell extends StatefulWidget {
   final Widget child;
 
   const MainShell({super.key, required this.child});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  // User preference: when on a wide screen, keep the rail extended (labels) or
+  // collapse it to icons only to reclaim horizontal space. Defaults to true so
+  // existing installs keep the labelled rail they had before.
+  bool _navRailExtended =
+      PrefUtil.getValue(_kNavRailExtendedPref, true) as bool;
+
+  void _toggleNavRailExtended() {
+    setState(() => _navRailExtended = !_navRailExtended);
+    PrefUtil.setValue(_kNavRailExtendedPref, _navRailExtended);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +141,7 @@ class MainShell extends StatelessWidget {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(Insets.lg),
-                      child: child,
+                      child: widget.child,
                     ),
                   ),
                 ],
@@ -139,50 +164,91 @@ class MainShell extends StatelessWidget {
           );
         }
 
+        final mediaPadding = MediaQuery.paddingOf(context);
         return Scaffold(
           appBar: _buildAppBar(context, selectedIndex),
-          body: Row(
+          // The body is a Stack so the collapse/expand toggle can be positioned
+          // freely within the rail (the rail's own slots give it an unbounded
+          // width, which prevents reliable horizontal alignment).
+          body: Stack(
             children: [
-              SafeArea(
-                child: NavigationRail(
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerLow,
-                  extended: width >= Breakpoints.expanded,
-                  destinations: _destinations
-                      .map(
-                        (d) => NavigationRailDestination(
-                          icon: Icon(d.icon),
-                          selectedIcon: Icon(d.activeIcon),
-                          label: Text(d.label),
-                        ),
-                      )
-                      .toList(),
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: (index) =>
-                      _onDestinationSelected(index, context),
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  color: Theme.of(context).colorScheme.surface,
-                  // The overlay pins the pagination progress bar flush against
-                  // the very bottom of the content region (the screen bottom).
-                  child: PaginationProgressOverlay(
-                    child: Column(
-                      children: [
-                        const OfflineBanner(),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.all(Insets.lg),
-                            child: child,
-                          ),
-                        ),
-                      ],
+              Row(
+                children: [
+                  SafeArea(
+                    child: NavigationRail(
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerLow,
+                      minWidth: _kRailCompactWidth,
+                      minExtendedWidth: _kRailExtendedWidth,
+                      extended:
+                          width >= Breakpoints.expanded && _navRailExtended,
+                      destinations: _destinations
+                          .map(
+                            (d) => NavigationRailDestination(
+                              icon: Icon(d.icon),
+                              selectedIcon: Icon(d.activeIcon),
+                              label: Text(d.label),
+                            ),
+                          )
+                          .toList(),
+                      selectedIndex: selectedIndex,
+                      onDestinationSelected: (index) =>
+                          _onDestinationSelected(index, context),
                     ),
                   ),
-                ),
+                  Expanded(
+                    child: Container(
+                      color: Theme.of(context).colorScheme.surface,
+                      // The overlay pins the pagination progress bar flush
+                      // against the very bottom of the content region (the
+                      // screen bottom).
+                      child: PaginationProgressOverlay(
+                        child: Column(
+                          children: [
+                            const OfflineBanner(),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.all(Insets.lg),
+                                child: widget.child,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+              // The collapse/expand toggle, pinned to the bottom of the rail.
+              // It sits centred like the other icons when the rail is compact
+              // and slides to the rail's right side when it is extended. The
+              // double chevron points the way the rail will move: inward («) to
+              // collapse, outward (») to expand.
+              if (width >= Breakpoints.expanded)
+                AnimatedPositioned(
+                  // Match the rail's own extend/collapse animation so the toggle
+                  // slides with the edge instead of jumping after it settles.
+                  duration: kThemeAnimationDuration,
+                  curve: Curves.easeInOut,
+                  bottom: mediaPadding.bottom + Insets.md,
+                  left: _navRailExtended
+                      ? mediaPadding.left +
+                            _kRailExtendedWidth -
+                            kMinInteractiveDimension -
+                            Insets.sm
+                      : mediaPadding.left +
+                            (_kRailCompactWidth - kMinInteractiveDimension) / 2,
+                  child: IconButton(
+                    icon: Icon(
+                      _navRailExtended
+                          ? Icons.keyboard_double_arrow_left
+                          : Icons.keyboard_double_arrow_right,
+                    ),
+                    tooltip: _navRailExtended ? 'Collapse menu' : 'Expand menu',
+                    onPressed: _toggleNavRailExtended,
+                  ),
+                ),
             ],
           ),
         );
