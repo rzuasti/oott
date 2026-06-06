@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use once_cell::sync::OnceCell;
 use std::sync::Mutex;
 
+use crate::model::devices::Device;
 use crate::scanners::common::active_status::{ActiveSnapshot, ActiveStatus};
 
 static STATUS: OnceCell<Mutex<ActiveStatus>> = OnceCell::new();
@@ -22,9 +23,9 @@ pub fn set_waiting(next_scan_at: DateTime<Utc>) {
     }
 }
 
-pub fn record_scan(devices_seen: u64) {
+pub fn record_scan(devices: &[Device]) {
     if let Some(m) = STATUS.get() {
-        m.lock().unwrap().record_scan(devices_seen);
+        m.lock().unwrap().record_scan(devices);
     }
 }
 

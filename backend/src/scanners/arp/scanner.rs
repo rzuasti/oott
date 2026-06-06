@@ -21,7 +21,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
 
         info!("Done with ARP probes");
         info!("Found {} online devices", devices.len());
-        status::record_scan(devices.len() as u64);
+        status::record_scan(&devices);
 
         // Process found devices
         for device in devices.iter() {

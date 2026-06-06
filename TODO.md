@@ -20,7 +20,7 @@
 
 ## Backend
 
-- [ ] In the active scanners status, it should count the number of distinct devices it saw on the last scan (avoid duplicates)
+- [x] In the active scanners status, it should count the number of distinct devices it saw on the last scan (avoid duplicates)
 - [ ] Implement the pushover API call directly to support HTML content and review notification text to use it
 
 ## Frontend

@@ -1,4 +1,6 @@
+use crate::model::devices::Device;
 use chrono::{DateTime, Utc};
+use std::collections::HashSet;
 
 /// Status state for the active (polling) scanners — ARP and SNMP. Each scanner owns its own
 /// `OnceCell<Mutex<ActiveStatus>>` and delegates to these methods (see e.g.
@@ -41,9 +43,16 @@ impl ActiveStatus {
         self.next_scan_at = Some(next_scan_at);
     }
 
-    /// Record the result of a completed scan.
-    pub fn record_scan(&mut self, devices_seen: u64) {
-        self.last_scan_devices_seen = Some(devices_seen);
+    /// Record the result of a completed scan. A single scan can surface the same device more than
+    /// once — duplicate ARP replies, or one MAC bound to several IPs in an SNMP ARP cache — so the
+    /// reported count is the number of distinct devices (by MAC address), not raw sightings.
+    pub fn record_scan(&mut self, devices: &[Device]) {
+        let distinct = devices
+            .iter()
+            .map(|device| &device.mac_address)
+            .collect::<HashSet<_>>()
+            .len();
+        self.last_scan_devices_seen = Some(distinct as u64);
         self.last_scan_at = Some(Utc::now());
     }
 
@@ -83,13 +92,35 @@ mod tests {
         assert_eq!(snapshot.next_scan_at.unwrap(), next);
     }
 
+    fn device_with_mac(mac: &str, ip: &str) -> Device {
+        Device::new(mac.to_string(), ip.to_string(), String::new(), Utc::now())
+    }
+
     #[test]
     fn record_scan_stores_count_and_time() {
         let mut status = ActiveStatus::new();
-        status.record_scan(7);
+        let devices = vec![
+            device_with_mac("aa:bb:cc:dd:ee:01", "192.168.0.2"),
+            device_with_mac("aa:bb:cc:dd:ee:02", "192.168.0.3"),
+        ];
+        status.record_scan(&devices);
         let snapshot = status.snapshot();
-        assert_eq!(snapshot.last_scan_devices_seen, Some(7));
+        assert_eq!(snapshot.last_scan_devices_seen, Some(2));
         assert!(snapshot.last_scan_at.is_some());
+    }
+
+    #[test]
+    fn record_scan_counts_distinct_devices() {
+        let mut status = ActiveStatus::new();
+        // Same MAC seen twice (e.g. duplicate ARP reply or one MAC on two IPs) plus a second
+        // distinct device — only two unique devices should be reported.
+        let devices = vec![
+            device_with_mac("aa:bb:cc:dd:ee:01", "192.168.0.2"),
+            device_with_mac("aa:bb:cc:dd:ee:01", "192.168.0.9"),
+            device_with_mac("aa:bb:cc:dd:ee:02", "192.168.0.3"),
+        ];
+        status.record_scan(&devices);
+        assert_eq!(status.snapshot().last_scan_devices_seen, Some(2));
     }
 
     #[test]
