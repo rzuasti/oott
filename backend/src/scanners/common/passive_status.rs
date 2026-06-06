@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 use chrono::{DateTime, Duration, Utc};
+use once_cell::sync::OnceCell;
 
 /// A device counts as "seen" only if its most recent sighting falls within this rolling window.
 const RECENT_WINDOW_SECONDS: i64 = 3600;
@@ -55,6 +57,44 @@ impl PassiveStatus {
             devices_last_hour: self.recent_sightings.len() as u64,
             last_discovery_at: self.last_discovery_at,
         }
+    }
+}
+
+/// A lazily-initialised, mutex-guarded [`PassiveStatus`] owned by a single passive scanner. Each
+/// scanner declares one as a `static` and the API layer reads it back via [`get`](Self::get).
+/// All methods are no-ops until [`init`](Self::init) is called (mirroring the previous
+/// per-scanner `OnceCell` behaviour).
+pub struct PassiveStatusCell(OnceCell<Mutex<PassiveStatus>>);
+
+impl PassiveStatusCell {
+    pub const fn new() -> Self {
+        Self(OnceCell::new())
+    }
+
+    pub fn init(&self) {
+        self.0.set(Mutex::new(PassiveStatus::new())).ok();
+    }
+
+    pub fn set_listening(&self) {
+        if let Some(m) = self.0.get() {
+            m.lock().unwrap().set_listening();
+        }
+    }
+
+    pub fn record_discovery(&self, mac: &str) {
+        if let Some(m) = self.0.get() {
+            m.lock().unwrap().record_discovery(mac);
+        }
+    }
+
+    pub fn get(&self) -> Option<PassiveSnapshot> {
+        self.0.get().map(|m| m.lock().unwrap().snapshot())
+    }
+}
+
+impl Default for PassiveStatusCell {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

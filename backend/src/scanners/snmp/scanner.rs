@@ -25,14 +25,14 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
     info!("SNMP scanner polling agent at {}", config.target);
 
     loop {
-        status::set_running();
+        status::STATUS.set_running();
 
         // A failed poll (unreachable agent, timeout, bad community) must not stop the loop;
         // log it and try again next cycle.
         match finder::find(config).await {
             Ok(devices) => {
                 info!("SNMP poll found {} devices in the ARP cache", devices.len());
-                status::record_scan(&devices);
+                status::STATUS.record_scan(&devices);
                 for device in devices.iter() {
                     pipeline::record_sighting(device.clone(), DeviceEventScanner::Snmp);
                 }
@@ -46,7 +46,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
             "SNMP scan finished. Sleeping for {}",
             config.wait_between_scans
         );
-        status::set_waiting(next_scan_at);
+        status::STATUS.set_waiting(next_scan_at);
         sleep(wait).await;
     }
 }

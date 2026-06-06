@@ -1,6 +1,8 @@
 use crate::model::devices::Device;
 use chrono::{DateTime, Utc};
+use once_cell::sync::OnceCell;
 use std::collections::HashSet;
+use std::sync::Mutex;
 
 /// Status state for the active (polling) scanners — ARP and SNMP. Each scanner owns its own
 /// `OnceCell<Mutex<ActiveStatus>>` and delegates to these methods (see e.g.
@@ -64,6 +66,50 @@ impl ActiveStatus {
             last_scan_devices_seen: self.last_scan_devices_seen,
             last_scan_at: self.last_scan_at,
         }
+    }
+}
+
+/// A lazily-initialised, mutex-guarded [`ActiveStatus`] owned by a single active scanner. Each
+/// scanner declares one as a `static` and the API layer reads it back via [`get`](Self::get).
+/// All methods are no-ops until [`init`](Self::init) is called (mirroring the previous
+/// per-scanner `OnceCell` behaviour).
+pub struct ActiveStatusCell(OnceCell<Mutex<ActiveStatus>>);
+
+impl ActiveStatusCell {
+    pub const fn new() -> Self {
+        Self(OnceCell::new())
+    }
+
+    pub fn init(&self) {
+        self.0.set(Mutex::new(ActiveStatus::new())).ok();
+    }
+
+    pub fn set_running(&self) {
+        if let Some(m) = self.0.get() {
+            m.lock().unwrap().set_running();
+        }
+    }
+
+    pub fn set_waiting(&self, next_scan_at: DateTime<Utc>) {
+        if let Some(m) = self.0.get() {
+            m.lock().unwrap().set_waiting(next_scan_at);
+        }
+    }
+
+    pub fn record_scan(&self, devices: &[Device]) {
+        if let Some(m) = self.0.get() {
+            m.lock().unwrap().record_scan(devices);
+        }
+    }
+
+    pub fn get(&self) -> Option<ActiveSnapshot> {
+        self.0.get().map(|m| m.lock().unwrap().snapshot())
+    }
+}
+
+impl Default for ActiveStatusCell {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

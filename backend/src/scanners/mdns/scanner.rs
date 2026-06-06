@@ -20,7 +20,7 @@ pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
 
     let interface = get_settings().networking.interface.clone();
     let socket = finder::open_socket(interface.clone())?;
-    status::set_listening();
+    status::STATUS.set_listening();
     info!("mDNS scanner listening for announcements");
 
     let probe_timeout = Duration::from(get_settings().mdns_scanner.probe_timeout);
@@ -83,5 +83,5 @@ async fn process_announcement(
     );
 
     pipeline::record_sighting(device, DeviceEventScanner::Mdns);
-    status::record_discovery(&mac);
+    status::STATUS.record_discovery(&mac);
 }

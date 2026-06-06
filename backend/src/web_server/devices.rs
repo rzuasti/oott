@@ -40,17 +40,17 @@ use crate::web_server::utils;
 pub async fn list(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<DeviceListResponse>, StatusCode> {
-    let is_registered: Option<bool> = utils::parse_parameter_bool(&params, "is_registered");
+    let is_registered: Option<bool> = utils::parse_parameter(&params, "is_registered");
     let last_seen_from: Option<DateTime<Utc>> =
         utils::parse_parameter_date(&params, "last_seen_from");
     let last_seen_to: Option<DateTime<Utc>> = utils::parse_parameter_date(&params, "last_seen_to");
-    let owner: Option<String> = utils::parse_parameter_string(&params, "owner");
-    let device_type: Option<String> = utils::parse_parameter_string(&params, "device_type");
-    let vendor: Option<String> = utils::parse_parameter_string(&params, "vendor");
-    let sort_by: Option<String> = utils::parse_parameter_string(&params, "sort_by");
-    let sort_order: Option<String> = utils::parse_parameter_string(&params, "sort_order");
-    let page_offset: Option<i64> = utils::parse_parameter_int(&params, "page_offset");
-    let page_limit: Option<i64> = utils::parse_parameter_int(&params, "page_limit");
+    let owner: Option<String> = utils::parse_parameter(&params, "owner");
+    let device_type: Option<String> = utils::parse_parameter(&params, "device_type");
+    let vendor: Option<String> = utils::parse_parameter(&params, "vendor");
+    let sort_by: Option<String> = utils::parse_parameter(&params, "sort_by");
+    let sort_order: Option<String> = utils::parse_parameter(&params, "sort_order");
+    let page_offset: Option<i64> = utils::parse_parameter(&params, "page_offset");
+    let page_limit: Option<i64> = utils::parse_parameter(&params, "page_limit");
 
     let items = match db::devices::list_devices(
         is_registered,

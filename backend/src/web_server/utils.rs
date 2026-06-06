@@ -1,41 +1,21 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use log::{debug, warn};
 
-pub fn parse_parameter_bool(params: &HashMap<String, String>, name: &str) -> Option<bool> {
-    if params.contains_key(name) {
-        let param_value = params.get(name).unwrap().as_str();
-        debug!("Found parameter {name} with value {}", param_value);
-        param_value.parse::<bool>().ok()
-    } else {
-        None
-    }
-}
-
-pub fn parse_parameter_int(params: &HashMap<String, String>, name: &str) -> Option<i64> {
-    if params.contains_key(name) {
-        let param_value = params.get(name).unwrap().as_str();
-        debug!("Found parameter {name} with value {}", param_value);
-        param_value.parse::<i64>().ok()
-    } else {
-        None
-    }
-}
-
-pub fn parse_parameter_string(params: &HashMap<String, String>, name: &str) -> Option<String> {
-    if params.contains_key(name) {
-        let param_value = params.get(name).unwrap().as_str();
-        debug!("Found parameter {name} with value {}", param_value);
-        Some(param_value.to_string())
-    } else {
-        None
-    }
+// Parses a query parameter into any `FromStr` type (e.g. bool, i64, String). Returns `None` when
+// the parameter is absent or fails to parse. The target type is inferred from the call site, so
+// callers annotate the binding: `let limit: Option<i64> = parse_parameter(&params, "page_limit");`
+pub fn parse_parameter<T: FromStr>(params: &HashMap<String, String>, name: &str) -> Option<T> {
+    let param_value = params.get(name)?;
+    debug!("Found parameter {name} with value {param_value}");
+    param_value.parse::<T>().ok()
 }
 
 pub fn parse_parameter_date(params: &HashMap<String, String>, name: &str) -> Option<DateTime<Utc>> {
-    if params.contains_key(name) {
-        let mut param_value = params.get(name).unwrap().to_ascii_uppercase();
+    if let Some(value) = params.get(name) {
+        let mut param_value = value.to_ascii_uppercase();
         if !param_value.ends_with("Z") {
             param_value.push('Z');
         }

@@ -18,7 +18,7 @@ pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let socket = finder::open_socket()?;
-    status::set_listening();
+    status::STATUS.set_listening();
     info!("DHCP scanner listening for client requests");
 
     let mut buf = [0u8; 1500];
@@ -54,5 +54,5 @@ fn process_discovery(discovery: finder::DhcpDiscovery) {
     let device = build_device(mac.clone(), ipv4, &[], discovery.hostname);
 
     pipeline::record_sighting(device, DeviceEventScanner::Dhcp);
-    status::record_discovery(&mac);
+    status::STATUS.record_discovery(&mac);
 }

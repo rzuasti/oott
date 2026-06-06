@@ -13,5 +13,5 @@ use crate::web_server::scanner_status::{ActiveScannerStatusResponse, active_resp
     security(("bearer_auth" = []))
 )]
 pub async fn status() -> Result<Json<ActiveScannerStatusResponse>, StatusCode> {
-    active_response(crate::scanners::snmp::status::get()).map(Json)
+    active_response(crate::scanners::snmp::status::STATUS.get()).map(Json)
 }

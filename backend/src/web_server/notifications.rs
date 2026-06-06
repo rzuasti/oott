@@ -130,9 +130,9 @@ pub async fn mark_all_as_old() -> impl IntoResponse {
 pub async fn list(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<NotificationListResponse>, StatusCode> {
-    let is_new: Option<bool> = utils::parse_parameter_bool(&params, "is_new");
-    let page_offset: Option<i64> = utils::parse_parameter_int(&params, "page_offset");
-    let page_limit: Option<i64> = utils::parse_parameter_int(&params, "page_limit");
+    let is_new: Option<bool> = utils::parse_parameter(&params, "is_new");
+    let page_offset: Option<i64> = utils::parse_parameter(&params, "page_offset");
+    let page_limit: Option<i64> = utils::parse_parameter(&params, "page_limit");
 
     let items = match db::notifications::list(is_new, page_offset, page_limit) {
         Ok(value) => value,

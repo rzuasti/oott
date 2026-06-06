@@ -14,14 +14,14 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     loop {
-        status::set_running();
+        status::STATUS.set_running();
 
         // Find online devices via ARP
         let devices = finder::find(get_settings().networking.interface.clone()).await?;
 
         info!("Done with ARP probes");
         info!("Found {} online devices", devices.len());
-        status::record_scan(&devices);
+        status::STATUS.record_scan(&devices);
 
         // Process found devices
         for device in devices.iter() {
@@ -35,7 +35,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
             "Scan finished. Sleeping for {}",
             get_settings().arp_scanner.wait_between_scans
         );
-        status::set_waiting(next_scan_at);
+        status::STATUS.set_waiting(next_scan_at);
         sleep(wait).await;
     }
 }

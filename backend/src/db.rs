@@ -41,6 +41,26 @@ pub fn get_db_connection() -> PooledConnection<SqliteConnectionManager> {
     }
 }
 
+// Appends the shared `LIMIT ? OFFSET ?` paging clause (and its bound parameters) to a list query
+// when both an offset and a limit are supplied. Used by the list endpoints (devices, notifications,
+// device_events) so they page identically.
+pub fn apply_paging(
+    sql: &mut String,
+    params: &mut Vec<rusqlite::types::Value>,
+    page_offset: Option<i64>,
+    page_limit: Option<i64>,
+) {
+    if let (Some(page_offset), Some(page_limit)) = (page_offset, page_limit) {
+        debug!(
+            "Adding paging to list with offset={} and limit={}",
+            page_offset, page_limit
+        );
+        sql.push_str(" LIMIT ? OFFSET ?");
+        params.push(page_limit.into());
+        params.push(page_offset.into());
+    }
+}
+
 pub async fn init_db() -> Result<(), DbError> {
     let mut initialised = INITIALISED.lock().await;
     if *initialised {

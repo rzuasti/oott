@@ -30,8 +30,8 @@ pub async fn list(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<Vec<DeviceEvent>>, StatusCode> {
     let created_from = utils::parse_parameter_date(&params, "created_from");
-    let page_offset: Option<i64> = utils::parse_parameter_int(&params, "page_offset");
-    let page_limit: Option<i64> = utils::parse_parameter_int(&params, "page_limit");
+    let page_offset: Option<i64> = utils::parse_parameter(&params, "page_offset");
+    let page_limit: Option<i64> = utils::parse_parameter(&params, "page_limit");
 
     match db::device_events::list(Some(mac_address), created_from, page_offset, page_limit) {
         Ok(value) => Ok(Json(value)),

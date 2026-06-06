@@ -118,16 +118,7 @@ pub fn list_devices(
     ));
 
     // Paging
-    if let (Some(page_offset), Some(page_limit)) = (page_offset, page_limit) {
-        debug!(
-            "Adding paging to list with offset={} and limit={}",
-            page_offset, page_limit
-        );
-        sql_statement.push_str("LIMIT ? OFFSET ?");
-
-        params.push(page_limit.into());
-        params.push(page_offset.into());
-    };
+    db::apply_paging(&mut sql_statement, &mut params, page_offset, page_limit);
 
     let mut stmt = conn.prepare(sql_statement.as_str())?;
 
