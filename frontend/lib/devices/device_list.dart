@@ -17,6 +17,7 @@ import '../widgets/skeleton.dart';
 import 'device_list_filter.dart';
 import 'device_list_rows.dart';
 import 'device_list_sort.dart';
+import '../routes.dart';
 
 class DeviceList extends StatefulWidget {
   const DeviceList({super.key});
@@ -273,7 +274,7 @@ class _DeviceListState extends State<DeviceList>
         icon: Icons.devices_other_outlined,
         message: _emptyMessage(),
         actionLabel: 'Check scanner status',
-        onAction: () => context.go('/status'),
+        onAction: () => context.go(Routes.status),
       );
     }
 

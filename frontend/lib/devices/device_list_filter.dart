@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../model/device_type.dart';
+import '../theme/dimens.dart';
 
 enum DeviceFilter {
   newDevices('Not registered'),
@@ -42,7 +43,7 @@ class DeviceFilterSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Filters', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 16),
+          const SizedBox(height: Insets.lg),
           TextField(
             controller: ownerController,
             decoration: const InputDecoration(
@@ -51,7 +52,7 @@ class DeviceFilterSheet extends StatelessWidget {
               border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Insets.lg),
           DropdownButtonFormField<DeviceType?>(
             initialValue: typeFilter,
             decoration: const InputDecoration(
@@ -66,7 +67,7 @@ class DeviceFilterSheet extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(t.icon, size: 16),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: Insets.xs),
                       Text(t.label),
                     ],
                   ),
@@ -75,7 +76,7 @@ class DeviceFilterSheet extends StatelessWidget {
             ],
             onChanged: onTypeChanged,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Insets.lg),
           if (hasActiveFilters)
             OutlinedButton(
               onPressed: () {

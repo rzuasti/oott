@@ -6,12 +6,12 @@ void main() {
   final options = RequestOptions(path: '/x');
 
   DioException dio(DioExceptionType type, {int? status}) => DioException(
-        requestOptions: options,
-        type: type,
-        response: status == null
-            ? null
-            : Response(requestOptions: options, statusCode: status),
-      );
+    requestOptions: options,
+    type: type,
+    response: status == null
+        ? null
+        : Response(requestOptions: options, statusCode: status),
+  );
 
   test('maps shape errors', () {
     expect(

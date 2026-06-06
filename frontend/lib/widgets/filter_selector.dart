@@ -71,10 +71,8 @@ class FilterSelector<T> extends StatelessWidget {
           onSelected: onSelected,
           itemBuilder: (context) => values
               .map(
-                (value) => PopupMenuItem<T>(
-                  value: value,
-                  child: Text(labelOf(value)),
-                ),
+                (value) =>
+                    PopupMenuItem<T>(value: value, child: Text(labelOf(value))),
               )
               .toList(),
           child: Container(

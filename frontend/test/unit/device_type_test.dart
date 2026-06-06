@@ -4,7 +4,10 @@ import 'package:frontend/model/device_type.dart';
 void main() {
   test('fromString parses every snake_case API name', () {
     expect(DeviceType.fromString('phone'), DeviceType.phone);
-    expect(DeviceType.fromString('network_appliance'), DeviceType.networkAppliance);
+    expect(
+      DeviceType.fromString('network_appliance'),
+      DeviceType.networkAppliance,
+    );
     expect(DeviceType.fromString('home_security'), DeviceType.homeSecurity);
     expect(DeviceType.fromString('home_appliance'), DeviceType.homeAppliance);
     expect(DeviceType.fromString('gaming_console'), DeviceType.gamingConsole);

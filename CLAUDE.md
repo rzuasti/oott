@@ -60,3 +60,4 @@ For Flutter/Dart code:
 - In the frontend, always use colors from the selected theme. Never hard code colors any other way. If a color is needed and it's not covered semantically by the theme, suggest an addition to the theme extension implemented in the project.
 - In the backend Rust code, avoid import aliases ("use ... as ...") unless necessary
 - Do not create branches by default, commit directly to main (this is a single developer project)
+- When files are changed by the formatter do not revert them to keep the commit pure, just add them to the current commit.

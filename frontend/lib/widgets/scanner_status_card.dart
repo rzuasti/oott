@@ -6,6 +6,8 @@ import '../utils/backend_reachability.dart';
 import '../utils/periodic_rebuild.dart';
 import '../utils/polled_value.dart';
 import 'polled_stale_indicator.dart';
+import '../theme/dimens.dart';
+import '../routes.dart';
 
 typedef ScannerStatus = ({Color color, String label, List<String> sublabels});
 
@@ -65,7 +67,7 @@ class _ScannerStatusCardState<T> extends State<ScannerStatusCard<T>>
         if (freshness == PolledFreshness.initialLoading) {
           return const Card(
             child: Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(Insets.lg),
               child: Center(child: CircularProgressIndicator()),
             ),
           );
@@ -78,13 +80,13 @@ class _ScannerStatusCardState<T> extends State<ScannerStatusCard<T>>
         return Card(
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: () => context.go('/status'),
+            onTap: () => context.go(Routes.status),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Insets.lg),
               child: Row(
                 children: [
                   Icon(Icons.circle, color: status.color, size: 14),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: Insets.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

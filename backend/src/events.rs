@@ -113,14 +113,18 @@ fn enqueue_delivery(title: String, body: String) {
     }
 }
 
-// Device name for display in messages; falls back to "(unknown)" for devices with no
+// Placeholder shown in notifications for a value the scanners could not determine. A plain ASCII
+// hyphen (rather than an em dash) avoids encoding issues across notification transports.
+const UNKNOWN_PLACEHOLDER: &str = "-";
+
+// Device name for display in messages; falls back to the placeholder for devices with no
 // mDNS-discovered hostname (e.g. those found only via ARP).
 fn display_name(device: &Device) -> &str {
     device
         .name
         .as_deref()
         .filter(|name| !name.is_empty())
-        .unwrap_or("(unknown)")
+        .unwrap_or(UNKNOWN_PLACEHOLDER)
 }
 
 // Identifier used in notification titles, so a Pushover preview is triageable
@@ -142,11 +146,19 @@ fn title_identity(device: &Device) -> String {
     format!("device …{suffix}")
 }
 
-fn device_type_or_unknown(device: &Device) -> &str {
+fn device_type_or_placeholder(device: &Device) -> &str {
     if device.device_type.is_empty() {
-        "Unknown"
+        UNKNOWN_PLACEHOLDER
     } else {
         &device.device_type
+    }
+}
+
+fn vendor_or_placeholder(device: &Device) -> &str {
+    if device.vendor.is_empty() {
+        UNKNOWN_PLACEHOLDER
+    } else {
+        &device.vendor
     }
 }
 
@@ -181,8 +193,8 @@ fn render_new_device(device: &Device) -> (String, String) {
     writeln!(body).unwrap();
     writeln!(body, "Device").unwrap();
     writeln!(body, "  Name: {}", display_name(device)).unwrap();
-    writeln!(body, "  Vendor: {}", device.vendor).unwrap();
-    writeln!(body, "  Type: {}", device_type_or_unknown(device)).unwrap();
+    writeln!(body, "  Vendor: {}", vendor_or_placeholder(device)).unwrap();
+    writeln!(body, "  Type: {}", device_type_or_placeholder(device)).unwrap();
     writeln!(body).unwrap();
     writeln!(body, "Status").unwrap();
     writeln!(body, "  {}", registration_line(device)).unwrap();
@@ -211,8 +223,8 @@ fn render_device_back_online(device: &Device, duration_text: &str) -> (String, S
     writeln!(body).unwrap();
     writeln!(body, "Device").unwrap();
     writeln!(body, "  Name: {}", display_name(device)).unwrap();
-    writeln!(body, "  Vendor: {}", device.vendor).unwrap();
-    writeln!(body, "  Type: {}", device_type_or_unknown(device)).unwrap();
+    writeln!(body, "  Vendor: {}", vendor_or_placeholder(device)).unwrap();
+    writeln!(body, "  Type: {}", device_type_or_placeholder(device)).unwrap();
     writeln!(body).unwrap();
     writeln!(body, "Status").unwrap();
     writeln!(body, "  {}", registration_line(device)).unwrap();
@@ -241,7 +253,7 @@ fn render_device_changed(
     writeln!(body).unwrap();
     writeln!(body, "Device").unwrap();
     writeln!(body, "  Name: {}", display_name(new)).unwrap();
-    writeln!(body, "  Type: {}", device_type_or_unknown(new)).unwrap();
+    writeln!(body, "  Type: {}", device_type_or_placeholder(new)).unwrap();
     writeln!(body).unwrap();
     writeln!(body, "Status").unwrap();
     writeln!(body, "  {}", registration_line(new)).unwrap();
@@ -642,12 +654,29 @@ mod tests {
     }
 
     #[test]
-    fn device_type_falls_back_to_unknown_when_empty() {
+    fn device_type_falls_back_to_placeholder_when_empty() {
         let mut device = sample_device(None);
-        assert_eq!(device_type_or_unknown(&device), "Smartphone");
+        assert_eq!(device_type_or_placeholder(&device), "Smartphone");
 
         device.device_type = "".to_string();
-        assert_eq!(device_type_or_unknown(&device), "Unknown");
+        assert_eq!(device_type_or_placeholder(&device), UNKNOWN_PLACEHOLDER);
+    }
+
+    #[test]
+    fn vendor_falls_back_to_placeholder_when_empty() {
+        let mut device = sample_device(None);
+        assert_eq!(vendor_or_placeholder(&device), "Apple, Inc.");
+
+        device.vendor = "".to_string();
+        assert_eq!(vendor_or_placeholder(&device), UNKNOWN_PLACEHOLDER);
+    }
+
+    #[test]
+    fn new_device_body_uses_placeholder_for_missing_vendor() {
+        let mut device = sample_device(Some("printer.local"));
+        device.vendor = "".to_string();
+        let (_, body) = render_new_device(&device);
+        assert!(body.contains(&format!("Vendor: {UNKNOWN_PLACEHOLDER}")));
     }
 
     #[test]
@@ -667,10 +696,10 @@ mod tests {
     }
 
     #[test]
-    fn new_device_body_uses_unknown_for_missing_name() {
+    fn new_device_body_uses_placeholder_for_missing_name() {
         let device = sample_device(None);
         let (_, body) = render_new_device(&device);
-        assert!(body.contains("Name: (unknown)"));
+        assert!(body.contains(&format!("Name: {UNKNOWN_PLACEHOLDER}")));
     }
 
     #[test]

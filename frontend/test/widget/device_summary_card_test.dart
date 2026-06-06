@@ -14,8 +14,9 @@ void main() {
     adapter = await setUpBackendForTest();
   });
 
-  testWidgets('shows a loading spinner before the summary arrives',
-      (tester) async {
+  testWidgets('shows a loading spinner before the summary arrives', (
+    tester,
+  ) async {
     adapter.onGet(
       '/devices/summary',
       (server) => server.reply(200, deviceSummaryJson()),
@@ -60,10 +61,7 @@ void main() {
       find.textContaining('Backend error (status 500)'),
     );
 
-    expect(
-      find.textContaining('Backend error (status 500)'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Backend error (status 500)'), findsOneWidget);
 
     await tearDownTree(tester);
   });

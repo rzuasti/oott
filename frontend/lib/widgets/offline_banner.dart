@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../utils/backend_reachability.dart';
+import '../theme/dimens.dart';
+import '../routes.dart';
 
 class OfflineBanner extends StatelessWidget {
   const OfflineBanner({super.key});
@@ -22,7 +24,10 @@ class OfflineBanner extends StatelessWidget {
         return Material(
           color: theme.colorScheme.errorContainer,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Insets.lg,
+              vertical: Insets.sm,
+            ),
             child: Row(
               children: [
                 Icon(
@@ -30,7 +35,7 @@ class OfflineBanner extends StatelessWidget {
                   size: 18,
                   color: theme.colorScheme.onErrorContainer,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: Insets.md),
                 Expanded(
                   child: Text(
                     message,
@@ -49,7 +54,7 @@ class OfflineBanner extends StatelessWidget {
                   child: const Text('Retry'),
                 ),
                 TextButton(
-                  onPressed: () => context.go('/settings'),
+                  onPressed: () => context.go(Routes.settings),
                   style: TextButton.styleFrom(
                     foregroundColor: theme.colorScheme.onErrorContainer,
                   ),

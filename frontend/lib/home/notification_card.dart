@@ -5,6 +5,7 @@ import '../model/notification.dart' as oott_model;
 import '../theme/app_colors.dart';
 import '../theme/dimens.dart';
 import '../utils/friendly_date_formatter.dart';
+import '../routes.dart';
 
 // How long the arrival highlight takes to fade out.
 const _flashDuration = Duration(milliseconds: 900);
@@ -67,7 +68,7 @@ class _NotificationCardState extends State<NotificationCard> {
                   if (left) widget.onRemove?.call(animated: true);
                 }
                 if (context.mounted) {
-                  context.push('/devices/${widget.item.macAddress}');
+                  context.push(Routes.deviceDetail(widget.item.macAddress!));
                 }
               },
             ),

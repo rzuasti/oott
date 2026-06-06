@@ -14,8 +14,9 @@ void main() {
     await setUpBackendForTest();
   });
 
-  testWidgets('shows a spinner, then the resolved label and sublabels',
-      (tester) async {
+  testWidgets('shows a spinner, then the resolved label and sublabels', (
+    tester,
+  ) async {
     await pumpScreen(
       tester,
       ScannerStatusCard<int>(

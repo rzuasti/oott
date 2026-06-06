@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/dimens.dart';
 
 enum DeviceSortColumn {
   deviceType('Device Type', 'device_type'),
@@ -41,7 +42,7 @@ class DeviceSortSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Sort by', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
+          const SizedBox(height: Insets.sm),
           RadioGroup<DeviceSortColumn>(
             groupValue: currentColumn,
             onChanged: (value) {
@@ -61,7 +62,7 @@ class DeviceSortSheet extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Insets.sm),
           Center(
             child: SegmentedButton<bool>(
               segments: const [

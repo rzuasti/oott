@@ -32,9 +32,9 @@ void main() {
   }
 
   DioException connectionError() => DioException(
-        requestOptions: RequestOptions(path: '/x'),
-        type: DioExceptionType.connectionError,
-      );
+    requestOptions: RequestOptions(path: '/x'),
+    type: DioExceptionType.connectionError,
+  );
 
   test('starts in initialLoading then becomes fresh on success', () async {
     final polled = makePolled();
@@ -62,28 +62,30 @@ void main() {
     expect(polled.lastErrorMessage, isNotNull);
   });
 
-  test('a failure after a success is stale, then error past staleErrorAfter',
-      () async {
-    final polled = makePolled(staleErrorAfter: const Duration(seconds: 1));
-    addTearDown(polled.dispose);
+  test(
+    'a failure after a success is stale, then error past staleErrorAfter',
+    () async {
+      final polled = makePolled(staleErrorAfter: const Duration(seconds: 1));
+      addTearDown(polled.dispose);
 
-    completers[0].complete(1);
-    await pumpEventQueue();
-    expect(polled.freshness, PolledFreshness.fresh);
+      completers[0].complete(1);
+      await pumpEventQueue();
+      expect(polled.freshness, PolledFreshness.fresh);
 
-    // Force a second load and fail it.
-    polled.pause();
-    polled.resume();
-    await pumpEventQueue();
-    completers[1].completeError(connectionError());
-    await pumpEventQueue();
+      // Force a second load and fail it.
+      polled.pause();
+      polled.resume();
+      await pumpEventQueue();
+      completers[1].completeError(connectionError());
+      await pumpEventQueue();
 
-    expect(polled.value, 1, reason: 'keeps the last good value');
-    expect(polled.freshness, PolledFreshness.stale);
+      expect(polled.value, 1, reason: 'keeps the last good value');
+      expect(polled.freshness, PolledFreshness.stale);
 
-    await Future<void>.delayed(const Duration(milliseconds: 1200));
-    expect(polled.freshness, PolledFreshness.error);
-  });
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      expect(polled.freshness, PolledFreshness.error);
+    },
+  );
 
   test('effectiveFreshness downgrades error to stale while offline', () async {
     final polled = makePolled(staleErrorAfter: const Duration(milliseconds: 1));

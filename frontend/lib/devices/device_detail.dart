@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../model/device.dart';
+import '../model/device_type.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../widgets/status_badge.dart';
 import 'device_actions.dart';
 import 'device_event_history.dart';
+import '../theme/dimens.dart';
+import '../utils/placeholders.dart';
 
 class DeviceDetail extends StatefulWidget {
   final String macAddress;
@@ -78,7 +81,7 @@ class _DeviceDetailState extends State<DeviceDetail> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('Error: $_error'),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: Insets.lg),
                       FilledButton(
                         onPressed: _loadDevice,
                         child: const Text('Retry'),
@@ -89,18 +92,18 @@ class _DeviceDetailState extends State<DeviceDetail> {
               : device == null
               ? const Center(child: Text('Device not found'))
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(Insets.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _DeviceHeader(device: device),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: Insets.xxl),
                       _DeviceInfoCard(device: device),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: Insets.xxl),
                       _DeviceActions(device: device, onAction: _loadDevice),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: Insets.xxl),
                       _SectionHeader(title: 'Event History'),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: Insets.md),
                       DeviceEventHistory(device: device),
                     ],
                   ),
@@ -137,7 +140,7 @@ class _DeviceHeader extends StatelessWidget {
           size: 48,
           color: theme.colorScheme.onSurface,
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: Insets.lg),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,7 +149,7 @@ class _DeviceHeader extends StatelessWidget {
                 device.ipv4Address,
                 style: theme.textTheme.headlineSmall,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: Insets.xs),
               if (device.isRegistered)
                 StatusBadge(label: 'Registered', color: BadgeColor.success)
               else
@@ -173,14 +176,24 @@ class _DeviceInfoCard extends StatelessWidget {
     final rows = <(String, String)>[
       (
         'Name',
-        device.name == null || device.name!.isEmpty ? '—' : device.name!,
+        device.name == null || device.name!.isEmpty
+            ? Placeholders.emptyValue
+            : device.name!,
       ),
       ('MAC Address', device.macAddress),
       ('IP Address', device.ipv4Address),
-      ('Vendor', device.vendor.isEmpty ? '—' : device.vendor),
+      (
+        'Vendor',
+        device.vendor.isEmpty ? Placeholders.emptyValue : device.vendor,
+      ),
       ('Last Seen', formatter.format(device.lastSeen)),
-      ('Device Type', device.deviceType.label),
-      ('Owner', device.owner.isEmpty ? '—' : device.owner),
+      (
+        'Device Type',
+        device.deviceType == DeviceType.unknown
+            ? Placeholders.emptyValue
+            : device.deviceType.label,
+      ),
+      ('Owner', device.owner.isEmpty ? Placeholders.emptyValue : device.owner),
     ];
 
     return Card(
@@ -246,7 +259,10 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Insets.lg,
+        vertical: Insets.md,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

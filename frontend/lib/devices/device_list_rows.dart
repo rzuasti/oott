@@ -8,6 +8,9 @@ import '../utils/friendly_date_formatter.dart';
 import '../widgets/status_badge.dart';
 import 'device_actions.dart';
 import 'device_list_sort.dart';
+import '../theme/dimens.dart';
+import '../utils/placeholders.dart';
+import '../routes.dart';
 
 // Column layout shared between the header and data rows so cells line up.
 const double _iconWidth = 40;
@@ -37,7 +40,7 @@ String _displayName(Device device) {
         : device.deviceType.label;
     return "${device.owner}'s $type";
   }
-  return '—';
+  return Placeholders.emptyValue;
 }
 
 class DeviceListHeaderDelegate extends SliverPersistentHeaderDelegate {
@@ -130,7 +133,10 @@ class _HeaderCell extends StatelessWidget {
       child: InkWell(
         onTap: () => onTap(column),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Insets.sm,
+            vertical: Insets.md,
+          ),
           child: Row(
             children: [
               Flexible(
@@ -141,7 +147,7 @@ class _HeaderCell extends StatelessWidget {
                 ),
               ),
               if (isActive) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: Insets.xs),
                 Icon(
                   ascending ? Icons.arrow_upward : Icons.arrow_downward,
                   size: 16,
@@ -183,7 +189,7 @@ class _IconHeaderCell extends StatelessWidget {
         child: Tooltip(
           message: 'Sort by device type',
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(vertical: Insets.md),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -221,7 +227,7 @@ class DeviceRowWide extends StatelessWidget {
     return Material(
       color: device.isRegistered ? null : theme.colorScheme.secondaryContainer,
       child: InkWell(
-        onTap: () => context.push('/devices/${device.macAddress}'),
+        onTap: () => context.push(Routes.deviceDetail(device.macAddress)),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
@@ -248,10 +254,7 @@ class DeviceRowWide extends StatelessWidget {
                 ),
               SizedBox(
                 width: _trailingWidth,
-                child: _DeviceActionsMenu(
-                  device: device,
-                  onRefresh: onRefresh,
-                ),
+                child: _DeviceActionsMenu(device: device, onRefresh: onRefresh),
               ),
             ],
           ),
@@ -287,7 +290,7 @@ Widget _cellContent(
         );
       }
       return _OverflowTooltipText(
-        text: device.owner.isEmpty ? '—' : device.owner,
+        text: device.owner.isEmpty ? Placeholders.emptyValue : device.owner,
         style: theme.textTheme.bodyMedium,
       );
     case DeviceSortColumn.macAddress:
@@ -315,7 +318,7 @@ Widget _cellContent(
       );
     case DeviceSortColumn.vendor:
       return _OverflowTooltipText(
-        text: device.vendor.isEmpty ? '—' : device.vendor,
+        text: device.vendor.isEmpty ? Placeholders.emptyValue : device.vendor,
         style: theme.textTheme.bodyMedium,
       );
   }
@@ -338,11 +341,7 @@ class _OverflowTooltipText extends StatelessWidget {
           textDirection: Directionality.of(context),
           textScaler: MediaQuery.textScalerOf(context),
         )..layout(maxWidth: constraints.maxWidth);
-        final child = Text(
-          text,
-          overflow: TextOverflow.ellipsis,
-          style: style,
-        );
+        final child = Text(text, overflow: TextOverflow.ellipsis, style: style);
         return painter.didExceedMaxLines
             ? Tooltip(message: text, child: child)
             : child;
@@ -369,7 +368,7 @@ class DeviceRowCompact extends StatelessWidget {
     return Card(
       color: device.isRegistered ? null : theme.colorScheme.secondaryContainer,
       child: ListTile(
-        onTap: () => context.push('/devices/${device.macAddress}'),
+        onTap: () => context.push(Routes.deviceDetail(device.macAddress)),
         leading: Tooltip(
           message: device.deviceType == DeviceType.unknown
               ? 'Device type unknown'
@@ -378,10 +377,8 @@ class DeviceRowCompact extends StatelessWidget {
         ),
         title: Row(
           children: [
-            Flexible(
-              child: _OverflowTooltipText(text: _displayName(device)),
-            ),
-            const SizedBox(width: 8),
+            Flexible(child: _OverflowTooltipText(text: _displayName(device))),
+            const SizedBox(width: Insets.sm),
             if (device.isRegistered)
               const StatusBadge(label: 'Registered', color: BadgeColor.success)
             else
@@ -400,7 +397,7 @@ class DeviceRowCompact extends StatelessWidget {
             children: [
               _OverflowTooltipText(
                 text:
-                    '${device.isRegistered ? (device.owner.isEmpty ? '—' : device.owner) : device.ipv4Address} · ${device.macAddress}',
+                    '${device.isRegistered ? (device.owner.isEmpty ? Placeholders.emptyValue : device.owner) : device.ipv4Address} · ${device.macAddress}',
               ),
               if (!device.isRegistered && device.vendor.isNotEmpty)
                 _OverflowTooltipText(text: device.vendor),
@@ -460,7 +457,7 @@ class _DeviceActionsMenu extends StatelessWidget {
       icon: const Icon(Icons.more_vert),
       onSelected: (value) async {
         if (value == 'details') {
-          context.push('/devices/${device.macAddress}');
+          context.push(Routes.deviceDetail(device.macAddress));
         } else if (value == 'edit') {
           await showEditDeviceDialog(context, device, onRefresh);
         } else if (value == 'forget') {

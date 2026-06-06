@@ -12,6 +12,8 @@ import '../utils/oott_api.dart';
 import '../utils/periodic_rebuild.dart';
 import '../utils/polled_value.dart';
 import 'polled_stale_indicator.dart';
+import '../theme/dimens.dart';
+import '../routes.dart';
 
 /// One scanner shown in the combined card: its display name, the polled status,
 /// and how to turn the current value into a (colour, one-line text) summary.
@@ -136,7 +138,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
         if (freshness.values.any((f) => f == PolledFreshness.initialLoading)) {
           return const Card(
             child: Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(Insets.lg),
               child: Center(child: CircularProgressIndicator()),
             ),
           );
@@ -145,9 +147,9 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
         return Card(
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: () => context.go('/status'),
+            onTap: () => context.go(Routes.status),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Insets.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -155,9 +157,9 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
                     'Scanners',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Insets.md),
                   for (var i = 0; i < _scanners.length; i++) ...[
-                    if (i > 0) const SizedBox(height: 8),
+                    if (i > 0) const SizedBox(height: Insets.sm),
                     _scannerRow(
                       context,
                       _scanners[i],
@@ -201,7 +203,7 @@ class _ScannersStatusCardState extends State<ScannersStatusCard>
             ],
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: Insets.sm),
         Text(
           statusText,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(

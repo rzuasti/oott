@@ -31,7 +31,7 @@ class PaginationBar extends StatelessWidget {
     // registered and double-taps are blocked; the progress cue itself is drawn
     // by the app shell at the bottom of the page body.
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: Insets.sm),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -40,14 +40,14 @@ class PaginationBar extends StatelessWidget {
             icon: const Icon(Icons.first_page),
             tooltip: 'First page',
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: Insets.sm),
           IconButton.outlined(
             onPressed: canGoBack ? () => onPageChanged(currentPage - 1) : null,
             icon: const Icon(Icons.chevron_left),
             tooltip: 'Previous page',
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: Insets.lg),
             child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
           ),
           IconButton.outlined(
@@ -57,7 +57,7 @@ class PaginationBar extends StatelessWidget {
             icon: const Icon(Icons.chevron_right),
             tooltip: 'Next page',
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: Insets.sm),
           IconButton.outlined(
             onPressed: canGoForward ? () => onPageChanged(lastPage) : null,
             icon: const Icon(Icons.last_page),

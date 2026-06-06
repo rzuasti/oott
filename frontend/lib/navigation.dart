@@ -10,6 +10,7 @@ import 'theme/dimens.dart';
 import 'utils/pref_utils.dart';
 import 'widgets/offline_banner.dart';
 import 'widgets/pagination_progress.dart';
+import 'routes.dart';
 
 typedef _NavDest = ({IconData icon, IconData activeIcon, String label});
 
@@ -40,7 +41,7 @@ final RouteObserver<ModalRoute<void>> routeObserver =
 
 // Routes definitions
 final GoRouter router = GoRouter(
-  initialLocation: '/',
+  initialLocation: Routes.home,
   routes: [
     ShellRoute(
       observers: [routeObserver],
@@ -49,19 +50,19 @@ final GoRouter router = GoRouter(
       },
       routes: [
         GoRoute(
-          path: '/',
+          path: Routes.home,
           name: 'home',
           builder: (context, state) => const HomeScreen(),
           redirect: (context, state) => _redirectToSettings(),
         ),
         GoRoute(
-          path: '/devices',
+          path: Routes.devices,
           name: 'devices',
           builder: (context, state) => const DeviceList(),
           redirect: (context, state) => _redirectToSettings(),
           routes: [
             GoRoute(
-              path: ':macAddress',
+              path: Routes.deviceDetailSegment,
               name: 'deviceDetail',
               builder: (context, state) {
                 final mac = state.pathParameters['macAddress']!;
@@ -71,18 +72,18 @@ final GoRouter router = GoRouter(
           ],
         ),
         GoRoute(
-          path: '/status',
+          path: Routes.status,
           name: 'status',
           builder: (context, state) => const StatusScreen(),
           redirect: (context, state) => _redirectToSettings(),
         ),
         GoRoute(
-          path: '/settings',
+          path: Routes.settings,
           name: 'settings',
           builder: (context, state) => Settings(),
         ),
         GoRoute(
-          path: '/about',
+          path: Routes.about,
           name: 'about',
           builder: (context, state) => const About(),
         ),
@@ -310,19 +311,19 @@ int _calculateSelectedIndex(BuildContext context) {
 void _onDestinationSelected(int index, BuildContext context) {
   switch (index) {
     case 0:
-      context.go('/');
+      context.go(Routes.home);
       break;
     case 1:
-      context.go('/devices');
+      context.go(Routes.devices);
       break;
     case 2:
-      context.go('/status');
+      context.go(Routes.status);
       break;
     case 3:
-      context.go('/settings');
+      context.go(Routes.settings);
       break;
     case 4:
-      context.go('/about');
+      context.go(Routes.about);
       break;
   }
 }

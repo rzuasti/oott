@@ -4,6 +4,7 @@ import '../model/device.dart';
 import '../model/device_type.dart';
 import '../utils/oott_api.dart';
 import '../utils/ui_snackbars.dart';
+import '../theme/dimens.dart';
 
 Future<void> confirmForgetDevice(
   BuildContext context,
@@ -88,7 +89,7 @@ Future<void> showEditDeviceDialog(
                       : null,
                   onSaved: (value) => owner = value?.trim() ?? '',
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Insets.lg),
                 TextFormField(
                   initialValue: name,
                   decoration: const InputDecoration(
@@ -97,7 +98,7 @@ Future<void> showEditDeviceDialog(
                   onFieldSubmitted: (_) => save(),
                   onSaved: (value) => name = value?.trim() ?? '',
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Insets.lg),
                 TextFormField(
                   initialValue: vendor,
                   decoration: const InputDecoration(
@@ -106,7 +107,7 @@ Future<void> showEditDeviceDialog(
                   onFieldSubmitted: (_) => save(),
                   onSaved: (value) => vendor = value?.trim() ?? '',
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Insets.lg),
                 DropdownButtonFormField<DeviceType>(
                   initialValue: deviceType,
                   decoration: const InputDecoration(labelText: 'Device Type'),
@@ -117,7 +118,7 @@ Future<void> showEditDeviceDialog(
                           child: Row(
                             children: [
                               Icon(t.icon, size: 16),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: Insets.xs),
                               Text(t.label),
                             ],
                           ),
@@ -135,10 +136,7 @@ Future<void> showEditDeviceDialog(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancel'),
             ),
-            TextButton(
-              onPressed: save,
-              child: const Text('Save'),
-            ),
+            TextButton(onPressed: save, child: const Text('Save')),
           ],
         );
       },
@@ -204,7 +202,7 @@ Future<void> showRegisterDeviceDialog(
                       : null,
                   onSaved: (value) => owner = value?.trim() ?? '',
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Insets.lg),
                 TextFormField(
                   initialValue: name,
                   decoration: const InputDecoration(
@@ -213,7 +211,7 @@ Future<void> showRegisterDeviceDialog(
                   onFieldSubmitted: (_) => save(),
                   onSaved: (value) => name = value?.trim() ?? '',
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Insets.lg),
                 DropdownButtonFormField<DeviceType>(
                   initialValue: deviceType,
                   decoration: const InputDecoration(labelText: 'Device Type'),
@@ -224,7 +222,7 @@ Future<void> showRegisterDeviceDialog(
                           child: Row(
                             children: [
                               Icon(t.icon, size: 16),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: Insets.xs),
                               Text(t.label),
                             ],
                           ),
@@ -242,10 +240,7 @@ Future<void> showRegisterDeviceDialog(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancel'),
             ),
-            TextButton(
-              onPressed: save,
-              child: const Text('Save'),
-            ),
+            TextButton(onPressed: save, child: const Text('Save')),
           ],
         );
       },

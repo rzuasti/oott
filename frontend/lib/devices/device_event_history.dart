@@ -5,8 +5,11 @@ import 'package:intl/intl.dart';
 
 import '../model/device.dart';
 import '../model/device_event.dart';
+import '../model/device_event_type.dart';
 import '../utils/oott_api.dart';
 import '../widgets/filter_selector.dart';
+import '../theme/dimens.dart';
+import '../utils/placeholders.dart';
 
 enum _TimeRange {
   today('Today'),
@@ -112,14 +115,14 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Padding(
-        padding: EdgeInsets.all(32),
+        padding: EdgeInsets.all(Insets.xxxl),
         child: Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_error != null) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: Insets.lg),
         child: Center(child: Text('Failed to load event history: $_error')),
       );
     }
@@ -138,10 +141,10 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
             _loadEvents();
           },
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: Insets.lg),
         if (events.isEmpty)
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
+            padding: EdgeInsets.symmetric(vertical: Insets.xxl),
             child: Center(child: Text('No events in this time range')),
           )
         else
@@ -184,7 +187,7 @@ class _EventChart extends StatelessWidget {
     final maxX = (nowMs / intervalMs).ceil() * intervalMs;
 
     final spots = events.map((e) {
-      final isNew = e.eventType == 'NewDevice';
+      final isNew = e.eventType == DeviceEventType.newDevice;
       return ScatterSpot(
         e.createdOn.millisecondsSinceEpoch.toDouble(),
         1.0,
@@ -254,7 +257,7 @@ class _EventChart extends StatelessWidget {
               final event = events[idx];
               final dt = event.createdOn.toLocal();
               final dateStr = DateFormat('MMM d, yyyy HH:mm').format(dt);
-              final baseLabel = event.eventType == 'NewDevice'
+              final baseLabel = event.eventType == DeviceEventType.newDevice
                   ? 'First seen'
                   : 'Device seen';
               final typeLabel = '$baseLabel (${event.scannerLabel})';
@@ -274,10 +277,10 @@ class _EventChart extends StatelessWidget {
               }
               if (event.vendor != device.vendor) {
                 final eventVendor = event.vendor.isEmpty
-                    ? '(unknown)'
+                    ? Placeholders.emptyValue
                     : event.vendor;
                 final currentVendor = device.vendor.isEmpty
-                    ? '(unknown)'
+                    ? Placeholders.emptyValue
                     : device.vendor;
                 diffs.add(
                   TextSpan(

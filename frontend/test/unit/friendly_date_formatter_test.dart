@@ -6,8 +6,14 @@ void main() {
   final now = DateTime.now();
 
   test('renders very recent times as "Just now"', () {
-    expect(formatter.format(now.subtract(const Duration(seconds: 30))), 'Just now');
-    expect(formatter.format(now.subtract(const Duration(minutes: 2))), 'Just now');
+    expect(
+      formatter.format(now.subtract(const Duration(seconds: 30))),
+      'Just now',
+    );
+    expect(
+      formatter.format(now.subtract(const Duration(minutes: 2))),
+      'Just now',
+    );
   });
 
   test('renders times under an hour as relative minutes', () {
@@ -19,7 +25,8 @@ void main() {
 
   test('renders earlier-today / late-yesterday times with a clock time', () {
     final candidate = now.subtract(const Duration(hours: 2));
-    final sameDay = candidate.year == now.year &&
+    final sameDay =
+        candidate.year == now.year &&
         candidate.month == now.month &&
         candidate.day == now.day;
 
@@ -30,8 +37,7 @@ void main() {
   });
 
   test('renders a yesterday-noon time as "Yesterday at"', () {
-    final yesterdayNoon =
-        DateTime(now.year, now.month, now.day - 1, 12, 0);
+    final yesterdayNoon = DateTime(now.year, now.month, now.day - 1, 12, 0);
 
     expect(formatter.format(yesterdayNoon), startsWith('Yesterday at'));
   });

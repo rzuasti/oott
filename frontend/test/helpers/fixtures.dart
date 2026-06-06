@@ -42,7 +42,7 @@ Map<String, dynamic> deviceEventJson({
   int id = 1,
   String macAddress = 'aa:bb:cc:dd:ee:ff',
   String createdOn = '2026-06-01T12:00:00Z',
-  String eventType = 'seen',
+  String eventType = 'DeviceSeen',
   String ipv4Address = '192.168.0.10',
   String vendor = 'Acme Corp',
   String scanner = 'Arp',

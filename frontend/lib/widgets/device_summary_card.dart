@@ -6,6 +6,8 @@ import '../utils/backend_reachability.dart';
 import '../utils/oott_api.dart';
 import '../utils/polled_value.dart';
 import 'polled_stale_indicator.dart';
+import '../theme/dimens.dart';
+import '../routes.dart';
 
 class DeviceSummaryCard extends StatefulWidget {
   const DeviceSummaryCard({super.key});
@@ -39,9 +41,9 @@ class _DeviceSummaryCardState extends State<DeviceSummaryCard> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.go('/devices'),
+        onTap: () => context.go(Routes.devices),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(Insets.lg),
           child: ListenableBuilder(
             listenable: Listenable.merge([
               _polled,
@@ -64,7 +66,7 @@ class _DeviceSummaryCardState extends State<DeviceSummaryCard> {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Insets.md),
                   ..._buildBody(context, freshness),
                 ],
               );

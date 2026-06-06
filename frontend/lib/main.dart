@@ -25,7 +25,9 @@ void main() {
       try {
         await PrefUtil.init();
       } catch (e, stack) {
-        debugPrint('PrefUtil.init failed, continuing with defaults: $e\n$stack');
+        debugPrint(
+          'PrefUtil.init failed, continuing with defaults: $e\n$stack',
+        );
       }
 
       runApp(const MainApp());
