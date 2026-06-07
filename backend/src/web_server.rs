@@ -17,9 +17,10 @@ use axum::response::{Redirect, Response};
 use axum::routing::{delete, get, post, put};
 use axum::{Router, http};
 use log::{debug, error, info};
-use tower::ServiceBuilder;
+use tower::{Layer, ServiceBuilder};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
+use tower_http::set_header::{SetResponseHeader, SetResponseHeaderLayer};
 use utoipa::Modify;
 use utoipa::OpenApi;
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
@@ -117,12 +118,28 @@ fn resolve_web_root(exe_dir: Option<&Path>) -> PathBuf {
     }
 }
 
+/// Serve the bundled front-end assets with `Cache-Control: no-cache`.
+///
+/// Without an explicit directive the browser falls back to heuristic caching and
+/// (together with the Flutter service worker) keeps serving stale assets after an
+/// upgrade, so new images/icons never appear until the cache happens to expire.
+/// `no-cache` does not disable caching: it forces a revalidation on every request,
+/// which is a cheap `304 Not Modified` while files are unchanged and a fresh `200`
+/// the moment they change. This guarantees users always see the latest assets.
+fn web_asset_service(web_root: PathBuf) -> SetResponseHeader<ServeDir, http::HeaderValue> {
+    SetResponseHeaderLayer::overriding(
+        http::header::CACHE_CONTROL,
+        http::HeaderValue::from_static("no-cache"),
+    )
+    .layer(ServeDir::new(web_root))
+}
+
 pub async fn serve() -> Result<(), Box<dyn Error>> {
     info!("Starting web server");
     let exe = std::env::current_exe().ok();
     let web_root = resolve_web_root(exe.as_deref().and_then(Path::parent));
     info!("Serving front-end assets from {}", web_root.display());
-    let static_files = ServeDir::new(web_root);
+    let static_files = web_asset_service(web_root);
 
     // Allow all origins and headers for API
     let cors_layer = CorsLayer::new()
@@ -246,6 +263,42 @@ mod tests {
     #[test]
     fn web_root_falls_back_to_local_dir_without_an_executable() {
         assert_eq!(resolve_web_root(None), PathBuf::from("./web"));
+    }
+
+    #[tokio::test]
+    async fn web_assets_are_served_with_no_cache() {
+        use axum::body::Body;
+        use tower::ServiceExt;
+
+        // A throwaway web root with a single asset to fetch back.
+        let web_root = std::env::temp_dir().join(format!(
+            "oott_web_asset_test_{}_{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(&web_root).unwrap();
+        std::fs::write(web_root.join("asset.txt"), b"new-asset").unwrap();
+
+        let response = web_asset_service(web_root.clone())
+            .oneshot(
+                http::Request::builder()
+                    .uri("/asset.txt")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        std::fs::remove_dir_all(&web_root).ok();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(http::header::CACHE_CONTROL)
+                .expect("front-end assets must carry a Cache-Control header"),
+            "no-cache"
+        );
     }
 
     #[test]
