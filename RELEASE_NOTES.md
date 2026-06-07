@@ -12,6 +12,32 @@ Format
 - Keep this header comment in place; the extractor ignores it.
 -->
 
+## v0.1.3 — 2026-06-07
+
+A release focused on iOS readiness, app branding, and home/device UI polish.
+
+### Features
+- New devices now offer a "How to identify this device" guide, a dialog that
+  walks through practical steps for recognising an unregistered device on the
+  network.
+- The OOTT brand icon is now the app launcher icon across every platform
+  (iOS, Android, web and Windows).
+
+### Improvements
+- On iOS the app now requests the local-network permission at launch, so
+  scanning works without a manual trip to Settings.
+- Top-level tabs now crossfade when switching instead of using the iOS slide
+  transition.
+- The home page no longer shows a redundant "Notifications" title, and the
+  empty new-notifications message was reworded.
+- Normal device-seen dots in the event history chart are smaller, so genuine
+  change and return markers stand out more.
+
+### Internal
+- Added an iOS TestFlight build pipeline via Codemagic, including persistent
+  code signing, a safe initial build number, and an export-encryption
+  exemption declaration for App Store submission.
+
 ## v0.1.2 — 2026-06-07
 
 A maintenance release focused on more accurate change/return notifications and
