@@ -18,6 +18,17 @@
 #   2. Create an environment variable group named `appstore_connect` containing
 #      APP_STORE_APP_ID = the numeric Apple ID of the app record in
 #      App Store Connect.
+#   3. Make sure GitHub actually delivers events to Codemagic, or the `tag`
+#      trigger below never fires (the tag push is pushed into the void and no
+#      build starts). The `triggering` block alone is NOT enough. Either:
+#        - install the Codemagic CI/CD GitHub App and grant it this repo
+#          (https://github.com/settings/installations), or
+#        - add the app's webhook URL (from the Codemagic app's Webhooks page)
+#          to the repo: Settings -> Webhooks, content type `application/json`,
+#          "push" events (tag pushes arrive as push events).
+#      Verify a real tag push shows up under the Codemagic app's Webhooks
+#      deliveries; an empty `GET /repos/<owner>/<repo>/hooks` plus no GitHub
+#      App install means nothing is listening.
 
 workflows:
   ios-testflight:
