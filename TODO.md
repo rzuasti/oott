@@ -8,7 +8,7 @@
 - [x] Release 0.1.0
 - [x] Fix bugs and release 0.1.1
 - [x] Install in test server (docker) following documented process
-- [ ] Install test app on iPhone
+- [x] Install test app on iPhone
 - [ ] Test in-house for 1 week
 - [ ] Implement push notifications
 - [ ] Release 0.2.0
