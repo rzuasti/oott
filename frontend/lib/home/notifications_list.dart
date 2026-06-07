@@ -321,7 +321,7 @@ class _NotificationsListState extends State<NotificationsList>
   }
 
   String _emptyMessage() => switch (_filter) {
-    _NotificationFilter.newOnly => 'No new notifications',
+    _NotificationFilter.newOnly => 'No news, good news?',
     _NotificationFilter.oldOnly => 'No old notifications',
     _NotificationFilter.all => 'No notifications yet',
   };
