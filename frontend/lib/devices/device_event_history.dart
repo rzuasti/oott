@@ -169,7 +169,7 @@ class _EventChart extends StatelessWidget {
     ColorScheme scheme,
   ) => switch (type) {
     DeviceEventType.newDevice => (radius: 9.0, color: scheme.tertiary),
-    DeviceEventType.deviceSeen => (radius: 6.0, color: scheme.tertiary),
+    DeviceEventType.deviceSeen => (radius: 4.0, color: scheme.tertiary),
     DeviceEventType.deviceChanged => (radius: 7.0, color: scheme.error),
     DeviceEventType.deviceBackOnline => (radius: 7.0, color: scheme.primary),
   };
