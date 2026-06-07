@@ -6,8 +6,8 @@ void main() {
   // The app's real [router] is configured so that switching between top-level
   // destinations crossfades (a [CustomTransitionPage]) instead of using the
   // default platform slide, which would otherwise leave the outgoing screen
-  // visible behind the incoming one. Drilling into a detail screen keeps the
-  // default slide (a plain [GoRoute.builder]).
+  // visible behind the incoming one. Drilling into a detail screen uses its own
+  // custom page builder (an opaque iOS-style slide), not the default builder.
   List<GoRoute> topLevelRoutes() {
     final shell = router.configuration.routes.single as ShellRoute;
     return shell.routes.cast<GoRoute>();
@@ -29,17 +29,17 @@ void main() {
       }
     });
 
-    test('the device detail drill-in keeps the default slide builder', () {
+    test('the device detail drill-in uses a custom page builder (slide)', () {
       final devices = routeByName('devices');
       final detail = devices.routes.single as GoRoute;
 
       expect(detail.name, 'deviceDetail');
       expect(
-        detail.builder,
+        detail.pageBuilder,
         isNotNull,
-        reason: 'the detail push should keep the default platform slide',
+        reason: 'the detail push should use the opaque drill-in slide page',
       );
-      expect(detail.pageBuilder, isNull);
+      expect(detail.builder, isNull, reason: 'the detail should not also build');
     });
   });
 }

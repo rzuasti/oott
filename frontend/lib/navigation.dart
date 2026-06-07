@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransition;
 import 'package:flutter/material.dart';
 import 'package:frontend/about/about.dart';
 import 'package:frontend/settings/settings.dart';
@@ -112,11 +113,11 @@ final GoRouter router = GoRouter(
             GoRoute(
               path: Routes.deviceDetailSegment,
               name: 'deviceDetail',
-              // A genuine forward drill-in: keep the default platform slide,
-              // which is the correct affordance for pushing a detail screen.
-              builder: (context, state) {
+              // A genuine forward drill-in: slide the detail screen in over the
+              // list (see [_drillInPage]).
+              pageBuilder: (context, state) {
                 final mac = state.pathParameters['macAddress']!;
-                return DeviceDetail(macAddress: mac);
+                return _drillInPage(state, DeviceDetail(macAddress: mac));
               },
             ),
           ],
@@ -146,20 +147,68 @@ final GoRouter router = GoRouter(
 // Duration of the crossfade between top-level destinations.
 const Duration _kTabFadeDuration = Duration(milliseconds: 200);
 
+// Duration of the drill-in slide between a list and a detail screen. Governs the
+// whole movement: a pushed route's animation also drives the underlying route's
+// secondary animation, so the incoming and outgoing screens stay in lockstep.
+const Duration _kDrillInDuration = Duration(milliseconds: 350);
+
+// Routed screens are transparent fragments painted into the shell's single
+// [Scaffold]. That is fine for a crossfade, but a screen *pushed on top* (e.g.
+// the device detail) must be opaque, otherwise the screen beneath shows straight
+// through it as it slides in ("ghosting"). Painting the theme surface behind
+// every routed page makes pushes cover cleanly.
+Widget _opaque(BuildContext context, Widget child) =>
+    ColoredBox(color: Theme.of(context).colorScheme.surface, child: child);
+
 // Page used when switching between top-level destinations (the tabs). Switching
 // peers via [context.go] is a replace, not a forward push, so the default iOS
 // slide is wrong here: it slides the incoming screen in over the outgoing one,
 // leaving the old screen visible underneath. A crossfade animates both screens
 // together (each driven by its own primary animation), so nothing is left
-// stranded in the background. Detail screens reached via [context.push] keep
-// the default platform slide.
+// stranded in the background.
+//
+// When a detail screen is pushed on top of one of these pages (see
+// [_drillInPage]) this page's *secondary* animation runs, so it also
+// parallax-slides out to the leading edge with the native iOS curve, moving in
+// lockstep with the incoming screen instead of sitting stranded behind it. A
+// completed primary animation keeps the page in place during this; the slide is
+// contributed entirely by the secondary animation.
 CustomTransitionPage<void> _fadePage(GoRouterState state, Widget child) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
     transitionDuration: _kTabFadeDuration,
     reverseTransitionDuration: _kTabFadeDuration,
     transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-        FadeTransition(opacity: animation, child: child),
+        FadeTransition(
+          opacity: animation,
+          child: CupertinoPageTransition(
+            primaryRouteAnimation: kAlwaysCompleteAnimation,
+            secondaryRouteAnimation: secondaryAnimation,
+            linearTransition: false,
+            child: _opaque(context, child),
+          ),
+        ),
+    child: child,
+  );
+}
+
+// Page used to drill into a detail screen. Slides the incoming screen in from
+// the trailing edge with the native iOS curve; the screen left behind is
+// parallaxed out by the same route animation via its own secondary transition
+// (see [_fadePage]), so both move together. The child is painted opaque so it
+// fully covers the screen beneath while sliding.
+CustomTransitionPage<void> _drillInPage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    transitionDuration: _kDrillInDuration,
+    reverseTransitionDuration: _kDrillInDuration,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+        CupertinoPageTransition(
+          primaryRouteAnimation: animation,
+          secondaryRouteAnimation: secondaryAnimation,
+          linearTransition: false,
+          child: _opaque(context, child),
+        ),
     child: child,
   );
 }
