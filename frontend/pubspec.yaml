@@ -28,9 +28,35 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   http_mock_adapter: ^0.6.1
   flutter_native_splash: ^2.4.7
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
+
+# Native launcher / home-screen icon for every platform.
+# OOTT wordmark on the brand orange (#fe8019). The square source is full-bleed
+# (iOS/web/desktop apply their own corner mask); Android uses an adaptive icon
+# with a transparent foreground over the orange background so it survives any
+# launcher mask. Regenerate the native icon sets after changing the images:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: assets/icon/oott_icon.png
+  ios: true
+  remove_alpha_ios: true
+  android: true
+  adaptive_icon_background: "#fe8019"
+  adaptive_icon_foreground: assets/icon/oott_icon_foreground.png
+  macos:
+    generate: true
+    image_path: assets/icon/oott_icon.png
+  windows:
+    generate: true
+    image_path: assets/icon/oott_icon.png
+  web:
+    generate: true
+    image_path: assets/icon/oott_icon.png
+    background_color: "#fe8019"
+    theme_color: "#fe8019"
 
 # Branded native launch screen (Android + iOS).
 # OOTT wordmark on the Gruvbox-dark background (#1d2021).

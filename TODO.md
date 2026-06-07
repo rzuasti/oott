@@ -26,7 +26,7 @@
 
 ## Frontend
 
-- [ ] The app has the default Flutter icon in iOS, use OOTT's icon
+- [x] The app has the default Flutter icon in iOS, use OOTT's icon
 - [ ] Ask for network access when the app launches, now it asks when you try to test the connection for the first time and it always fails once
 - [ ] On iOS when the user navigates between screens the previous screen remains visible on the backgroun while the other one animates in, it looks bad
 - [ ] In narrow devices, the "Notifications" title in the home screen is to close to the filter combobox and does not scroll with the page (it should)
