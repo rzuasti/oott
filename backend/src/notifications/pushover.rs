@@ -2,7 +2,7 @@ use log::{debug, error};
 use pushover::API;
 use pushover::requests::message::SendMessage;
 
-use crate::events::error::DeliveryError;
+use crate::notifications::error::DeliveryError;
 use crate::settings::Pushover;
 
 pub fn send_message(config: &Pushover, title: String, body: String) -> Result<(), DeliveryError> {

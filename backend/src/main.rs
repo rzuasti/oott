@@ -6,6 +6,7 @@ mod data;
 mod db;
 mod events;
 mod model;
+mod notifications;
 mod retention;
 mod scanners;
 mod settings;
@@ -73,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         scanners::snmp::scanner::scan(),
         web_server::serve(),
         retention::run(),
-        events::run_delivery()
+        notifications::run_delivery()
     )
     .0
 }

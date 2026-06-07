@@ -1,14 +1,16 @@
 use log::{debug, error};
 
 use crate::db;
-use crate::events::{self, DeviceChange};
-use crate::model::device_events::DeviceEventScanner;
+use crate::events;
+use crate::model::device_events::{DeviceChange, DeviceEventScanner};
 use crate::model::devices::Device;
+use crate::notifications;
 
 /// Persist a device sighting and record its device event, then return any notification-worthy
 /// changes it produced (without sending). This feeds every scanner (ARP, mDNS, SSDP, DHCP, SNMP)
 /// through one code path. Active scanners accumulate the changes across a whole scan and pass them
-/// to `events::notify` once, consolidating per type; passive listeners use `record_and_notify`.
+/// to `notifications::notify` once, consolidating per type; passive listeners use
+/// `record_and_notify`.
 ///
 /// When the device is already known, the sighting is reconciled with the stored record:
 /// - a previously stored hostname is kept rather than overwritten by this sighting's name;
@@ -37,7 +39,7 @@ pub fn record_sighting(mut device: Device, scanner: DeviceEventScanner) -> Vec<D
                 error!("Failed to update device {}: {err}", device.mac_address);
                 return Vec::new();
             }
-            events::classify_existing_device(recorded, device, scanner)
+            events::record_known_device(recorded, device, scanner)
         }
         None => {
             debug!("New device {} discovered; inserting", device.mac_address);
@@ -45,7 +47,7 @@ pub fn record_sighting(mut device: Device, scanner: DeviceEventScanner) -> Vec<D
                 error!("Failed to insert device {}: {err}", device.mac_address);
                 return Vec::new();
             }
-            events::classify_new_device(device, scanner)
+            events::record_new_device(device, scanner)
                 .into_iter()
                 .collect()
         }
@@ -56,7 +58,7 @@ pub fn record_sighting(mut device: Device, scanner: DeviceEventScanner) -> Vec<D
 /// listeners (mDNS, SSDP, DHCP), which process one device per event and so have nothing to
 /// consolidate across a scan.
 pub fn record_and_notify(device: Device, scanner: DeviceEventScanner) {
-    events::notify(record_sighting(device, scanner));
+    notifications::notify(record_sighting(device, scanner));
 }
 
 #[cfg(test)]

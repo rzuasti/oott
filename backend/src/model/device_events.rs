@@ -1,7 +1,9 @@
+use crate::model::devices::Device;
 use crate::utils::date_serializer;
 use chrono::{DateTime, Utc};
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use std::{error::Error, fmt, str::FromStr};
 use utoipa::ToSchema;
 
@@ -180,6 +182,25 @@ impl FromSql for DeviceEventScanner {
             .parse()
             .map_err(|e| FromSqlError::Other(Box::new(e)))
     }
+}
+
+/// A notification-worthy change detected for one device during a sighting. Produced by the `events`
+/// module when it records the device event, and consumed by the `notifications` module to render and
+/// deliver. Sending is deferred from detection so callers can either notify immediately (passive
+/// listeners, one device per event) or accumulate a whole scan and send one consolidated
+/// notification per type (active scanners).
+pub enum DeviceChange {
+    New(Device),
+    BackOnline {
+        device: Device,
+        absent_for: Duration,
+    },
+    Changed {
+        existing: Device,
+        new: Device,
+        ip_changed: bool,
+        vendor_changed: bool,
+    },
 }
 
 #[cfg(test)]

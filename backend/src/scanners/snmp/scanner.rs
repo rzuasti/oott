@@ -1,7 +1,7 @@
 use super::finder;
 use super::status;
-use crate::events;
 use crate::model::device_events::DeviceEventScanner;
+use crate::notifications;
 use crate::scanners::common::pipeline;
 use crate::settings::get_settings;
 use chrono::Utc;
@@ -35,7 +35,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
                 info!("SNMP poll found {} devices in the ARP cache", devices.len());
                 status::STATUS.record_scan(&devices);
                 // Accumulate every change so the whole poll emits one consolidated notification
-                // per type (see events::notify) rather than one per device.
+                // per type (see notifications::notify) rather than one per device.
                 let mut changes = Vec::new();
                 for device in devices.iter() {
                     changes.extend(pipeline::record_sighting(
@@ -43,7 +43,7 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
                         DeviceEventScanner::Snmp,
                     ));
                 }
-                events::notify(changes);
+                notifications::notify(changes);
             }
             Err(err) => error!("SNMP poll of {} failed: {err}", config.target),
         }
