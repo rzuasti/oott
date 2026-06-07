@@ -128,6 +128,8 @@ run git tag -a "$TAG" -m "OOTT $TAG"
 run git push origin "$TAG"
 run gh release create "$TAG" --title "OOTT $TAG" --notes-file "$NOTES_FILE"
 
+info "Pushing $TAG triggered Codemagic to build the iOS app and upload it to TestFlight. Track the build at https://codemagic.io/apps."
+
 # === Section 3: build the Docker image =======================================
 section "3. Build the Docker image"
 confirm "Build the Docker image with Nix now?"
