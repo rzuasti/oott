@@ -47,8 +47,12 @@ workflows:
       - name: Set up automatic code signing
         script: |
           keychain initialize
+          # Reuse a persistent private key (CERTIFICATE_PRIVATE_KEY secret) so the
+          # distribution certificate is created/reused with a key Codemagic owns.
+          # Without this, each ephemeral build VM loses the key and signing fails.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
             --create
           keychain add-certificates
           xcode-project use-profiles
