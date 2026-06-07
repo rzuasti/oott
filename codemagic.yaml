@@ -59,7 +59,10 @@ workflows:
       - name: Build IPA
         script: |
           # Each TestFlight upload needs a unique, increasing build number.
-          BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID") + 1))
+          # On the very first build there are no TestFlight builds yet, so the
+          # lookup fails - fall back to 0 so the first build number is 1.
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" 2>/dev/null || echo 0)
+          BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
           flutter build ipa --release \
             --build-number=$BUILD_NUMBER \
             --export-options-plist=/Users/builder/export_options.plist
