@@ -26,9 +26,9 @@ workflows:
     max_build_duration: 60
     working_directory: frontend
     integrations:
-      # Replace with the name of the App Store Connect integration configured
-      # in the Codemagic UI.
-      app_store_connect: OOTT App Store Connect
+      # Name of the App Store Connect integration configured in the Codemagic UI
+      # (Settings -> Integrations -> Developer Portal).
+      app_store_connect: Codemagic
     environment:
       flutter: stable
       xcode: latest
