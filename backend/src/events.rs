@@ -182,6 +182,16 @@ fn vendor_changed(existing: &str, new: &str) -> bool {
     !existing.is_empty() && !new.is_empty() && existing != new
 }
 
+// Whether a re-sighting represents a real IP-address change, mirroring vendor_changed. First
+// learning an address for a device that previously had none (empty -> value, e.g. a device known
+// only from a DHCP DISCOVER that later gets an ARP address) is not a change worth recording or
+// notifying about. A sighting that carries no address (value -> empty) is likewise not a change;
+// the pipeline already backfills the stored address in that case, so an empty `new` never reaches
+// here, but the guard keeps this correct independently of the caller.
+fn ip_changed(existing: &str, new: &str) -> bool {
+    !existing.is_empty() && !new.is_empty() && existing != new
+}
+
 fn render_new_device(device: &Device) -> (String, String) {
     let title = format!("New device on your network: {}", title_identity(device));
     let mut body = String::new();
@@ -262,8 +272,6 @@ fn render_device_changed(
     }
     if vendor_changed_flag {
         writeln!(body, "  Vendor: {} -> {}", existing.vendor, new.vendor).unwrap();
-    }
-    if vendor_changed_flag {
         writeln!(body).unwrap();
         write!(
             body,
@@ -392,19 +400,23 @@ fn send_notification(notification: Notification) -> Result<(), Box<dyn Error>> {
 /// Record a device event, skipping it when the same scanner already recorded an event for the
 /// same device (same MAC and IPv4) within the configured deduplication window. This keeps the
 /// events table from filling with near-identical rows when a scanner sees a device repeatedly.
-fn record_event(event: DeviceEvent) {
+///
+/// Returns `true` when the event was recorded and `false` when it was suppressed as a duplicate, so
+/// callers can apply the same deduplication window to the notification the sighting would raise (and
+/// therefore to its persistence and channel delivery), not just to the device_events table.
+fn record_event(event: DeviceEvent) -> bool {
     let window: Duration = get_settings().device_events.deduplication_window.into();
     let since = Utc::now() - chrono::Duration::from_std(window).unwrap_or_default();
 
     match db::device_events::recent_duplicate_exists(
         &event.mac_address,
-        &event.ipv4_address,
         &event.scanner,
+        &event.event_type,
         since,
     ) {
         Ok(true) => {
             debug!("Skipping duplicate device event within window: {event}");
-            return;
+            return false;
         }
         Ok(false) => {}
         // On a check error, fall through and record the event rather than silently drop it.
@@ -414,21 +426,26 @@ fn record_event(event: DeviceEvent) {
     if let Err(err) = db::device_events::insert(event) {
         error!("Failed to record device event: {err}");
     }
+    true
 }
 
-/// Record the device event for a brand-new device and return the change to notify about. Sending
-/// is deferred to `notify` so an active scan can consolidate many new devices into one notification.
-pub fn classify_new_device(device: Device, scanner: DeviceEventScanner) -> DeviceChange {
-    record_event(DeviceEvent::new(
+/// Record the device event for a brand-new device and return the change to notify about, or `None`
+/// when the sighting is deduplicated within the configured window (so the same window suppresses the
+/// notification as well as the device event). Sending is deferred to `notify` so an active scan can
+/// consolidate many new devices into one notification.
+pub fn classify_new_device(device: Device, scanner: DeviceEventScanner) -> Option<DeviceChange> {
+    if !record_event(DeviceEvent::new(
         device.mac_address.clone(),
         Utc::now(),
         DeviceEventType::NewDevice,
         device.ipv4_address.clone(),
         device.vendor.clone(),
         scanner,
-    ));
+    )) {
+        return None;
+    }
 
-    DeviceChange::New(device)
+    Some(DeviceChange::New(device))
 }
 
 /// Record the device-seen event for a known device and return any notification-worthy changes (it
@@ -438,14 +455,18 @@ pub fn classify_existing_device(
     new_device: Device,
     scanner: DeviceEventScanner,
 ) -> Vec<DeviceChange> {
-    record_event(DeviceEvent::new(
+    if !record_event(DeviceEvent::new(
         new_device.mac_address.clone(),
         Utc::now(),
         DeviceEventType::DeviceSeen,
         new_device.ipv4_address.clone(),
         new_device.vendor.clone(),
         scanner,
-    ));
+    )) {
+        // The sighting was deduplicated within the window; suppress its notifications too so the
+        // window governs the notifications table and channel delivery, not just device_events.
+        return Vec::new();
+    }
 
     let mut changes = Vec::new();
 
@@ -463,13 +484,13 @@ pub fn classify_existing_device(
     }
 
     // The device's vendor and/or IP changed.
-    let ip_changed = existing_device.ipv4_address != new_device.ipv4_address;
+    let ip_changed_flag = ip_changed(&existing_device.ipv4_address, &new_device.ipv4_address);
     let vendor_changed_flag = vendor_changed(&existing_device.vendor, &new_device.vendor);
-    if ip_changed || vendor_changed_flag {
+    if ip_changed_flag || vendor_changed_flag {
         changes.push(DeviceChange::Changed {
             existing: existing_device,
             new: new_device,
-            ip_changed,
+            ip_changed: ip_changed_flag,
             vendor_changed: vendor_changed_flag,
         });
     }
@@ -622,6 +643,27 @@ mod tests {
     #[test]
     fn newly_deduced_vendor_from_empty_is_not_a_change() {
         assert!(!vendor_changed("", "Apple, Inc."));
+    }
+
+    #[test]
+    fn first_ip_from_empty_is_not_a_change() {
+        // A device that gains its first address (empty -> value) has not "changed" its IP.
+        assert!(!ip_changed("", "192.168.1.42"));
+    }
+
+    #[test]
+    fn ip_to_empty_is_not_a_change() {
+        assert!(!ip_changed("192.168.1.42", ""));
+    }
+
+    #[test]
+    fn different_non_empty_ip_is_a_change() {
+        assert!(ip_changed("192.168.1.42", "192.168.1.99"));
+    }
+
+    #[test]
+    fn same_ip_is_not_a_change() {
+        assert!(!ip_changed("192.168.1.42", "192.168.1.42"));
     }
 
     #[test]
@@ -808,7 +850,11 @@ mod tests {
 
         // The delivery loop is not running in tests, so delivery is a no-op; the notification must
         // still be persisted regardless of whether it is ever delivered.
-        notify(vec![classify_new_device(device, DeviceEventScanner::Arp)]);
+        notify(
+            classify_new_device(device, DeviceEventScanner::Arp)
+                .into_iter()
+                .collect(),
+        );
 
         let notifications = db::notifications::list(None, None, None).unwrap();
         assert!(
@@ -816,6 +862,78 @@ mod tests {
                 .iter()
                 .any(|n| n.mac_address.as_deref() == Some(mac.as_str())),
             "A single new-device sighting should persist a notification carrying its MAC"
+        );
+    }
+
+    #[tokio::test]
+    async fn deduplicated_sighting_raises_no_second_notification() {
+        crate::tests_common::setup().await;
+
+        // A known device absent long enough that every sighting would, on its own, raise a
+        // "back online" notification.
+        let mut existing = sample_device(Some("dedup-back-online"));
+        existing.mac_address = "fa:ce:fa:ce:03:01".to_string();
+        existing.last_seen = Utc::now() - chrono::Duration::days(30);
+        let new = existing.clone();
+
+        let back_online_notifications = || {
+            db::notifications::list(None, None, None)
+                .unwrap()
+                .into_iter()
+                .filter(|n| {
+                    n.notification_type == NotificationType::DeviceOnlineAfterTime
+                        && n.body.contains("dedup-back-online")
+                })
+                .count()
+        };
+
+        // First sighting records the event and persists the notification.
+        notify(classify_existing_device(
+            existing.clone(),
+            new.clone(),
+            DeviceEventScanner::Arp,
+        ));
+        assert_eq!(
+            back_online_notifications(),
+            1,
+            "The first sighting should persist a back-online notification"
+        );
+
+        // A second sighting from the same scanner within the dedup window is suppressed, so it must
+        // neither persist a notification nor (had the delivery loop been running) deliver one.
+        notify(classify_existing_device(
+            existing.clone(),
+            new.clone(),
+            DeviceEventScanner::Arp,
+        ));
+        assert_eq!(
+            back_online_notifications(),
+            1,
+            "A deduplicated sighting must not persist a second notification"
+        );
+    }
+
+    #[tokio::test]
+    async fn first_ip_assignment_raises_no_changed_notification() {
+        crate::tests_common::setup().await;
+
+        // A known device that had no address yet (e.g. discovered from a DHCP DISCOVER) is now seen
+        // with a real one. Gaining a first IP is not a change, so no "changed" notification is due.
+        let mut existing = sample_device(Some("dhcp-only-device"));
+        existing.mac_address = "fa:ce:fa:ce:04:01".to_string();
+        existing.ipv4_address = String::new();
+        existing.last_seen = Utc::now();
+
+        let mut new = existing.clone();
+        new.ipv4_address = "192.168.1.77".to_string();
+
+        let changes = classify_existing_device(existing, new, DeviceEventScanner::Arp);
+
+        assert!(
+            !changes
+                .iter()
+                .any(|change| matches!(change, DeviceChange::Changed { .. })),
+            "Filling a previously empty IP must not be classified as a change"
         );
     }
 

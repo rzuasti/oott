@@ -45,7 +45,9 @@ pub fn record_sighting(mut device: Device, scanner: DeviceEventScanner) -> Vec<D
                 error!("Failed to insert device {}: {err}", device.mac_address);
                 return Vec::new();
             }
-            vec![events::classify_new_device(device, scanner)]
+            events::classify_new_device(device, scanner)
+                .into_iter()
+                .collect()
         }
     }
 }
