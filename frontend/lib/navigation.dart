@@ -100,18 +100,20 @@ final GoRouter router = GoRouter(
         GoRoute(
           path: Routes.home,
           name: 'home',
-          builder: (context, state) => const HomeScreen(),
+          pageBuilder: (context, state) => _fadePage(state, const HomeScreen()),
           redirect: (context, state) => _redirectToSettings(),
         ),
         GoRoute(
           path: Routes.devices,
           name: 'devices',
-          builder: (context, state) => const DeviceList(),
+          pageBuilder: (context, state) => _fadePage(state, const DeviceList()),
           redirect: (context, state) => _redirectToSettings(),
           routes: [
             GoRoute(
               path: Routes.deviceDetailSegment,
               name: 'deviceDetail',
+              // A genuine forward drill-in: keep the default platform slide,
+              // which is the correct affordance for pushing a detail screen.
               builder: (context, state) {
                 final mac = state.pathParameters['macAddress']!;
                 return DeviceDetail(macAddress: mac);
@@ -122,23 +124,45 @@ final GoRouter router = GoRouter(
         GoRoute(
           path: Routes.status,
           name: 'status',
-          builder: (context, state) => const StatusScreen(),
+          pageBuilder: (context, state) =>
+              _fadePage(state, const StatusScreen()),
           redirect: (context, state) => _redirectToSettings(),
         ),
         GoRoute(
           path: Routes.settings,
           name: 'settings',
-          builder: (context, state) => Settings(),
+          pageBuilder: (context, state) => _fadePage(state, Settings()),
         ),
         GoRoute(
           path: Routes.about,
           name: 'about',
-          builder: (context, state) => const About(),
+          pageBuilder: (context, state) => _fadePage(state, const About()),
         ),
       ],
     ),
   ],
 );
+
+// Duration of the crossfade between top-level destinations.
+const Duration _kTabFadeDuration = Duration(milliseconds: 200);
+
+// Page used when switching between top-level destinations (the tabs). Switching
+// peers via [context.go] is a replace, not a forward push, so the default iOS
+// slide is wrong here: it slides the incoming screen in over the outgoing one,
+// leaving the old screen visible underneath. A crossfade animates both screens
+// together (each driven by its own primary animation), so nothing is left
+// stranded in the background. Detail screens reached via [context.push] keep
+// the default platform slide.
+CustomTransitionPage<void> _fadePage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    transitionDuration: _kTabFadeDuration,
+    reverseTransitionDuration: _kTabFadeDuration,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+        FadeTransition(opacity: animation, child: child),
+    child: child,
+  );
+}
 
 // Preference key controlling whether the wide-mode navigation rail shows
 // labels (extended) or collapses to an icons-only compact view.
@@ -379,7 +403,8 @@ void _onDestinationSelected(_NavDest destination, BuildContext context) {
 // the resulting URI is launchable; absolute URLs are returned unchanged.
 // Without this, launching a scheme-less URI fails when the app is served from
 // the backend (e.g. Docker).
-Uri resolveExternalUri(String url, {Uri? base}) => (base ?? Uri.base).resolve(url);
+Uri resolveExternalUri(String url, {Uri? base}) =>
+    (base ?? Uri.base).resolve(url);
 
 Future<void> _openExternal(String url) async {
   final uri = resolveExternalUri(url);
