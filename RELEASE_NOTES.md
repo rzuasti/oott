@@ -12,6 +12,37 @@ Format
 - Keep this header comment in place; the extractor ignores it.
 -->
 
+## v0.1.2 — 2026-06-07
+
+A maintenance release focused on more accurate change/return notifications and
+a fix for the API docs link when running under the bundled server.
+
+### Fixes
+- The "API Docs" link now works when the app is served from the backend (e.g.
+  in Docker). The origin-relative `/api/docs` path is resolved against the
+  current page so it carries a scheme and host; absolute URLs pass through
+  unchanged.
+- A device gaining its first IP address no longer raises a spurious "changed"
+  notification (an empty → value fill is no longer treated as a change).
+- A recent routine sighting no longer suppresses a genuine change or
+  return-online notification. Each event kind is now deduplicated
+  independently, keyed on device, scanner and event type rather than on the
+  reported address.
+
+### Improvements
+- Each known-device sighting now records a specific event type — a baseline
+  `DeviceSeen` heartbeat (no notification), plus `DeviceChanged` and
+  `DeviceBackOnline`. The device history chart reads the recorded event type
+  directly for its markers and tooltips instead of inferring it from the
+  device's current state.
+
+### Internal
+- The backend events code was split into focused modules: `events` (device-event
+  recording) with a pure change-detection submodule, a new `notifications`
+  module owning rendering, delivery and sending, and a shared `DeviceChange`
+  contract in `model`. Data flows one way: events produce changes,
+  notifications consume them.
+
 ## v0.1.1 — 2026-06-06
 
 A maintenance release with bug fixes and small refinements on top of v0.1.0.
