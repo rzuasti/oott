@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/theme/catppuccin_mocha_theme.dart';
+import 'package:frontend/utils/local_network_permission.dart';
 import 'package:frontend/utils/pref_utils.dart';
 import 'package:provider/provider.dart';
 import 'navigation.dart';
@@ -29,6 +30,10 @@ void main() {
           'PrefUtil.init failed, continuing with defaults: $e\n$stack',
         );
       }
+
+      // Settle iOS's local-network permission now, at launch, so it isn't
+      // still being decided when the user first taps "Test" in settings.
+      unawaited(requestLocalNetworkPermission());
 
       runApp(const MainApp());
     },
