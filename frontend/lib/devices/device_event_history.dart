@@ -9,7 +9,6 @@ import '../model/device_event_type.dart';
 import '../utils/oott_api.dart';
 import '../widgets/filter_selector.dart';
 import '../theme/dimens.dart';
-import '../utils/placeholders.dart';
 
 enum _TimeRange {
   today('Today'),
@@ -150,11 +149,7 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
         else
           SizedBox(
             height: 160,
-            child: _EventChart(
-              events: events,
-              device: widget.device,
-              range: _selectedRange,
-            ),
+            child: _EventChart(events: events, range: _selectedRange),
           ),
       ],
     );
@@ -163,14 +158,29 @@ class _DeviceEventHistoryState extends State<DeviceEventHistory> {
 
 class _EventChart extends StatelessWidget {
   final List<DeviceEvent> events;
-  final Device device;
   final _TimeRange range;
 
-  const _EventChart({
-    required this.events,
-    required this.device,
-    required this.range,
-  });
+  const _EventChart({required this.events, required this.range});
+
+  // Marker radius and colour per event type. The type itself conveys what happened, so the chart
+  // trusts it rather than comparing each event's snapshot against the device's current state.
+  static ({double radius, Color color}) _markerStyle(
+    DeviceEventType type,
+    ColorScheme scheme,
+  ) => switch (type) {
+    DeviceEventType.newDevice => (radius: 9.0, color: scheme.tertiary),
+    DeviceEventType.deviceSeen => (radius: 6.0, color: scheme.tertiary),
+    DeviceEventType.deviceChanged => (radius: 7.0, color: scheme.error),
+    DeviceEventType.deviceBackOnline => (radius: 7.0, color: scheme.primary),
+  };
+
+  // Human-readable label for an event type, shown in the tooltip.
+  static String _eventLabel(DeviceEventType type) => switch (type) {
+    DeviceEventType.newDevice => 'First seen',
+    DeviceEventType.deviceSeen => 'Device seen',
+    DeviceEventType.deviceChanged => 'Device changed',
+    DeviceEventType.deviceBackOnline => 'Device back online',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -187,13 +197,13 @@ class _EventChart extends StatelessWidget {
     final maxX = (nowMs / intervalMs).ceil() * intervalMs;
 
     final spots = events.map((e) {
-      final isNew = e.eventType == DeviceEventType.newDevice;
+      final style = _markerStyle(e.eventType, theme.colorScheme);
       return ScatterSpot(
         e.createdOn.millisecondsSinceEpoch.toDouble(),
         1.0,
         dotPainter: FlDotCirclePainter(
-          radius: isNew ? 9.0 : 6.0,
-          color: theme.colorScheme.tertiary,
+          radius: style.radius,
+          color: style.color,
         ),
       );
     }).toList();
@@ -257,42 +267,8 @@ class _EventChart extends StatelessWidget {
               final event = events[idx];
               final dt = event.createdOn.toLocal();
               final dateStr = DateFormat('MMM d, yyyy HH:mm').format(dt);
-              final baseLabel = event.eventType == DeviceEventType.newDevice
-                  ? 'First seen'
-                  : 'Device seen';
-              final typeLabel = '$baseLabel (${event.scannerLabel})';
-
-              final diffs = <TextSpan>[];
-              if (event.ipv4Address != device.ipv4Address) {
-                diffs.add(
-                  TextSpan(
-                    text: '\nIP: ${event.ipv4Address} → ${device.ipv4Address}',
-                    style: TextStyle(
-                      color: theme.colorScheme.error,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                );
-              }
-              if (event.vendor != device.vendor) {
-                final eventVendor = event.vendor.isEmpty
-                    ? Placeholders.emptyValue
-                    : event.vendor;
-                final currentVendor = device.vendor.isEmpty
-                    ? Placeholders.emptyValue
-                    : device.vendor;
-                diffs.add(
-                  TextSpan(
-                    text: '\nVendor: $eventVendor → $currentVendor',
-                    style: TextStyle(
-                      color: theme.colorScheme.error,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                );
-              }
+              final typeLabel =
+                  '${_eventLabel(event.eventType)} (${event.scannerLabel})';
 
               return ScatterTooltipItem(
                 '$dateStr\n$typeLabel',
@@ -300,7 +276,6 @@ class _EventChart extends StatelessWidget {
                   color: theme.colorScheme.onSurface,
                   fontSize: 12,
                 ),
-                children: diffs.isEmpty ? null : diffs,
               );
             },
           ),

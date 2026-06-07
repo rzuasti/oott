@@ -65,6 +65,8 @@ impl PartialEq for DeviceEvent {
 pub enum DeviceEventType {
     NewDevice,
     DeviceSeen,
+    DeviceChanged,
+    DeviceBackOnline,
 }
 
 impl fmt::Display for DeviceEventType {
@@ -72,6 +74,8 @@ impl fmt::Display for DeviceEventType {
         match self {
             Self::NewDevice => write!(f, "NewDevice"),
             Self::DeviceSeen => write!(f, "DeviceSeen"),
+            Self::DeviceChanged => write!(f, "DeviceChanged"),
+            Self::DeviceBackOnline => write!(f, "DeviceBackOnline"),
         }
     }
 }
@@ -94,6 +98,8 @@ impl FromStr for DeviceEventType {
         match s {
             "NewDevice" => Ok(DeviceEventType::NewDevice),
             "DeviceSeen" => Ok(DeviceEventType::DeviceSeen),
+            "DeviceChanged" => Ok(DeviceEventType::DeviceChanged),
+            "DeviceBackOnline" => Ok(DeviceEventType::DeviceBackOnline),
             _ => Err(DeviceEventTypeParseError),
         }
     }
@@ -179,6 +185,24 @@ impl FromSql for DeviceEventScanner {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn event_type_display_and_from_str_round_trip() {
+        for event_type in [
+            DeviceEventType::NewDevice,
+            DeviceEventType::DeviceSeen,
+            DeviceEventType::DeviceChanged,
+            DeviceEventType::DeviceBackOnline,
+        ] {
+            let text = event_type.to_string();
+            assert_eq!(text.parse::<DeviceEventType>().unwrap(), event_type);
+        }
+    }
+
+    #[test]
+    fn unknown_event_type_fails_to_parse() {
+        assert!("BOGUS".parse::<DeviceEventType>().is_err());
+    }
 
     #[test]
     fn scanner_display_and_from_str_round_trip() {

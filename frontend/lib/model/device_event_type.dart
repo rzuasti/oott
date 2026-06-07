@@ -1,7 +1,9 @@
 /// Type of a recorded device event, mirroring the backend's `DeviceEventType`.
 enum DeviceEventType {
   newDevice('NewDevice'),
-  deviceSeen('DeviceSeen');
+  deviceSeen('DeviceSeen'),
+  deviceChanged('DeviceChanged'),
+  deviceBackOnline('DeviceBackOnline');
 
   const DeviceEventType(this.wireValue);
 

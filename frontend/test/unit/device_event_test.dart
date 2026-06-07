@@ -33,6 +33,8 @@ void main() {
 
     expect(parsed('NewDevice'), DeviceEventType.newDevice);
     expect(parsed('DeviceSeen'), DeviceEventType.deviceSeen);
+    expect(parsed('DeviceChanged'), DeviceEventType.deviceChanged);
+    expect(parsed('DeviceBackOnline'), DeviceEventType.deviceBackOnline);
     expect(parsed('something_unexpected'), DeviceEventType.deviceSeen);
   });
 

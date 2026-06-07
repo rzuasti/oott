@@ -448,25 +448,28 @@ pub fn classify_new_device(device: Device, scanner: DeviceEventScanner) -> Optio
     Some(DeviceChange::New(device))
 }
 
-/// Record the device-seen event for a known device and return any notification-worthy changes (it
-/// may return both a "back online" and a "changed" entry, or none). Sending is deferred to `notify`.
+/// Record the device events for a known device and return any notification-worthy changes (it may
+/// return both a "back online" and a "changed" entry, or none). Every sighting records a baseline
+/// `DeviceSeen` event (the history heartbeat, no notification); a return after the configured
+/// absence and an IP/vendor change each additionally record their own event type and produce a
+/// notification. Each event type is deduplicated independently within the configured window, so a
+/// recent routine sighting never suppresses a genuine change or return. Sending is deferred to
+/// `notify`.
 pub fn classify_existing_device(
     existing_device: Device,
     new_device: Device,
     scanner: DeviceEventScanner,
 ) -> Vec<DeviceChange> {
-    if !record_event(DeviceEvent::new(
+    // Baseline presence heartbeat for the event history. Recorded (subject to its own dedup) for
+    // every sighting and never raises a notification.
+    record_event(DeviceEvent::new(
         new_device.mac_address.clone(),
         Utc::now(),
         DeviceEventType::DeviceSeen,
         new_device.ipv4_address.clone(),
         new_device.vendor.clone(),
-        scanner,
-    )) {
-        // The sighting was deduplicated within the window; suppress its notifications too so the
-        // window governs the notifications table and channel delivery, not just device_events.
-        return Vec::new();
-    }
+        scanner.clone(),
+    ));
 
     let mut changes = Vec::new();
 
@@ -476,6 +479,14 @@ pub fn classify_existing_device(
         .unwrap_or(Duration::from_secs(0));
     if elapsed_since_last_seen
         >= Duration::from(get_settings().notifications.notify_when_not_seen_for)
+        && record_event(DeviceEvent::new(
+            new_device.mac_address.clone(),
+            Utc::now(),
+            DeviceEventType::DeviceBackOnline,
+            new_device.ipv4_address.clone(),
+            new_device.vendor.clone(),
+            scanner.clone(),
+        ))
     {
         changes.push(DeviceChange::BackOnline {
             device: new_device.clone(),
@@ -486,7 +497,16 @@ pub fn classify_existing_device(
     // The device's vendor and/or IP changed.
     let ip_changed_flag = ip_changed(&existing_device.ipv4_address, &new_device.ipv4_address);
     let vendor_changed_flag = vendor_changed(&existing_device.vendor, &new_device.vendor);
-    if ip_changed_flag || vendor_changed_flag {
+    if (ip_changed_flag || vendor_changed_flag)
+        && record_event(DeviceEvent::new(
+            new_device.mac_address.clone(),
+            Utc::now(),
+            DeviceEventType::DeviceChanged,
+            new_device.ipv4_address.clone(),
+            new_device.vendor.clone(),
+            scanner,
+        ))
+    {
         changes.push(DeviceChange::Changed {
             existing: existing_device,
             new: new_device,
@@ -934,6 +954,143 @@ mod tests {
                 .iter()
                 .any(|change| matches!(change, DeviceChange::Changed { .. })),
             "Filling a previously empty IP must not be classified as a change"
+        );
+    }
+
+    // Count recorded events of a given type for a device. Scoped per-MAC because the test DB is
+    // shared across tests.
+    fn event_count(mac: &str, event_type: DeviceEventType) -> usize {
+        db::device_events::list(Some(mac.to_string()), None, None, None)
+            .unwrap()
+            .into_iter()
+            .filter(|event| event.event_type == event_type)
+            .count()
+    }
+
+    #[tokio::test]
+    async fn changed_sighting_records_a_changed_event_and_notification() {
+        crate::tests_common::setup().await;
+
+        // A known device, recently seen (so not "back online"), now reports a different IP.
+        let mut existing = sample_device(Some("changed-device"));
+        existing.mac_address = "fa:ce:fa:ce:05:01".to_string();
+        existing.last_seen = Utc::now();
+        let mut new = existing.clone();
+        new.ipv4_address = "192.168.1.123".to_string();
+        let mac = existing.mac_address.clone();
+
+        notify(classify_existing_device(existing, new, DeviceEventScanner::Arp));
+
+        assert_eq!(
+            event_count(&mac, DeviceEventType::DeviceSeen),
+            1,
+            "Every sighting records a baseline DeviceSeen event"
+        );
+        assert_eq!(
+            event_count(&mac, DeviceEventType::DeviceChanged),
+            1,
+            "A changed sighting additionally records a DeviceChanged event"
+        );
+        assert_eq!(
+            event_count(&mac, DeviceEventType::DeviceBackOnline),
+            0,
+            "A recently-seen device is not back online"
+        );
+
+        let changed_notifications = db::notifications::list(None, None, None)
+            .unwrap()
+            .into_iter()
+            .filter(|n| {
+                n.notification_type == NotificationType::DeviceChanged
+                    && n.mac_address.as_deref() == Some(mac.as_str())
+            })
+            .count();
+        assert_eq!(
+            changed_notifications, 1,
+            "A changed sighting raises a DeviceChanged notification"
+        );
+    }
+
+    #[tokio::test]
+    async fn back_online_sighting_records_a_back_online_event_and_notification() {
+        crate::tests_common::setup().await;
+
+        // A known device, unchanged, absent long enough to be "back online".
+        let mut existing = sample_device(Some("back-online-device"));
+        existing.mac_address = "fa:ce:fa:ce:05:02".to_string();
+        existing.last_seen = Utc::now() - chrono::Duration::days(30);
+        let new = existing.clone();
+        let mac = existing.mac_address.clone();
+
+        notify(classify_existing_device(existing, new, DeviceEventScanner::Arp));
+
+        assert_eq!(
+            event_count(&mac, DeviceEventType::DeviceSeen),
+            1,
+            "Every sighting records a baseline DeviceSeen event"
+        );
+        assert_eq!(
+            event_count(&mac, DeviceEventType::DeviceBackOnline),
+            1,
+            "A return after the absence threshold records a DeviceBackOnline event"
+        );
+        assert_eq!(
+            event_count(&mac, DeviceEventType::DeviceChanged),
+            0,
+            "An unchanged device records no DeviceChanged event"
+        );
+
+        let back_online_notifications = db::notifications::list(None, None, None)
+            .unwrap()
+            .into_iter()
+            .filter(|n| {
+                n.notification_type == NotificationType::DeviceOnlineAfterTime
+                    && n.mac_address.as_deref() == Some(mac.as_str())
+            })
+            .count();
+        assert_eq!(
+            back_online_notifications, 1,
+            "A back-online sighting raises a DeviceOnlineAfterTime notification"
+        );
+    }
+
+    #[tokio::test]
+    async fn changed_and_back_online_sighting_records_three_events_and_two_notifications() {
+        crate::tests_common::setup().await;
+
+        // A known device that is both absent long enough and reports a different IP on its return.
+        let mut existing = sample_device(Some("changed-and-back-device"));
+        existing.mac_address = "fa:ce:fa:ce:05:03".to_string();
+        existing.last_seen = Utc::now() - chrono::Duration::days(30);
+        let mut new = existing.clone();
+        new.ipv4_address = "192.168.1.200".to_string();
+        let mac = existing.mac_address.clone();
+
+        notify(classify_existing_device(existing, new, DeviceEventScanner::Arp));
+
+        assert_eq!(event_count(&mac, DeviceEventType::DeviceSeen), 1);
+        assert_eq!(event_count(&mac, DeviceEventType::DeviceChanged), 1);
+        assert_eq!(event_count(&mac, DeviceEventType::DeviceBackOnline), 1);
+
+        let notifications: Vec<_> = db::notifications::list(None, None, None)
+            .unwrap()
+            .into_iter()
+            .filter(|n| n.mac_address.as_deref() == Some(mac.as_str()))
+            .collect();
+        assert_eq!(
+            notifications.len(),
+            2,
+            "A changed-and-back-online sighting raises exactly two notifications"
+        );
+        assert!(
+            notifications
+                .iter()
+                .any(|n| n.notification_type == NotificationType::DeviceChanged)
+        );
+        assert!(
+            notifications
+                .iter()
+                .any(|n| n.notification_type == NotificationType::DeviceOnlineAfterTime)
         );
     }
 
