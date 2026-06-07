@@ -9,6 +9,7 @@ import '../utils/oott_api.dart';
 import '../widgets/status_badge.dart';
 import 'device_actions.dart';
 import 'device_event_history.dart';
+import 'device_identification_guide.dart';
 import '../theme/dimens.dart';
 import '../utils/placeholders.dart';
 
@@ -241,10 +242,21 @@ class _DeviceActions extends StatelessWidget {
         ],
       );
     }
-    return FilledButton.icon(
-      onPressed: () => showRegisterDeviceDialog(context, device, onAction),
-      icon: const Icon(Icons.how_to_reg),
-      label: const Text('Register Device'),
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        FilledButton.icon(
+          onPressed: () => showRegisterDeviceDialog(context, device, onAction),
+          icon: const Icon(Icons.how_to_reg),
+          label: const Text('Register Device'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => showDeviceIdentificationDialog(context, device),
+          icon: const Icon(Icons.help_outline),
+          label: const Text('How to identify this device'),
+        ),
+      ],
     );
   }
 }
