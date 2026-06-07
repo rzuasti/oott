@@ -350,33 +350,25 @@ class _NotificationsListState extends State<NotificationsList>
   }
 
   Widget _buildNotificationsHeader(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Row(
-          children: [
-            Text(
-              'Notifications',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const Spacer(),
-            if (_filter == _NotificationFilter.newOnly && _items.isNotEmpty)
-              IconButton(
-                onPressed: _markAllAsRead,
-                icon: const Icon(Icons.done_all),
-                tooltip: 'Mark all as read',
-              ),
-          ],
+        Expanded(
+          child: FilterSelector<_NotificationFilter>(
+            values: _NotificationFilter.values,
+            selected: _filter,
+            labelOf: (f) => f.label,
+            onSelected: (f) {
+              setState(() => _filter = f);
+              _fetchPage(0);
+            },
+          ),
         ),
-        FilterSelector<_NotificationFilter>(
-          values: _NotificationFilter.values,
-          selected: _filter,
-          labelOf: (f) => f.label,
-          onSelected: (f) {
-            setState(() => _filter = f);
-            _fetchPage(0);
-          },
-        ),
+        if (_filter == _NotificationFilter.newOnly && _items.isNotEmpty)
+          IconButton(
+            onPressed: _markAllAsRead,
+            icon: const Icon(Icons.done_all),
+            tooltip: 'Mark all as read',
+          ),
       ],
     );
   }
