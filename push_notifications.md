@@ -10,9 +10,9 @@ agreed. No code has been written yet.
 
 Deliver notifications (new device, device back online, device changed) to a
 user's phone running the OOTT mobile app, even when the app is backgrounded or
-closed, on both iOS and Android. This is a new `notifications.method` alongside
-the existing `pushover` method — it does not replace Pushover, it sits next to
-it.
+closed, on both iOS and Android. This is a new `notifications.method` value,
+`push`, alongside the existing `pushover` method — it does not replace Pushover,
+it sits next to it.
 
 ## Background constraint
 
@@ -28,10 +28,10 @@ self-hosters and so self-hosters need zero push credentials of their own.
 
 ## Locked decisions
 
-1. **Relay lives in this monorepo**, under a new top-level `relay/` directory.
-   It is implemented in **TypeScript** and deployed as a **Firebase Cloud
-   Function** (scale-to-zero). The `relay/` dir holds the source; only the
-   deploy target differs from an always-on server.
+1. **The push relay lives in this monorepo**, under a new top-level
+   `push_relay/` directory. It is implemented in **TypeScript** and deployed as a
+   **Firebase Cloud Function** (scale-to-zero). The `push_relay/` dir holds the
+   source; only the deploy target differs from an always-on server.
 2. **Phase 1 is the shipped feature.** It needs no shared secret: protection
    rests on FCM project scoping + per-IP rate limiting + a billing cap.
    Attestation hardening (Play Integrity / App Attest) is **deferred, optional
@@ -49,7 +49,7 @@ Flutter app ──register FCM token──► OOTT backend (self-hosted, LAN)
                                          │
    new-device event ─────────────────────┤
                                          ▼
-                              POST /v1/push {[tokens], payload}
+                       POST /v1/push {[tokens], notification:{title,body}}
                                          ▼
                           OOTT Push Relay (Firebase Cloud Function, stateless)
                             FCM creds never leave Google (runtime SA)
@@ -72,24 +72,29 @@ Key properties:
 - **"Only our app" is guaranteed by FCM project scoping**: the relay sends
   through our single Firebase project, so tokens belonging to any other app are
   rejected by FCM. No caller can make the relay push to a different app.
-- **Minimal payloads**: the relay only ever sees a short title/body plus
-  `data: {notification_id, mac}`. Full device detail (MAC/IP/vendor) is fetched
-  from the **local** backend when the user taps the notification. This keeps
-  network metadata off project servers — privacy and reduced liability. Because
-  that tap-through fetch only works when the phone can reach the local backend
-  (on-LAN or via the user's own remote access), the title/body must stay
-  self-sufficient — the existing event copy already summarizes the event.
+- **No private data in payloads**: the relay only ever sees a short title/body
+  and nothing else — no `data` payload, no MAC, no IP, no device identifiers.
+  The existing notification copy (`notifications/render.rs`) is already built to
+  exclude private data: it masks the MAC to a 2-octet suffix in titles, omits IP
+  addresses entirely, and its tests assert that no full MAC or IP appears. That
+  same already-sanitized title/body is all that travels to the relay, so network
+  metadata never reaches project servers — privacy and reduced liability.
+- **No deep-link**: tapping a push simply opens the app; it does not carry an
+  identifier or navigate to a specific device. The in-app notification list is
+  the durable, on-LAN record the user consults for detail. This removes the only
+  reason the payload would have needed a `notification_id` or `mac`.
 
 ## Phase 1 — working end-to-end push
 
-### Component 1: relay service (`relay/`, new)
+### Component 1: push relay service (`push_relay/`, new)
 
 - **TypeScript Firebase Cloud Function**, stateless. Scales to zero — no idle
   cost, no server/OS to patch, TLS and a stable HTTPS URL provided by the
   platform.
 - Endpoints (HTTP function routes):
-  - `POST /v1/push` — `{ tokens: [...], notification: {title,
-    body}, data: {...} }` → send via the `firebase-admin` SDK
+  - `POST /v1/push` — `{ tokens: [...], notification: {title, body} }` (no
+    `data` field — see "No private data in payloads") → send via the
+    `firebase-admin` SDK
     (`messaging().sendEach(...)`, batched multicast) → return per-token results
     (`ok` / `unregistered` / `invalid`) so the caller can prune dead tokens.
   - `GET /healthz` — liveness.
@@ -126,24 +131,38 @@ Key properties:
   column would be added later only if attestation is built (see "Optional future
   hardening").
 - `src/db/push_tokens.rs` — `upsert`, `list`, `delete`, `delete_many` (prune
-  dead tokens). Unit tests mirroring `db/notifications.rs`.
+  dead tokens). Unit tests mirroring `db/notifications.rs`. Register the module
+  by adding `pub mod push_tokens;` to the `mod` list at the top of `db.rs`. (No
+  migration registration needed: migrations are auto-discovered from the
+  directory via `include_dir!` in `db.rs`.)
 - `src/model/push_tokens.rs` — `PushToken` + payload structs, deriving
-  `ToSchema`.
+  `ToSchema`. Add the matching `pub mod push_tokens;` to `model.rs`.
 - `src/web_server/push_tokens.rs` — handlers behind the existing bearer `auth`
   middleware:
   - `PUT /api/push_tokens` — register/refresh `{token, platform}`.
   - `DELETE /api/push_tokens/{token}` — unregister.
   Wired into the router and into `ApiDoc` `paths(...)` + `components(schemas())`
   in `web_server.rs`, plus a new `push_tokens` OpenAPI tag.
-- `settings.rs` — support `method = "fcm_relay"` and a `[notifications.fcm_relay]`
+- `settings.rs` — support `method = "push"` and a `[notifications.push]`
   section with a single `relay_url` that **defaults to the project's deployed
-  relay**, so enabling push needs only `method = "fcm_relay"` and nothing to
+  push relay**, so enabling push needs only `method = "push"` and nothing to
   paste — consistent with "zero push credentials for self-hosters". Add parse
   tests.
-- `src/events/fcm_relay.rs` — sender mirroring `pushover.rs`: load tokens from
-  DB, POST to relay, prune `unregistered`/`invalid` tokens from the response.
-- `src/events.rs` — add an `"fcm_relay"` arm in `send_notification` using the
-  minimal-payload design above.
+- `src/notifications/push.rs` — sender mirroring `notifications/pushover.rs`:
+  load tokens from DB, POST to the relay, prune `unregistered`/`invalid` tokens
+  from the response. Register it with `mod push;` in `notifications.rs`.
+- **HTTP client dependency.** The relay POST needs an HTTP client; `Cargo.toml`
+  has none today (Pushover brings its own blocking client via the `pushover`
+  crate). Add `reqwest` (the service already runs on `tokio`, so use its async
+  client with the `json` feature). Unlike `pushover::send_message` — which the
+  delivery loop runs via `spawn_blocking` — the `reqwest` call is async and can
+  be `await`ed directly in `deliver()`.
+- `src/notifications/delivery.rs` — add a `"push"` arm to the method match
+  in `deliver()` (not `events.rs`, which only records device events and has no
+  `send_notification`). The arm forwards only the already-sanitized title/body
+  (no `data`, no MAC, no IP). Because no per-notification identifiers travel with
+  the push, the existing delivery channel (`DeliveryRequest`/`enqueue`) needs no
+  new fields — it already carries title/body.
 - Tests: sender against a mocked relay endpoint, DB CRUD/prune, settings
   parsing, endpoint API tests. Run `./run_tests.sh` and `./lint.sh`.
 
@@ -154,11 +173,12 @@ Key properties:
   (iOS); iOS Push Notifications + Background Modes capabilities. APNs key lives
   only in the Firebase console.
 - `lib/utils/push_service.dart` — init Firebase, request permission, get token,
-  register via API, handle token refresh, and handle taps → deep-link to the
-  device/notification via `go_router`. The `notification` payload is shown by the
-  OS directly when the app is backgrounded/terminated; `flutter_local_notifications`
-  is used to display alerts while the app is in the **foreground** (and for
-  Android channel configuration).
+  register via API, handle token refresh, and handle taps → simply bring the app
+  to the foreground (no deep-link, no identifier to route on; the user reads
+  detail from the in-app notification list). The `notification` payload is shown
+  by the OS directly when the app is backgrounded/terminated;
+  `flutter_local_notifications` is used to display alerts while the app is in the
+  **foreground** (and for Android channel configuration).
 - `lib/utils/api/oott_api_push.dart` — `registerPushToken` /
   `unregisterPushToken`, following the existing `oott_api` split.
 - Settings UI: per-device "Enable push on this device" toggle (calls
@@ -174,7 +194,8 @@ Key properties:
 - Apple Developer APNs `.p8` key uploaded into Firebase.
 - Cloud Function deployed; its runtime service account grants FCM access (no
   service-account JSON to generate or store).
-- Steps captured in `relay/README.md`. Secrets never committed (project rule).
+- Steps captured in `push_relay/README.md`. Secrets never committed (project
+  rule).
 
 ## Optional future hardening (deferred) — attestation
 
@@ -231,13 +252,18 @@ If built, it proves each token came from a genuine instance of our shipped app:
 
 - FCM project scoping bounds the blast radius to OOTT app installs only — no
   caller can target arbitrary people or other apps.
+- **No private data leaves the LAN.** Pushes carry only an already-sanitized
+  title/body (no MAC, no IP, no `data` payload), so the relay and the OS push
+  gateways (FCM/APNs) never see network metadata. A compromised or subpoenaed
+  relay exposes nothing beyond the short event copy.
 - Phase 1 has no shared secret to leak: defense is FCM project scoping + per-IP
   rate limiting + billing cap. Deferred attestation would add the strong
   "genuine app instance" guarantee if ever needed.
 - Token pruning loop (relay reports dead tokens → backend deletes) must be
   implemented end-to-end or tokens accumulate.
-- **Push is best-effort.** `send_notification` records the notification in the
-  backend DB *before* contacting the relay (as it already does for Pushover), so
+- **Push is best-effort.** `persist_and_deliver` (in `notifications.rs`) records
+  the notification in the backend DB *before* enqueuing it for delivery (as it
+  already does for Pushover), so
   a relay or network failure never loses the event — only that one push. The
   in-app notification list is the durable record; there is deliberately no push
   retry queue in v1.
@@ -247,7 +273,7 @@ If built, it proves each token came from a genuine instance of our shipped app:
 1. Migration + DB layer + model (tests).
 2. Backend endpoints + OpenAPI wiring (API tests).
 3. Relay Cloud Function Phase 1 (tests) + `firebase deploy`.
-4. Backend `fcm_relay` sender + settings (tests against mock relay).
+4. Backend `push` sender + settings (tests against mock relay).
 5. Flutter integration + settings toggle (tests).
 6. Manual end-to-end on real Android + iOS devices.
 7. (Deferred, only if triggered) attestation + vouchers across relay, backend,
