@@ -1,0 +1,7 @@
+node_modules/
+lib/
+*.log
+.firebase/
+# Never commit Firebase project credentials or service-account keys (project rule).
+*serviceAccount*.json
+.runtimeconfig.json

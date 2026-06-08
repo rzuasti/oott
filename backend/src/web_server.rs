@@ -4,8 +4,10 @@ use std::path::{Path, PathBuf};
 use crate::model::device_events::{DeviceEvent, DeviceEventScanner, DeviceEventType};
 use crate::model::devices::{Device, DeviceListResponse, DeviceSummary};
 use crate::model::notifications::{Notification, NotificationListResponse, NotificationType};
+use crate::model::push_tokens::{PushPlatform, PushToken};
 use crate::settings::get_settings;
 use crate::web_server::devices::{RegisterDevicePayload, UpdateDevicePayload};
+use crate::web_server::push_tokens::RegisterPushTokenPayload;
 use crate::web_server::scanner_status::{
     ActiveScannerStatusResponse, PassiveScannerStatusResponse,
 };
@@ -32,6 +34,7 @@ pub mod devices;
 pub mod dhcp_scanner;
 pub mod mdns_scanner;
 pub mod notifications;
+pub mod push_tokens;
 pub mod scanner_status;
 pub mod snmp_scanner;
 pub mod ssdp_scanner;
@@ -58,6 +61,8 @@ pub mod utils;
         notifications::read_without_flagging,
         notifications::mark_as_new,
         notifications::mark_all_as_old,
+        push_tokens::register,
+        push_tokens::unregister,
         device_events::list,
         arp_scanner::status,
         mdns_scanner::status,
@@ -72,6 +77,9 @@ pub mod utils;
         Notification,
         NotificationListResponse,
         NotificationType,
+        PushToken,
+        PushPlatform,
+        RegisterPushTokenPayload,
         RegisterDevicePayload,
         UpdateDevicePayload,
         DeviceEvent,
@@ -84,6 +92,7 @@ pub mod utils;
     tags(
         (name = "devices", description = "Device management"),
         (name = "notifications", description = "Notification management"),
+        (name = "push_tokens", description = "Push notification token registration"),
         (name = "device_events", description = "Device event history"),
         (name = "arp_scanner", description = "ARP scanner process status"),
         (name = "mdns_scanner", description = "mDNS/Bonjour scanner process status"),
@@ -182,6 +191,11 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .route(
             "/api/notifications/{id}/mark_as_new",
             post(notifications::mark_as_new),
+        )
+        .route("/api/push_tokens", put(push_tokens::register))
+        .route(
+            "/api/push_tokens/{token}",
+            delete(push_tokens::unregister),
         )
         .route_layer(axum::middleware::from_fn(auth))
         .layer(ServiceBuilder::new().layer(cors_layer))

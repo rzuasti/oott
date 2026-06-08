@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
   encrypter
+  firebase_core
   url_launcher_windows
 )
 

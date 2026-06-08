@@ -21,6 +21,7 @@ export 'api/api_error.dart';
 part 'api/oott_api_devices.dart';
 part 'api/oott_api_scanners.dart';
 part 'api/oott_api_notifications.dart';
+part 'api/oott_api_push.dart';
 
 class BackendAPI {
   static final BackendAPI _instance = BackendAPI._internal();

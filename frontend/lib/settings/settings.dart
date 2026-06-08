@@ -7,10 +7,15 @@ import '../theme/app_colors.dart';
 import '../theme/dimens.dart';
 import '../utils/oott_api.dart';
 import '../utils/pref_utils.dart';
+import '../utils/push_service.dart';
 import '../utils/ui_snackbars.dart';
 
 class Settings extends StatefulWidget {
-  const Settings({super.key});
+  const Settings({super.key, this.pushService});
+
+  /// Injectable so widget tests can supply a fake; defaults to the real
+  /// FCM-backed service.
+  final PushService? pushService;
 
   @override
   State<Settings> createState() => _SettingsState();
@@ -24,6 +29,9 @@ class _SettingsState extends State<Settings> {
   bool _connectionModified = false;
   bool _isFirstRun = false;
   late String _selectedTheme;
+  late final PushService _pushService;
+  bool _pushEnabled = false;
+  bool _pushBusy = false;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -36,6 +44,8 @@ class _SettingsState extends State<Settings> {
       PrefUtil.getValue('api_key', '') as String,
     );
     _selectedTheme = context.read<AppState>().themeKey;
+    _pushService = widget.pushService ?? FirebasePushService();
+    _pushEnabled = PrefUtil.getValue('push_enabled', false) as bool;
   }
 
   @override
@@ -67,6 +77,50 @@ class _SettingsState extends State<Settings> {
       UISnackbars.showSuccess(context, 'It works!');
     } else {
       UISnackbars.showError(context, result);
+    }
+  }
+
+  // Enable or disable push on this specific device. The toggle reflects user
+  // intent (persisted), but enabling can still fail if the OS permission is
+  // declined, in which case the switch falls back to off.
+  Future<void> _togglePush(bool value) async {
+    setState(() => _pushBusy = true);
+    try {
+      if (value) {
+        final enabled = await _pushService.enable();
+        if (!mounted) return;
+        if (enabled) {
+          await PrefUtil.setValue('push_enabled', true);
+          if (!mounted) return;
+          setState(() => _pushEnabled = true);
+          UISnackbars.showSuccess(
+            context,
+            'Push notifications enabled on this device',
+          );
+        } else {
+          setState(() => _pushEnabled = false);
+          UISnackbars.showError(
+            context,
+            'Could not enable push. Check notification permission for OOTT.',
+          );
+        }
+      } else {
+        await _pushService.disable();
+        if (!mounted) return;
+        await PrefUtil.setValue('push_enabled', false);
+        if (!mounted) return;
+        setState(() => _pushEnabled = false);
+        UISnackbars.showSuccess(
+          context,
+          'Push notifications disabled on this device',
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to update push settings: $e');
+      if (!mounted) return;
+      UISnackbars.showError(context, 'Failed to update push settings');
+    } finally {
+      if (mounted) setState(() => _pushBusy = false);
     }
   }
 
@@ -191,6 +245,18 @@ class _SettingsState extends State<Settings> {
                 if (value != null) setState(() => _selectedTheme = value);
               },
             ),
+            if (_pushService.isSupported) ...[
+              const SizedBox(height: Insets.sm),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Push notifications on this device'),
+                subtitle: const Text(
+                  'Receive alerts on this device even when the app is closed.',
+                ),
+                value: _pushEnabled,
+                onChanged: _pushBusy ? null : _togglePush,
+              ),
+            ],
             const SizedBox(height: Insets.lg),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

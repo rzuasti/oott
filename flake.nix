@@ -68,6 +68,7 @@
           android-tools
           androidSdk
           jdk17
+          nodejs_22 # push relay (push_relay/): runs npm install/test/build; bundles npm
           claude-code
           clippy # Rust linter
           pythonEnv

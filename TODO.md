@@ -20,8 +20,17 @@
 ## Backend
 
 - [ ] Implement the pushover API call directly to support HTML content and review notification text to use it
+- [ ] Check for potential dependency upgrades
 
 ## Frontend
+
+- [ ] In the status screen, the "listening for" property of passive scanners should change to days and months (now its always minutes)
+- [ ] Check for potential dependency upgrades
+- [ ] In settings, figure out automatic save
+
+## Push relay
+
+- [ ] Add NPM to the devShell to be able to run tests
 
 ## Improve engine
 

@@ -2,6 +2,7 @@ pub mod device_events;
 pub mod devices;
 pub mod error;
 pub mod notifications;
+pub mod push_tokens;
 
 use include_dir::{Dir, include_dir};
 use lazy_static::lazy_static;

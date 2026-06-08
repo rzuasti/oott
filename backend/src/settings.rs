@@ -177,11 +177,35 @@ pub struct Pushover {
     pub user_key: String,
 }
 
+fn default_relay_url() -> String {
+    // The send endpoint of the project-operated push relay. Self-hosters need paste nothing to
+    // enable push: with `method = "push"` and no `[notifications.push]` section, this default is
+    // used. The concrete URL is filled in once the relay Cloud Function is deployed (see
+    // push_relay/README.md); a self-hoster can always override it via `relay_url`.
+    "https://oott-push-relay.example.com/v1/push".to_string()
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Push {
+    #[serde(default = "default_relay_url")]
+    pub relay_url: String,
+}
+
+impl Default for Push {
+    fn default() -> Self {
+        Push {
+            relay_url: default_relay_url(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Notifications {
     pub method: String,
     // Only required when `method` is "pushover"; other methods leave this section out.
     pub pushover: Option<Pushover>,
+    // Optional when `method` is "push": with no section the default relay URL is used.
+    pub push: Option<Push>,
     #[serde(default = "default_notify_when_not_seen_for")]
     pub notify_when_not_seen_for: DurationString,
 }
@@ -577,6 +601,59 @@ mod tests {
     fn validate_accepts_pushover_method_with_section() {
         let settings = parse(BASE_CONFIG);
         assert!(settings.validate().is_ok());
+    }
+
+    #[test]
+    fn push_method_without_section_uses_default_relay_url() {
+        // method = "push" with no [notifications.push] section: valid, and the default relay URL is
+        // used so self-hosters need paste nothing to enable push.
+        const PUSH_NO_SECTION: &str = r#"
+            [database]
+            path = "./oott.db"
+            [networking]
+            [log]
+            level = "info"
+            [notifications]
+            method = "push"
+            [web_server]
+            api_key = "test"
+        "#;
+        let settings = parse(PUSH_NO_SECTION);
+        assert_eq!(settings.notifications.method, "push");
+        assert!(settings.notifications.push.is_none());
+        assert!(settings.validate().is_ok());
+        // The sender falls back to the default when the section is absent.
+        assert_eq!(settings.notifications.push.unwrap_or_default().relay_url, default_relay_url());
+    }
+
+    #[test]
+    fn push_section_relay_url_is_parsed_when_present() {
+        let toml = format!(
+            "{BASE_CONFIG}
+            [notifications.push]
+            relay_url = \"https://relay.example.test/v1/push\"
+            "
+        );
+        let settings = parse(&toml);
+        let push = settings
+            .notifications
+            .push
+            .expect("push section should be parsed when present");
+        assert_eq!(push.relay_url, "https://relay.example.test/v1/push");
+    }
+
+    #[test]
+    fn push_relay_url_defaults_when_field_omitted() {
+        // The [notifications.push] section is present but empty; relay_url must fall back to the
+        // default rather than fail parsing.
+        let toml = format!(
+            "{BASE_CONFIG}
+            [notifications.push]
+            "
+        );
+        let settings = parse(&toml);
+        let push = settings.notifications.push.expect("push section should parse when present");
+        assert_eq!(push.relay_url, default_relay_url());
     }
 
     const NO_PUSHOVER_CONFIG: &str = r#"
