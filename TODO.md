@@ -9,8 +9,8 @@
 - [x] Fix bugs and release 0.1.1
 - [x] Install in test server (docker) following documented process
 - [x] Install test app on iPhone
-- [ ] Test in-house for 1 week
-- [ ] Implement push notifications
+- [x] Test in-house for 1 week
+- [x] Implement push notifications
 - [ ] Release 0.2.0
 - [ ] Install in test server and test app on iPhone
 - [ ] Test in-house for 3 days
@@ -27,7 +27,7 @@
 
 - [x] In the status screen, the "listening for" property of passive scanners should change to days and months (now its always minutes)
 - [ ] Check for potential dependency upgrades
-- [ ] In settings, move the backend configuration to a popup dialog that asks for the URL and API key and allows the user to test and save it. In the main screen it should present both items as read only and allow the user to change the theme and push notifications and both should trigger the change immediately (ie. without a save button)
+- [x] In the frontend, in the settings screen, move the backend configuration to a popup dialog that asks for the URL and API key and allows the user to test and save it. In the main screen it should present both items as read only and allow the user to change the theme and push notifications and both should trigger the change immediately (ie. without a save button). The dialog for the backend config should be accesible via a "Re-configure" link or button (do what aligns best with M3). The first time the user uses the UI (or when the backend is not configured at all, it should navigate to the settings screen with the dialog open, and upon Saving the backend config it should refresh the settings page)
 - [x] The permissions dialog for push notifications on android says "Allow frontend to send you notifications"
 
 ## Push relay

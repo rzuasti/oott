@@ -63,5 +63,8 @@ Future<DioAdapter> setUpBackendForTest({
   final dio = Dio(BaseOptions(baseUrl: 'http://test.local/api'));
   final adapter = DioAdapter(dio: dio);
   BackendAPI.instance.dioForTesting = dio;
+  // Keep the mock client even after a reconfigure (e.g. saving the backend
+  // settings) so no test ever issues a real network request.
+  BackendAPI.dioBuilderForTesting = (_, _) => dio;
   return adapter;
 }

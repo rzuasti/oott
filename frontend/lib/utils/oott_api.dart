@@ -37,12 +37,20 @@ class BackendAPI {
   late String _apiKey;
   late Dio _dio;
 
+  /// Test-only override for how [reconfigureFromPrefs] builds its [Dio], so a
+  /// reconfigure (e.g. after saving the backend settings) keeps using a client
+  /// backed by a mock adapter instead of issuing real network requests.
+  @visibleForTesting
+  static Dio Function(String baseUrl, String apiKey)? dioBuilderForTesting;
+
   void reconfigureFromPrefs() {
     _baseUrl =
         PrefUtil.getValue("base_url", "http://localhost:3000/api") as String;
     _apiKey = XOR().xorDecode(PrefUtil.getValue("api_key", "") as String);
 
-    _dio = buildDio(baseUrl: _baseUrl, apiKey: _apiKey);
+    _dio =
+        dioBuilderForTesting?.call(_baseUrl, _apiKey) ??
+        buildDio(baseUrl: _baseUrl, apiKey: _apiKey);
     BackendReachability.instance.setProber(() => _dio.get('/test'));
   }
 

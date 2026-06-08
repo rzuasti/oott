@@ -24,63 +24,68 @@ void main() {
         'notifications': {'method': 'none'},
       }),
     );
+    // The mock SharedPreferences persist across tests in this isolate; restore
+    // the configured connection a previous test may have changed.
+    await PrefUtil.setValue('base_url', 'http://my.server/api');
+    await PrefUtil.setValue('api_key', XOR().xorEncode('topsecret'));
+    await PrefUtil.setValue('theme', 'catppuccin_mocha');
   });
 
-  testWidgets('prefills the form from stored preferences', (tester) async {
+  testWidgets('shows the configured connection read-only', (tester) async {
     await pumpScreen(tester, const Settings());
     // Let the on-init config request resolve so its timer doesn't leak.
     await tester.pump(const Duration(milliseconds: 10));
 
     expect(find.text('http://my.server/api'), findsOneWidget);
+    // The key stays masked until revealed.
+    expect(find.text('topsecret'), findsNothing);
+    expect(find.text('••••••••'), findsOneWidget);
     expect(find.text('Catppuccin Mocha'), findsOneWidget);
+    // No inline Save button: theme and push apply immediately.
+    expect(find.widgetWithText(FilledButton, 'Save'), findsNothing);
   });
 
-  testWidgets('validates an empty base URL when testing the connection', (
+  testWidgets('reveals the API key when the visibility toggle is tapped', (
     tester,
   ) async {
     await pumpScreen(tester, const Settings());
+    await tester.pump(const Duration(milliseconds: 10));
 
-    await tester.enterText(find.byType(TextFormField).first, '');
-    await tester.tap(find.widgetWithText(FilledButton, 'Test'));
+    await tester.tap(find.byIcon(Icons.visibility_off));
     await tester.pump();
 
-    expect(find.text('The URL cannot be empty'), findsOneWidget);
+    expect(find.text('topsecret'), findsOneWidget);
   });
 
-  testWidgets('disables Save once the connection details are edited', (
+  testWidgets('changing the theme applies immediately, no save needed', (
     tester,
   ) async {
     await pumpScreen(tester, const Settings());
-    final saveButton = find.widgetWithText(FilledButton, 'Save');
+    await tester.pump(const Duration(milliseconds: 10));
 
-    expect(
-      tester.widget<FilledButton>(saveButton).onPressed,
-      isNotNull,
-      reason: 'enabled for the unmodified, prefilled form',
-    );
+    await tester.tap(find.text('Catppuccin Mocha'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gruvbox Dark').last);
+    await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byType(TextFormField).first,
-      'http://changed/api',
-    );
-    await tester.pump();
-
-    expect(
-      tester.widget<FilledButton>(saveButton).onPressed,
-      isNull,
-      reason: 'disabled until the new connection is tested',
-    );
+    expect(PrefUtil.getValue('theme', ''), 'gruvbox_dark');
   });
 
-  testWidgets('saving the unmodified form shows a success message', (
+  testWidgets('opens the backend configuration dialog from Re-configure', (
     tester,
   ) async {
     await pumpScreen(tester, const Settings());
+    await tester.pump(const Duration(milliseconds: 10));
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-    await pumpUntilFound(tester, find.text('Settings saved successfully'));
+    await tester.tap(find.widgetWithText(TextButton, 'Re-configure'));
+    await tester.pumpAndSettle();
 
-    expect(find.text('Settings saved successfully'), findsOneWidget);
+    expect(find.text('Backend configuration'), findsOneWidget);
+    // Prefilled from the stored connection.
+    expect(
+      find.widgetWithText(TextFormField, 'http://my.server/api'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shows the welcome intro when no server is configured', (
@@ -101,23 +106,5 @@ void main() {
     await tester.pump(const Duration(milliseconds: 10));
 
     expect(find.textContaining('Welcome to OOTT'), findsNothing);
-  });
-
-  testWidgets('explains why Save is disabled after editing the connection', (
-    tester,
-  ) async {
-    await pumpScreen(tester, const Settings());
-
-    // Editing the connection requires re-testing before saving.
-    await tester.enterText(
-      find.byType(TextFormField).first,
-      'http://changed/api',
-    );
-    await tester.pump();
-
-    expect(
-      find.textContaining('Test the connection before saving'),
-      findsOneWidget,
-    );
   });
 }

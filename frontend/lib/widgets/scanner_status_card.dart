@@ -95,7 +95,7 @@ class _ScannerStatusCardState<T> extends State<ScannerStatusCard<T>>
                           children: [
                             Text(
                               widget.title,
-                              style: theme.textTheme.titleMedium,
+                              style: theme.textTheme.titleLarge,
                             ),
                             if (isStale) ...[
                               const SizedBox(width: 6),
