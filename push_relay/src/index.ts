@@ -25,6 +25,6 @@ const rateLimitStore = createFirestoreRateLimitStore(
 
 const app = createApp({ messenger, rateLimitStore });
 
-// Single HTTP function hosting both routes (POST /v1/push, GET /healthz). Scales to zero, so there
+// Single HTTP function hosting both routes (POST /v1/push, GET /health). Scales to zero, so there
 // is no idle cost and no server/OS to patch; the platform provides TLS and a stable HTTPS URL.
 export const relay = onRequest({ region: "us-central1", maxInstances: 10 }, app);

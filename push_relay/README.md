@@ -29,7 +29,8 @@ full design and rationale.
   "body": "..." } }`. Returns `{ "results": [{ "token": "...", "status":
   "ok" | "unregistered" | "invalid" | "error" }] }`. The backend prunes tokens
   reported `unregistered` or `invalid`.
-- `GET /healthz` — liveness, returns `200 ok`.
+- `GET /health` — liveness, returns `200 ok`. (Not `/healthz`: that path is
+  reserved by Google Front End and never reaches the function.)
 
 Protection (Phase 1, no shared secret): FCM project scoping (the relay can only
 reach OOTT app installs), per-source-IP rate limiting, and a billing cap.

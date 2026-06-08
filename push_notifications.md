@@ -97,7 +97,8 @@ Key properties:
     `firebase-admin` SDK
     (`messaging().sendEach(...)`, batched multicast) → return per-token results
     (`ok` / `unregistered` / `invalid`) so the caller can prune dead tokens.
-  - `GET /healthz` — liveness.
+  - `GET /health` — liveness. (Not `/healthz`: Google Front End reserves that
+    path and returns its own 404 before the request reaches the function.)
 - FCM client: the `firebase-admin` SDK authenticates via the function's runtime
   service account — **no service-account JSON to manage, no OAuth-token minting
   or caching code**. `sendEach` returns per-token success/error, giving us

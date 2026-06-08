@@ -30,8 +30,10 @@ export function createApp(deps: AppDependencies): Express {
   app.set("trust proxy", true);
   app.use(express.json({ limit: "256kb" }));
 
-  // Liveness probe — no side effects, never rate limited.
-  app.get("/healthz", (_req: Request, res: Response) => {
+  // Liveness probe — no side effects, never rate limited. Note: the path
+  // `/healthz` is reserved by Google Front End (it returns its own 404 before
+  // the request reaches Cloud Run), so this uses `/health`.
+  app.get("/health", (_req: Request, res: Response) => {
     res.status(200).send("ok");
   });
 

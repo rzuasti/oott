@@ -24,7 +24,7 @@
 
 ## Frontend
 
-- [ ] In the status screen, the "listening for" property of passive scanners should change to days and months (now its always minutes)
+- [x] In the status screen, the "listening for" property of passive scanners should change to days and months (now its always minutes)
 - [ ] Check for potential dependency upgrades
 - [ ] In settings, figure out automatic save
 

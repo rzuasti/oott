@@ -69,6 +69,8 @@
           androidSdk
           jdk17
           nodejs_22 # push relay (push_relay/): runs npm install/test/build; bundles npm
+          firebase-tools # push relay: firebase CLI for emulator (serve) and deploy
+          google-cloud-sdk # push relay: gcloud for Cloud Run/IAM admin (e.g. invoker)
           claude-code
           clippy # Rust linter
           pythonEnv

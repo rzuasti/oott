@@ -182,7 +182,7 @@ fn default_relay_url() -> String {
     // enable push: with `method = "push"` and no `[notifications.push]` section, this default is
     // used. The concrete URL is filled in once the relay Cloud Function is deployed (see
     // push_relay/README.md); a self-hoster can always override it via `relay_url`.
-    "https://oott-push-relay.example.com/v1/push".to_string()
+    "https://relay-dzhbmmulaq-uc.a.run.app/v1/push".to_string()
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -623,7 +623,10 @@ mod tests {
         assert!(settings.notifications.push.is_none());
         assert!(settings.validate().is_ok());
         // The sender falls back to the default when the section is absent.
-        assert_eq!(settings.notifications.push.unwrap_or_default().relay_url, default_relay_url());
+        assert_eq!(
+            settings.notifications.push.unwrap_or_default().relay_url,
+            default_relay_url()
+        );
     }
 
     #[test]
@@ -652,7 +655,10 @@ mod tests {
             "
         );
         let settings = parse(&toml);
-        let push = settings.notifications.push.expect("push section should parse when present");
+        let push = settings
+            .notifications
+            .push
+            .expect("push section should parse when present");
         assert_eq!(push.relay_url, default_relay_url());
     }
 
