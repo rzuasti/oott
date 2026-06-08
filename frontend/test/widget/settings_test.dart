@@ -9,17 +9,27 @@ import '../helpers/pump_app.dart';
 
 void main() {
   setUp(() async {
-    await setUpBackendForTest(
+    final adapter = await setUpBackendForTest(
       prefs: {
         'base_url': 'http://my.server/api',
         'api_key': XOR().xorEncode('topsecret'),
         'theme': 'catppuccin_mocha',
       },
     );
+    // Settings loads the backend config on init; these tests don't exercise the
+    // push toggle, so report a non-push method to keep it hidden.
+    adapter.onGet(
+      '/config',
+      (server) => server.reply(200, {
+        'notifications': {'method': 'none'},
+      }),
+    );
   });
 
   testWidgets('prefills the form from stored preferences', (tester) async {
     await pumpScreen(tester, const Settings());
+    // Let the on-init config request resolve so its timer doesn't leak.
+    await tester.pump(const Duration(milliseconds: 10));
 
     expect(find.text('http://my.server/api'), findsOneWidget);
     expect(find.text('Catppuccin Mocha'), findsOneWidget);
@@ -78,6 +88,7 @@ void main() {
   ) async {
     await PrefUtil.setValue('base_url', '');
     await pumpScreen(tester, const Settings());
+    await tester.pump(const Duration(milliseconds: 10));
 
     expect(find.textContaining('Welcome to OOTT'), findsOneWidget);
   });
@@ -87,6 +98,7 @@ void main() {
   ) async {
     await PrefUtil.setValue('base_url', 'http://my.server/api');
     await pumpScreen(tester, const Settings());
+    await tester.pump(const Duration(milliseconds: 10));
 
     expect(find.textContaining('Welcome to OOTT'), findsNothing);
   });

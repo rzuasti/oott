@@ -32,6 +32,9 @@ class _SettingsState extends State<Settings> {
   late final PushService _pushService;
   bool _pushEnabled = false;
   bool _pushBusy = false;
+  // Whether the backend delivers notifications via push. The per-device push
+  // toggle only makes sense then, so it stays hidden until this is confirmed.
+  bool _pushMethodActive = false;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -46,6 +49,20 @@ class _SettingsState extends State<Settings> {
     _selectedTheme = context.read<AppState>().themeKey;
     _pushService = widget.pushService ?? FirebasePushService();
     _pushEnabled = PrefUtil.getValue('push_enabled', false) as bool;
+    _loadConfig();
+  }
+
+  // Learn the backend's notification method so the push toggle is only shown
+  // when the backend actually delivers via push. Failures (e.g. the backend is
+  // unreachable, as on first run) just leave the toggle hidden.
+  Future<void> _loadConfig() async {
+    try {
+      final config = await BackendAPI.instance.getConfig();
+      if (!mounted) return;
+      setState(() => _pushMethodActive = config.notificationMethod == 'push');
+    } catch (e) {
+      debugPrint('Failed to load backend config: $e');
+    }
   }
 
   @override
@@ -245,7 +262,7 @@ class _SettingsState extends State<Settings> {
                 if (value != null) setState(() => _selectedTheme = value);
               },
             ),
-            if (_pushService.isSupported) ...[
+            if (_pushService.isSupported && _pushMethodActive) ...[
               const SizedBox(height: Insets.sm),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,

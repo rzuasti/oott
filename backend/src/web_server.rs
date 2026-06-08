@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
+use crate::model::config::{Config, NotificationConfig};
 use crate::model::device_events::{DeviceEvent, DeviceEventScanner, DeviceEventType};
 use crate::model::devices::{Device, DeviceListResponse, DeviceSummary};
 use crate::model::notifications::{Notification, NotificationListResponse, NotificationType};
@@ -29,6 +30,7 @@ use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa_swagger_ui::SwaggerUi;
 
 pub mod arp_scanner;
+pub mod config;
 pub mod device_events;
 pub mod devices;
 pub mod dhcp_scanner;
@@ -50,6 +52,7 @@ pub mod utils;
     ),
     paths(
         test_api,
+        config::read,
         devices::list,
         devices::summary,
         devices::read,
@@ -71,6 +74,8 @@ pub mod utils;
         snmp_scanner::status,
     ),
     components(schemas(
+        Config,
+        NotificationConfig,
         Device,
         DeviceListResponse,
         DeviceSummary,
@@ -90,6 +95,7 @@ pub mod utils;
     )),
     modifiers(&SecurityAddon),
     tags(
+        (name = "config", description = "Front-end configuration"),
         (name = "devices", description = "Device management"),
         (name = "notifications", description = "Notification management"),
         (name = "push_tokens", description = "Push notification token registration"),
@@ -163,6 +169,7 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
 
     let router = Router::new()
         .route("/api/test", get(test_api))
+        .route("/api/config", get(config::read))
         .route("/api/devices", get(devices::list))
         .route("/api/devices", put(devices::register))
         .route("/api/devices/summary", get(devices::summary))

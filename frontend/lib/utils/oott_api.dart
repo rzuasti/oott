@@ -9,6 +9,7 @@ import 'api/dio_config.dart';
 import 'backend_reachability.dart';
 import 'pref_utils.dart';
 import '../model/active_scanner_status.dart';
+import '../model/app_config.dart';
 import '../model/passive_scanner_status.dart';
 import '../model/device.dart';
 import '../model/device_event.dart';
@@ -18,6 +19,7 @@ import '../model/notification.dart';
 
 export 'api/api_error.dart';
 
+part 'api/oott_api_config.dart';
 part 'api/oott_api_devices.dart';
 part 'api/oott_api_scanners.dart';
 part 'api/oott_api_notifications.dart';

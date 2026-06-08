@@ -1,6 +1,7 @@
 # OOTT ToDo list
 
-- [ ] Add support for push notifications to the app (iOS and Android)
+- [x] Add support for push notifications to the app (iOS and Android)
+- [x] Remove push notifications plan
 
 ## Release plan for 0.2.0
 - [x] Test Android UI on emulator
@@ -26,12 +27,12 @@
 
 - [x] In the status screen, the "listening for" property of passive scanners should change to days and months (now its always minutes)
 - [ ] Check for potential dependency upgrades
-- [ ] In settings, figure out automatic save
-- [ ] The permissions dialog for push notifications on android says "Allow frontend to send you notifications"
+- [ ] In settings, move the backend configuration to a popup dialog that asks for the URL and API key and allows the user to test and save it. In the main screen it should present both items as read only and allow the user to change the theme and push notifications and both should trigger the change immediately (ie. without a save button)
+- [x] The permissions dialog for push notifications on android says "Allow frontend to send you notifications"
 
 ## Push relay
 
-- [ ] Add NPM to the devShell to be able to run tests
+- [x] Add NPM to the devShell to be able to run tests
 
 ## Improve engine
 
