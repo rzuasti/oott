@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase native config files. OOTT configures Firebase from the committed
+# lib/firebase_options.dart instead, so these are not used by the build; ignored
+# defensively so a stray download (e.g. from `flutterfire configure`) is not
+# accidentally committed.
+/android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist
+/macos/Runner/GoogleService-Info.plist

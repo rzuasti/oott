@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../firebase_options.dart';
 import 'oott_api.dart';
 
 /// Per-device push enable/disable, behind an interface so the settings UI can be
@@ -55,10 +56,13 @@ class FirebasePushService implements PushService {
       defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
 
   Future<void> _ensureFirebase() async {
-    // No options passed: the native google-services.json / GoogleService-Info
-    // .plist added during the one-time project setup provide them.
+    // Options come from the committed firebase_options.dart rather than native
+    // config files, so no google-services.json / GoogleService-Info.plist is
+    // needed in the build.
     if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
     }
   }
 

@@ -1,4 +1,4 @@
-package com.example.frontend
+package net.oottsecurity.app
 
 import io.flutter.embedding.android.FlutterActivity
 
