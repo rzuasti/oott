@@ -26,6 +26,7 @@
 
 ## Frontend
 
+- [ ] In the status screen, change the order of the scanners so that SNMP is second
 - [ ] On Android, make the font of the icon (phone screen) bigger
 - [x] In the status screen, the "listening for" property of passive scanners should change to days and months (now its always minutes)
 - [ ] Upgrade dependencies to new major versions
