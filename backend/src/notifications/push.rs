@@ -48,13 +48,14 @@ fn dead_tokens(results: &[RelayTokenResult]) -> Vec<String> {
 
 /// Deliver a notification to all registered devices through the project-operated push relay. Loads
 /// the stored tokens, forwards only the already-sanitized title/body, and prunes any tokens the
-/// relay reports as dead. Best-effort: a relay/network failure returns an error (logged by the
-/// caller) but never loses the event, which is already persisted in the notifications table.
-pub async fn send(config: &Push, title: String, body: String) -> Result<(), DeliveryError> {
+/// relay reports as dead. Returns the number of devices the relay confirmed delivery to. Best-effort:
+/// a relay/network failure returns an error (logged by the caller) but never loses the event, which
+/// is already persisted in the notifications table.
+pub async fn send(config: &Push, title: String, body: String) -> Result<usize, DeliveryError> {
     let stored = db::run_blocking(db::push_tokens::list).await?;
     if stored.is_empty() {
         debug!("No push tokens registered; nothing to deliver via the push relay");
-        return Ok(());
+        return Ok(0);
     }
 
     let request = RelayRequest {
@@ -80,7 +81,12 @@ pub async fn send(config: &Push, title: String, body: String) -> Result<(), Deli
         db::run_blocking(move || db::push_tokens::delete_many(&dead)).await?;
     }
 
-    Ok(())
+    let delivered = parsed
+        .results
+        .iter()
+        .filter(|result| result.status == "ok")
+        .count();
+    Ok(delivered)
 }
 
 #[cfg(test)]
@@ -143,7 +149,8 @@ mod tests {
         let config = Push {
             relay_url: format!("http://{addr}/v1/push"),
         };
-        send(&config, "title".into(), "body".into()).await.unwrap();
+        let delivered = send(&config, "title".into(), "body".into()).await.unwrap();
+        assert_eq!(delivered, 1, "Only the live token should count as delivered");
 
         let all = db::push_tokens::list().unwrap();
         assert!(

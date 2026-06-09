@@ -7,12 +7,20 @@ use axum::{
     response::IntoResponse,
 };
 use log::error;
+use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::{
     db, notifications,
     model::notifications::{Notification, NotificationListResponse},
     web_server::utils,
 };
+
+/// Result of a test-notification request: how many devices the relay confirmed delivery to.
+#[derive(Serialize, ToSchema)]
+pub struct TestNotificationResponse {
+    pub delivered: usize,
+}
 
 #[utoipa::path(
     get,
@@ -123,20 +131,17 @@ pub async fn mark_all_as_old() -> impl IntoResponse {
     path = "/api/notifications/test",
     tag = "notifications",
     responses(
-        (status = 200, description = "Test notification dispatched to the push relay"),
+        (status = 200, description = "Test notification dispatched", body = TestNotificationResponse),
         (status = 500, description = "Internal server error"),
     ),
     security(("bearer_auth" = []))
 )]
-pub async fn send_test() -> impl IntoResponse {
+pub async fn send_test() -> Result<Json<TestNotificationResponse>, StatusCode> {
     match notifications::send_test_push().await {
-        Ok(()) => (StatusCode::OK, "Test notification sent"),
+        Ok(delivered) => Ok(Json(TestNotificationResponse { delivered })),
         Err(err) => {
             error!("Error sending test push notification: {err}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Error sending test notification, check your logs",
-            )
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 }
@@ -206,7 +211,9 @@ mod tests {
             db::push_tokens::delete_many(&tokens).unwrap();
         }
 
-        let response = send_test().await.into_response();
-        assert_eq!(response.status(), StatusCode::OK);
+        let result = send_test()
+            .await
+            .expect("test send should succeed when no devices are registered");
+        assert_eq!(result.0.delivered, 0, "No devices means nothing delivered");
     }
 }

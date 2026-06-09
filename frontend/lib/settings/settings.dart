@@ -143,12 +143,22 @@ class _SettingsState extends State<Settings> {
   Future<void> _sendTestNotification() async {
     setState(() => _testBusy = true);
     try {
-      await BackendAPI.instance.sendTestNotification();
+      final delivered = await BackendAPI.instance.sendTestNotification();
       if (!mounted) return;
-      UISnackbars.showSuccess(
-        context,
-        'Test notification sent. It should arrive shortly.',
-      );
+      if (delivered == 0) {
+        // The request succeeded but no device received it — usually the backend
+        // lost this device's token (e.g. after a restart); re-toggle to re-register.
+        UISnackbars.showError(
+          context,
+          'No devices are registered to receive push notifications.',
+        );
+      } else {
+        final devices = delivered == 1 ? 'device' : 'devices';
+        UISnackbars.showSuccess(
+          context,
+          'Test notification sent to $delivered $devices.',
+        );
+      }
     } catch (e) {
       debugPrint('Failed to send test notification: $e');
       if (!mounted) return;

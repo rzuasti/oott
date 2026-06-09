@@ -36,13 +36,13 @@ void main() {
     await BackendAPI.instance.markAllNotificationsAsRead();
   });
 
-  test('sendTestNotification POSTs to /notifications/test', () async {
+  test('sendTestNotification POSTs and returns the delivered count', () async {
     adapter.onPost(
       '/notifications/test',
-      (server) => server.reply(200, null),
+      (server) => server.reply(200, {'delivered': 2}),
     );
 
-    await BackendAPI.instance.sendTestNotification();
+    expect(await BackendAPI.instance.sendTestNotification(), 2);
   });
 
   test(

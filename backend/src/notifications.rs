@@ -18,10 +18,10 @@ pub use delivery::run_delivery;
 pub use error::DeliveryError;
 
 /// Send a one-off test push to every registered device through the push relay. Used by the app's
-/// "Send test notification" button to verify end-to-end push delivery. Unlike scan-driven
-/// notifications it is not persisted to the notifications list, and it is a no-op (still `Ok`) when
-/// no devices are registered.
-pub async fn send_test_push() -> Result<(), DeliveryError> {
+/// "Send test notification" button to verify end-to-end push delivery. Returns the number of devices
+/// the relay confirmed delivery to (0 when none are registered). Unlike scan-driven notifications it
+/// is not persisted to the notifications list.
+pub async fn send_test_push() -> Result<usize, DeliveryError> {
     let config = crate::settings::get_settings()
         .notifications
         .push

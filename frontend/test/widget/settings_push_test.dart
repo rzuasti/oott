@@ -173,11 +173,13 @@ void main() {
     expect(find.text('Send test notification'), findsNothing);
   });
 
-  testWidgets('sends a test notification when push is on', (tester) async {
+  testWidgets('reports the device count when a test notification is sent', (
+    tester,
+  ) async {
     stubNotificationMethod('push');
     adapter.onPost(
       '/notifications/test',
-      (server) => server.reply(200, null),
+      (server) => server.reply(200, {'delivered': 2}),
     );
     await PrefUtil.setValue('push_enabled', true);
     await pumpScreen(tester, Settings(pushService: _FakePushService()));
@@ -186,7 +188,26 @@ void main() {
     await tester.tap(find.text('Send test notification'));
     await pumpUntilFound(
       tester,
-      find.text('Test notification sent. It should arrive shortly.'),
+      find.text('Test notification sent to 2 devices.'),
+    );
+  });
+
+  testWidgets('warns when a test notification reaches no devices', (
+    tester,
+  ) async {
+    stubNotificationMethod('push');
+    adapter.onPost(
+      '/notifications/test',
+      (server) => server.reply(200, {'delivered': 0}),
+    );
+    await PrefUtil.setValue('push_enabled', true);
+    await pumpScreen(tester, Settings(pushService: _FakePushService()));
+    await pumpUntilFound(tester, find.text('Send test notification'));
+
+    await tester.tap(find.text('Send test notification'));
+    await pumpUntilFound(
+      tester,
+      find.text('No devices are registered to receive push notifications.'),
     );
   });
 }

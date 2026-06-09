@@ -15,9 +15,11 @@ extension NotificationApi on BackendAPI {
   }
 
   /// Asks the backend to deliver a one-off test push to every registered device,
-  /// used from Settings to verify end-to-end push delivery.
-  Future<void> sendTestNotification() async {
-    await _dio.post('/notifications/test');
+  /// used from Settings to verify end-to-end push delivery. Returns the number of
+  /// devices the relay confirmed delivery to (0 when none are registered).
+  Future<int> sendTestNotification() async {
+    final response = await _dio.post('/notifications/test');
+    return (response.data as Map<String, dynamic>)['delivered'] as int;
   }
 
   Future<({List<Notification> items, int totalCount})> listNotifications(

@@ -8,6 +8,7 @@ use crate::model::notifications::{Notification, NotificationListResponse, Notifi
 use crate::model::push_tokens::{PushPlatform, PushToken};
 use crate::settings::get_settings;
 use crate::web_server::devices::{RegisterDevicePayload, UpdateDevicePayload};
+use crate::web_server::notifications::TestNotificationResponse;
 use crate::web_server::push_tokens::RegisterPushTokenPayload;
 use crate::web_server::scanner_status::{
     ActiveScannerStatusResponse, PassiveScannerStatusResponse,
@@ -83,6 +84,7 @@ pub mod utils;
         Notification,
         NotificationListResponse,
         NotificationType,
+        TestNotificationResponse,
         PushToken,
         PushPlatform,
         RegisterPushTokenPayload,
