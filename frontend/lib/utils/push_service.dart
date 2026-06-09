@@ -76,6 +76,16 @@ class FirebasePushService implements PushService {
       return false;
     }
 
+    // On iOS, FCM can only mint a token once Apple has delivered the APNs token
+    // to the app, which happens asynchronously after permission is granted.
+    // Calling getToken() before then throws `apns-token-not-set`, so wait for
+    // the APNs token first. Returns false (rather than throwing) if it never
+    // arrives, so the toggle simply stays off instead of erroring.
+    if (defaultTargetPlatform == TargetPlatform.iOS &&
+        !await _awaitApnsToken()) {
+      return false;
+    }
+
     final token = await FirebaseMessaging.instance.getToken();
     if (token == null) return false;
 
@@ -100,6 +110,17 @@ class FirebasePushService implements PushService {
       await BackendAPI.instance.unregisterPushToken(token);
     }
     await FirebaseMessaging.instance.deleteToken();
+  }
+
+  // Polls for the iOS APNs token, which Apple delivers asynchronously after the
+  // user grants permission. Returns true once it is available, or false if it
+  // has not arrived after a short bounded wait (e.g. no network on first run).
+  Future<bool> _awaitApnsToken() async {
+    for (var attempt = 0; attempt < 10; attempt++) {
+      if (await FirebaseMessaging.instance.getAPNSToken() != null) return true;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+    return false;
   }
 
   // Configure the local-notifications plugin and render foreground messages
