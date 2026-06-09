@@ -161,4 +161,32 @@ void main() {
     expect(service.disableCalls, 1);
     expect(PrefUtil.getValue('push_enabled', false), isFalse);
   });
+
+  testWidgets('hides the test button when push is off on this device', (
+    tester,
+  ) async {
+    stubNotificationMethod('push');
+    await PrefUtil.setValue('push_enabled', false);
+    await pumpScreen(tester, Settings(pushService: _FakePushService()));
+    await pumpUntilFound(tester, find.byType(SwitchListTile));
+
+    expect(find.text('Send test notification'), findsNothing);
+  });
+
+  testWidgets('sends a test notification when push is on', (tester) async {
+    stubNotificationMethod('push');
+    adapter.onPost(
+      '/notifications/test',
+      (server) => server.reply(200, null),
+    );
+    await PrefUtil.setValue('push_enabled', true);
+    await pumpScreen(tester, Settings(pushService: _FakePushService()));
+    await pumpUntilFound(tester, find.text('Send test notification'));
+
+    await tester.tap(find.text('Send test notification'));
+    await pumpUntilFound(
+      tester,
+      find.text('Test notification sent. It should arrive shortly.'),
+    );
+  });
 }

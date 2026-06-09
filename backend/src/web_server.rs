@@ -60,6 +60,7 @@ pub mod utils;
         devices::update,
         devices::unregister,
         notifications::list,
+        notifications::send_test,
         notifications::read,
         notifications::read_without_flagging,
         notifications::mark_as_new,
@@ -186,6 +187,7 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .route("/api/dhcp_scanner/status", get(dhcp_scanner::status))
         .route("/api/snmp_scanner/status", get(snmp_scanner::status))
         .route("/api/notifications", get(notifications::list))
+        .route("/api/notifications/test", post(notifications::send_test))
         .route(
             "/api/notifications/mark_all_as_old",
             post(notifications::mark_all_as_old),

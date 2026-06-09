@@ -15,6 +15,25 @@ use crate::model::devices::Device;
 use crate::model::notifications::{Notification, NotificationType};
 
 pub use delivery::run_delivery;
+pub use error::DeliveryError;
+
+/// Send a one-off test push to every registered device through the push relay. Used by the app's
+/// "Send test notification" button to verify end-to-end push delivery. Unlike scan-driven
+/// notifications it is not persisted to the notifications list, and it is a no-op (still `Ok`) when
+/// no devices are registered.
+pub async fn send_test_push() -> Result<(), DeliveryError> {
+    let config = crate::settings::get_settings()
+        .notifications
+        .push
+        .clone()
+        .unwrap_or_default();
+    push::send(
+        &config,
+        "OOTT test".to_string(),
+        "Test notification — push is working on this device.".to_string(),
+    )
+    .await
+}
 
 /// Send notifications for the changes detected during a scan (or a single sighting). Changes are
 /// grouped by notification type: a type with exactly one change produces the usual single-device

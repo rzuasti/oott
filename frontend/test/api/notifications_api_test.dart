@@ -36,6 +36,15 @@ void main() {
     await BackendAPI.instance.markAllNotificationsAsRead();
   });
 
+  test('sendTestNotification POSTs to /notifications/test', () async {
+    adapter.onPost(
+      '/notifications/test',
+      (server) => server.reply(200, null),
+    );
+
+    await BackendAPI.instance.sendTestNotification();
+  });
+
   test(
     'listNotifications sends is_new + pagination and reports the total',
     () async {

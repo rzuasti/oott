@@ -14,6 +14,12 @@ extension NotificationApi on BackendAPI {
     await _dio.post('/notifications/mark_all_as_old');
   }
 
+  /// Asks the backend to deliver a one-off test push to every registered device,
+  /// used from Settings to verify end-to-end push delivery.
+  Future<void> sendTestNotification() async {
+    await _dio.post('/notifications/test');
+  }
+
   Future<({List<Notification> items, int totalCount})> listNotifications(
     bool? isNew, {
     int page = 0,

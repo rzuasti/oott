@@ -30,6 +30,7 @@ class _SettingsState extends State<Settings> {
   late final PushService _pushService;
   bool _pushEnabled = false;
   bool _pushBusy = false;
+  bool _testBusy = false;
   // Whether the backend delivers notifications via push. The per-device push
   // toggle only makes sense then, so it stays hidden until this is confirmed.
   bool _pushMethodActive = false;
@@ -133,6 +134,27 @@ class _SettingsState extends State<Settings> {
       UISnackbars.showError(context, 'Failed to update push settings');
     } finally {
       if (mounted) setState(() => _pushBusy = false);
+    }
+  }
+
+  // Ask the backend to deliver a test push to every registered device, so the
+  // user can confirm push is working end to end without waiting for a real
+  // device event.
+  Future<void> _sendTestNotification() async {
+    setState(() => _testBusy = true);
+    try {
+      await BackendAPI.instance.sendTestNotification();
+      if (!mounted) return;
+      UISnackbars.showSuccess(
+        context,
+        'Test notification sent. It should arrive shortly.',
+      );
+    } catch (e) {
+      debugPrint('Failed to send test notification: $e');
+      if (!mounted) return;
+      UISnackbars.showError(context, 'Failed to send test notification');
+    } finally {
+      if (mounted) setState(() => _testBusy = false);
     }
   }
 
@@ -287,6 +309,17 @@ class _SettingsState extends State<Settings> {
                 value: _pushEnabled,
                 onChanged: _pushBusy ? null : _togglePush,
               ),
+              // Only useful once push is on for this device; sends a test push
+              // through the full backend → relay → device path.
+              if (_pushEnabled)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _testBusy ? null : _sendTestNotification,
+                    icon: const Icon(Icons.notifications_active_outlined),
+                    label: const Text('Send test notification'),
+                  ),
+                ),
             ],
           ],
         ),

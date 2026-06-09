@@ -9,7 +9,7 @@ use axum::{
 use log::error;
 
 use crate::{
-    db,
+    db, notifications,
     model::notifications::{Notification, NotificationListResponse},
     web_server::utils,
 };
@@ -119,6 +119,29 @@ pub async fn mark_all_as_old() -> impl IntoResponse {
 }
 
 #[utoipa::path(
+    post,
+    path = "/api/notifications/test",
+    tag = "notifications",
+    responses(
+        (status = 200, description = "Test notification dispatched to the push relay"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn send_test() -> impl IntoResponse {
+    match notifications::send_test_push().await {
+        Ok(()) => (StatusCode::OK, "Test notification sent"),
+        Err(err) => {
+            error!("Error sending test push notification: {err}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error sending test notification, check your logs",
+            )
+        }
+    }
+}
+
+#[utoipa::path(
     get,
     path = "/api/notifications",
     tag = "notifications",
@@ -160,4 +183,30 @@ pub async fn list(
         Ok(Json(NotificationListResponse { items, total_count }))
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests_common;
+
+    #[tokio::test]
+    async fn send_test_succeeds_with_no_registered_devices() {
+        tests_common::setup().await;
+
+        // Clear any tokens left by other tests so the relay is never contacted (the no-op path),
+        // keeping this hermetic; actual relay delivery + pruning is covered in the
+        // notifications::push tests with a mock relay.
+        let tokens: Vec<String> = db::push_tokens::list()
+            .unwrap()
+            .into_iter()
+            .map(|token| token.token)
+            .collect();
+        if !tokens.is_empty() {
+            db::push_tokens::delete_many(&tokens).unwrap();
+        }
+
+        let response = send_test().await.into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
 }
