@@ -99,17 +99,34 @@ final FlutterLocalNotificationsPlugin _localNotifications =
 // request comes from startup (push already enabled) or from enable() on toggle.
 bool _foregroundDisplayWired = false;
 
-// Renders push notifications that arrive while the app is in the foreground (the
-// OS displays backgrounded/terminated ones itself); taps just open the app, so no
+// Ensures push notifications are shown while the app is in the foreground (the OS
+// displays backgrounded/terminated ones itself); taps just open the app, so no
 // tap handler is wired. Idempotent; a no-op on platforms without push.
+//
+// The two platforms diverge in the foreground: iOS suppresses the incoming push
+// banner unless we opt in via setForegroundNotificationPresentationOptions, after
+// which the OS presents the original push itself (no re-show needed, which also
+// avoids a double notification / UNUserNotificationCenter delegate clash with
+// flutter_local_notifications). Android never displays foreground `notification`
+// messages itself, so there we render them through a local-notification channel
+// from onMessage.
 Future<void> _ensureForegroundDisplay() async {
   if (!_pushSupported || _foregroundDisplayWired) return;
   _foregroundDisplayWired = true;
 
+  if (_isIOS) {
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+    return;
+  }
+
   await _localNotifications.initialize(
     const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      iOS: DarwinInitializationSettings(),
     ),
   );
   await _localNotifications
@@ -133,7 +150,6 @@ Future<void> _ensureForegroundDisplay() async {
           importance: Importance.high,
           priority: Priority.high,
         ),
-        iOS: const DarwinNotificationDetails(),
       ),
     );
   });

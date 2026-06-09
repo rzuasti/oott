@@ -12,7 +12,7 @@
 - [x] Test in-house for 1 week
 - [x] Implement push notifications
 - [x] Release 0.2.0
-- [ ] Install in test server and test app on iPhone
+- [x] Install in test server and test app on iPhone
 - [ ] Test in-house for 3 days
 - [ ] Release 0.2.1 (or as many versions as needed)
 - [ ] Publish website
