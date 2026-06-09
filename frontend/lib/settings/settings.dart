@@ -42,7 +42,7 @@ class _SettingsState extends State<Settings> {
     _isFirstRun = _baseUrl.isEmpty;
     _selectedTheme = context.read<AppState>().themeKey;
     _pushService = widget.pushService ?? FirebasePushService();
-    _pushEnabled = PrefUtil.getValue('push_enabled', false) as bool;
+    _pushEnabled = pushEnabledOnThisDevice;
     _loadConfig();
     // First run / unconfigured: open the connection dialog immediately and keep
     // it open (non-dismissible) until the user saves a working configuration.
@@ -96,7 +96,7 @@ class _SettingsState extends State<Settings> {
         final enabled = await _pushService.enable();
         if (!mounted) return;
         if (enabled) {
-          await PrefUtil.setValue('push_enabled', true);
+          await setPushEnabledOnThisDevice(enabled: true);
           if (!mounted) return;
           setState(() => _pushEnabled = true);
           UISnackbars.showSuccess(
@@ -120,7 +120,7 @@ class _SettingsState extends State<Settings> {
       } else {
         await _pushService.disable();
         if (!mounted) return;
-        await PrefUtil.setValue('push_enabled', false);
+        await setPushEnabledOnThisDevice(enabled: false);
         if (!mounted) return;
         setState(() => _pushEnabled = false);
         UISnackbars.showSuccess(

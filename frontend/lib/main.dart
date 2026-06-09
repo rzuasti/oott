@@ -32,13 +32,12 @@ void main() {
         );
       }
 
-      // Initialize Firebase at launch so the firebase_messaging plugin's iOS
-      // APNs swizzling has a configured app to forward the device token to;
-      // without this getAPNSToken() never resolves and enabling push fails.
+      // Resume push at launch (Firebase init + foreground handler + token
+      // re-registration when already enabled); see initPushOnLaunch.
       try {
-        await initFirebaseForPush();
+        await initPushOnLaunch();
       } catch (e, stack) {
-        debugPrint('Firebase init for push failed, continuing: $e\n$stack');
+        debugPrint('Push launch init failed, continuing: $e\n$stack');
       }
 
       // Settle iOS's local-network permission now, at launch, so it isn't
