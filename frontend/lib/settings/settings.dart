@@ -104,9 +104,16 @@ class _SettingsState extends State<Settings> {
           );
         } else {
           setState(() => _pushEnabled = false);
+          // On iOS, surface the native APNs registration reason (if any) so the
+          // failure can be diagnosed without a Mac to read the device console.
+          final apnsStatus = await apnsRegistrationStatus();
+          if (!mounted) return;
           UISnackbars.showError(
             context,
-            'Could not enable push. Check notification permission for OOTT.',
+            apnsStatus != null
+                ? 'Could not enable push. $apnsStatus'
+                : 'Could not enable push. Check notification permission for '
+                      'OOTT.',
           );
         }
       } else {

@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../firebase_options.dart';
@@ -13,6 +14,24 @@ bool get pushSupportedOnThisPlatform =>
     !kIsWeb &&
     (defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS);
+
+// Channel exposing the native iOS APNs registration outcome (see AppDelegate).
+const MethodChannel _pushDiagnosticsChannel = MethodChannel(
+  'oott/push_diagnostics',
+);
+
+/// Reads the most recent native iOS APNs registration outcome for in-app
+/// diagnostics, since reading the device console requires a Mac. Returns a short
+/// status string on iOS, or null elsewhere or when the channel is unavailable
+/// (e.g. in tests).
+Future<String?> apnsRegistrationStatus() async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return null;
+  try {
+    return await _pushDiagnosticsChannel.invokeMethod<String>('apnsStatus');
+  } catch (_) {
+    return null;
+  }
+}
 
 /// Initializes Firebase at app startup on push-capable platforms. This must run
 /// at launch — the firebase_messaging plugin wires up iOS APNs swizzling in the
