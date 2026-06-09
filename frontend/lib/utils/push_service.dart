@@ -6,6 +6,25 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../firebase_options.dart';
 import 'oott_api.dart';
 
+/// Whether push is available on this platform/build (mobile only — FCM/APNs).
+/// Shared by [FirebasePushService.isSupported] and [initFirebaseForPush] so the
+/// two never drift.
+bool get pushSupportedOnThisPlatform =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS);
+
+/// Initializes Firebase at app startup on push-capable platforms. This must run
+/// at launch — the firebase_messaging plugin wires up iOS APNs swizzling in the
+/// AppDelegate at launch, and it can only forward the APNs device token to FCM
+/// if a FirebaseApp is already configured when iOS delivers it. Without this,
+/// `getAPNSToken()` never resolves and enabling push fails. No-op on web/desktop
+/// and if Firebase is already initialized.
+Future<void> initFirebaseForPush() async {
+  if (!pushSupportedOnThisPlatform || Firebase.apps.isNotEmpty) return;
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
+
 /// Per-device push enable/disable, behind an interface so the settings UI can be
 /// driven by a fake in tests without pulling in Firebase. Tapping a push only
 /// opens the app (no deep-link, no identifier); the in-app notification list
@@ -47,24 +66,16 @@ class FirebasePushService implements PushService {
   bool _foregroundDisplayWired = false;
 
   @override
-  bool get isSupported =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS);
+  bool get isSupported => pushSupportedOnThisPlatform;
 
   String get _platformName =>
       defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
 
-  Future<void> _ensureFirebase() async {
-    // Options come from the committed firebase_options.dart rather than native
-    // config files, so no google-services.json / GoogleService-Info.plist is
-    // needed in the build.
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    }
-  }
+  // Safety net in case startup init was skipped; normally Firebase is already
+  // initialized at launch by initFirebaseForPush(). Options come from the
+  // committed firebase_options.dart rather than native config files, so no
+  // google-services.json / GoogleService-Info.plist is needed in the build.
+  Future<void> _ensureFirebase() => initFirebaseForPush();
 
   @override
   Future<bool> enable() async {

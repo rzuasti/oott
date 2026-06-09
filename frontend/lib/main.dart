@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/theme/catppuccin_mocha_theme.dart';
 import 'package:frontend/utils/local_network_permission.dart';
 import 'package:frontend/utils/pref_utils.dart';
+import 'package:frontend/utils/push_service.dart';
 import 'package:provider/provider.dart';
 import 'navigation.dart';
 import 'theme/gruvbox_theme.dart';
@@ -29,6 +30,15 @@ void main() {
         debugPrint(
           'PrefUtil.init failed, continuing with defaults: $e\n$stack',
         );
+      }
+
+      // Initialize Firebase at launch so the firebase_messaging plugin's iOS
+      // APNs swizzling has a configured app to forward the device token to;
+      // without this getAPNSToken() never resolves and enabling push fails.
+      try {
+        await initFirebaseForPush();
+      } catch (e, stack) {
+        debugPrint('Firebase init for push failed, continuing: $e\n$stack');
       }
 
       // Settle iOS's local-network permission now, at launch, so it isn't
