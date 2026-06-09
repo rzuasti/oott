@@ -1,7 +1,7 @@
 name: frontend
 description: "OOTT - Easy to setup and use network device discovery and alert system"
 publish_to: "none"
-version: 0.2.0
+version: 0.2.1
 
 environment:
   sdk: ^3.10.8
