@@ -12,6 +12,61 @@ Format
 - Keep this header comment in place; the extractor ignores it.
 -->
 
+## v0.2.0 — 2026-06-09
+
+The headline of this release is mobile push notifications: OOTT can now alert
+you on your phone when a new or changed device appears, without keeping the app
+open. The settings screen was also reorganised, and there are several transition
+and caching fixes.
+
+### Features
+- **Push notifications.** When the backend's notification method is set to
+  "push", the app can register each device to receive alerts through Firebase
+  Cloud Messaging, relayed by a small project-owned Cloud Function. Payloads are
+  privacy-preserving: only the already-sanitized alert title and body are sent —
+  no MAC, IP, or device data, and tapping a notification simply opens the app.
+  A per-device push toggle in settings turns it on (shown only on platforms that
+  support push and when the backend is configured for it).
+- **Reorganised settings.** Backend URL and API key now live in a dedicated
+  Test/Save dialog reachable via "Re-configure", and open automatically on first
+  run. The settings screen shows the connection read-only (with a key reveal)
+  and groups Theme and Push into an "App settings" card; theme and push changes
+  apply immediately.
+
+### Improvements
+- Duration displays (e.g. the passive scanners' "Listening for …" line) now
+  scale up through months instead of capping at minutes, showing the two largest
+  relevant units.
+
+### Fixes
+- Fixed ghosting in native screen transitions: routed pages now paint opaque so
+  a pushed screen cleanly covers the one beneath, and detail screens slide in
+  with the covered page parallaxing out on the native iOS curve.
+- Front-end assets are now served with `Cache-Control: no-cache`, so upgrades no
+  longer leave the browser (and service worker) serving stale icons and images;
+  unchanged files still return a cheap 304.
+- The Android app label is now "OOTT" rather than the placeholder, so the
+  notification-permission dialog reads correctly.
+
+### Internal
+- New `push_relay/` service: a TypeScript Firebase Cloud Function exposing
+  `POST /v1/push` (FCM `sendEach` with per-token status mapping and dead-token
+  pruning), a `/health` liveness route, payload validation, and per-IP rate
+  limiting, with Jest tests and setup docs.
+- Backend gains a `push_tokens` migration, model and data layer, `PUT`/`DELETE
+  /api/push_tokens` endpoints, a `GET /api/config` endpoint exposing the
+  notification method, and a relay-backed "push" sender — all wired into the
+  router and OpenAPI.
+- Android package renamed to `net.oottsecurity.app`; Firebase is configured from
+  a committed `firebase_options.dart`, and iOS gains the `aps-environment`
+  entitlement and remote-notification background mode.
+- Dev shell adds `nodejs_22`, `firebase-tools`, and `google-cloud-sdk` for
+  building and deploying the relay.
+- Refreshed frontend and backend dependency lockfiles within existing version
+  ranges (e.g. tokio 1.49 → 1.52.3).
+- Documented the Codemagic webhook prerequisite so tag pushes actually trigger
+  builds.
+
 ## v0.1.3 — 2026-06-07
 
 A release focused on iOS readiness, app branding, and home/device UI polish.
