@@ -12,6 +12,28 @@ Format
 - Keep this header comment in place; the extractor ignores it.
 -->
 
+## v0.2.1 — 2026-06-09
+
+A follow-up to v0.2.0 that makes mobile push notifications actually arrive on
+iOS, and adds a way to verify delivery yourself.
+
+### Features
+- **Send test notification.** Settings now has a "Send test notification" button
+  that asks the backend to push a test alert to every registered device and
+  reports back how many devices it reached, so you can confirm push is working
+  end to end.
+
+### Fixes
+- **iOS push delivery.** Firebase is now initialised at startup and the app
+  waits for the native APNs token before requesting its FCM token, so iOS
+  devices reliably obtain a push token instead of leaving it null. The push
+  token is also re-registered on each launch to recover from rotation.
+
+### Internal
+- The iOS `AppDelegate` and `push_service` surface the native APNs registration
+  outcome for diagnostics, and `push_service` was refactored for clarity.
+- The backend's test-notification endpoint returns the delivered device count.
+
 ## v0.2.0 — 2026-06-09
 
 The headline of this release is mobile push notifications: OOTT can now alert
