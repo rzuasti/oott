@@ -2,6 +2,7 @@
 
 - [x] Add support for push notifications to the app (iOS and Android)
 - [x] Remove push notifications plan
+- [ ] Add the capability to delete a device from the system
 
 ## Release plan for 0.2.0
 - [x] Test Android UI on emulator
