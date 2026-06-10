@@ -6,6 +6,7 @@ Licensed under AGPL v3. See [LICENSE](LICENSE).
 * [What is OOTT?](#what-is-oott)
 * [Getting started](#getting-started)
   * [Simple installation with Docker](#simple-installation-with-docker)
+  * [Getting the mobile apps](#getting-the-mobile-apps)
   * [Using the mobile apps](#using-the-mobile-apps)
 * [Deeper dive](#deeper-dive)
   * [Installing OOTT as a Nix flake](#installing-oott-as-a-nix-flake)
@@ -15,6 +16,7 @@ Licensed under AGPL v3. See [LICENSE](LICENSE).
 * [Things to keep in mind](#things-to-keep-in-mind)
   * [Storage considerations](#storage-considerations)
   * [Privileges and network ports](#privileges-and-network-ports)
+* [Trademark](#trademark)
 
 ## What is OOTT?
 OOTT runs behind the scenes and monitors your local network, notifying you when something changes. Its most relevant features are:
@@ -74,6 +76,11 @@ Start the service from where you placed the compose file:
 docker compose up -d
 ```
 That's it. Check that everything is running with `docker ps`, and follow the logs with `docker logs CONTAINER_ID -f`.
+
+### Getting the mobile apps
+The official OOTT apps for **iOS and Android** are available as a **one-time paid purchase** on the App Store and Google Play. Buying them is the easiest way to get OOTT and directly supports its ongoing development. 💚
+
+OOTT is and will remain **fully open source**. If you'd prefer not to pay, you're free to **build and run the apps yourself** from this repository at no cost, under the terms of the AGPL-3.0. (If you redistribute your own build, see the [Trademark](#trademark) note — it must use its own name and branding, not "OOTT".)
 
 ### Using the mobile apps
 The OOTT app (web, desktop, iOS and Android) talks to the backend exclusively over its REST API on port `3000`. Open the app's settings and point it at your backend's address on the local network over HTTP, for example `http://192.168.1.50:3000`, using the API key you set in `web_server.api_key`.
@@ -247,3 +254,8 @@ OOTT binds these sockets with address/port reuse, so it can run alongside other 
 > OOTT needs elevated privileges: the ARP scanner requires raw-socket access, and port `67` is a privileged port. The pre-built Docker image and NixOS module already run with what they need.
 >
 > Under Docker, the scanners require **host networking** (or an equivalent setup that exposes the host's multicast and broadcast traffic to the container), as shown in the [Docker installation](#simple-installation-with-docker) above.
+
+## Trademark
+"OOTT", the OOTT name, and the OOTT logo are trademarks of Ricardo Zuasti and are **not** licensed under the AGPL-3.0. The AGPL-3.0 grants you full rights to the *source code* — to use, modify, build, run, and redistribute it — but it does **not** grant any right to use the OOTT name, branding, or logo.
+
+If you build or distribute your own version of this software, you must do so under a **different name and branding** and must not present it as the official OOTT app. This keeps users from confusing third-party builds with the official, supported release.
