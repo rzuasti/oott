@@ -19,7 +19,10 @@ void main() {
     // Assert the fallback prefix only, not the release date literal (it changes
     // every release).
     expect(find.textContaining('Released'), findsOneWidget);
-    expect(find.text('Source code'), findsOneWidget);
+    expect(
+      find.text('Check out our website and Git repo here'),
+      findsOneWidget,
+    );
     expect(find.text('openssl'), findsOneWidget);
   });
 }

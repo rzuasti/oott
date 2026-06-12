@@ -7,9 +7,7 @@ import '../theme/dimens.dart';
 // The version is read at runtime from the bundled package metadata
 // (frontend/pubspec.yaml), so it never needs to be hand-edited here.
 const _releaseDate = 'June 9, 2026';
-const _repoUrl = 'https://github.com/rzuasti/oott';
-const _licenseUrl = 'https://www.gnu.org/licenses/agpl-3.0.html';
-const _licenseName = 'GNU Affero General Public License v3 (AGPL-3.0)';
+const _websiteUrl = 'https://oott-security.net';
 
 class About extends StatelessWidget {
   const About({super.key});
@@ -48,23 +46,11 @@ class About extends StatelessWidget {
           const SizedBox(height: Insets.xxl),
           _SurfaceContainer(
             colorScheme: colorScheme,
-            child: Column(
-              children: [
-                _LinkRow(
-                  icon: Icons.code,
-                  label: 'Source code',
-                  url: _repoUrl,
-                  colorScheme: colorScheme,
-                  textTheme: textTheme,
-                ),
-                Divider(
-                  height: 1,
-                  color: colorScheme.outlineVariant,
-                  indent: Insets.lg,
-                  endIndent: Insets.lg,
-                ),
-                _LicenseRow(colorScheme: colorScheme, textTheme: textTheme),
-              ],
+            child: _LinkRow(
+              label: 'Check out our website and Git repo here',
+              url: _websiteUrl,
+              colorScheme: colorScheme,
+              textTheme: textTheme,
             ),
           ),
           const SizedBox(height: Insets.lg),
@@ -107,14 +93,12 @@ class _SurfaceContainer extends StatelessWidget {
 
 class _LinkRow extends StatelessWidget {
   const _LinkRow({
-    required this.icon,
     required this.label,
     required this.url,
     required this.colorScheme,
     required this.textTheme,
   });
 
-  final IconData icon;
   final String label;
   final String url;
   final ColorScheme colorScheme;
@@ -136,69 +120,14 @@ class _LinkRow extends StatelessWidget {
           vertical: Insets.md,
           horizontal: Insets.lg,
         ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: colorScheme.primary),
-            const SizedBox(width: Insets.md),
-            Text(
-              label,
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.primary,
-                decoration: TextDecoration.underline,
-                decorationColor: colorScheme.primary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LicenseRow extends StatelessWidget {
-  const _LicenseRow({required this.colorScheme, required this.textTheme});
-
-  final ColorScheme colorScheme;
-  final TextTheme textTheme;
-
-  Future<void> _open() async {
-    final uri = Uri.parse(_licenseUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: Insets.md,
-        horizontal: Insets.lg,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(Icons.gavel, size: 18, color: colorScheme.primary),
-          const SizedBox(width: Insets.md),
-          Flexible(
-            child: Wrap(
-              children: [
-                Text('Licensed under ', style: textTheme.bodyMedium),
-                InkWell(
-                  onTap: _open,
-                  child: Text(
-                    _licenseName,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.primary,
-                      decoration: TextDecoration.underline,
-                      decorationColor: colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+        child: Text(
+          label,
+          style: textTheme.bodyMedium?.copyWith(
+            color: colorScheme.primary,
+            decoration: TextDecoration.underline,
+            decorationColor: colorScheme.primary,
           ),
-        ],
+        ),
       ),
     );
   }
