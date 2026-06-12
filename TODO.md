@@ -31,7 +31,8 @@
 
 ## Frontend
 
-- [ ] On iOS, the buttons in the Settings configure dialog appear on two lines, try to fit them in one
+- [ ] Add a note on the settings dialog when empty that you need a backend
+- [x] On iOS, the buttons in the Settings configure dialog appear on two lines, try to fit them in one
 - [x] Add more themes (Dracula, Nord, Catppuccin Latte, Gruvbox light)
 - [x] Remove the license and notice from the UI, just link to the github pages
 - [x] On Android, make the font of the icon (phone screen) bigger

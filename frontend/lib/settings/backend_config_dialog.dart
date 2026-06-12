@@ -59,6 +59,10 @@ class _BackendConfigDialogState extends State<_BackendConfigDialog> {
   bool _testFailed = false;
   Timer? _failFlashTimer;
   static const _failFlashDuration = Duration(milliseconds: 1500);
+  // Reference width for the dialog body and the actions row. The actions row is
+  // measured at this width so the FittedBox can scale the whole row down on
+  // narrower screens.
+  static const _dialogContentWidth = 420.0;
 
   @override
   void initState() {
@@ -152,7 +156,7 @@ class _BackendConfigDialogState extends State<_BackendConfigDialog> {
       child: AlertDialog(
         title: const Text('Backend configuration'),
         content: SizedBox(
-          width: 420,
+          width: _dialogContentWidth,
           child: Form(
             key: _formKey,
             child: Column(
@@ -212,46 +216,62 @@ class _BackendConfigDialogState extends State<_BackendConfigDialog> {
         // It is a filled-tonal (medium emphasis) button so Save remains the
         // single high-emphasis (filled) action in the dialog; once the test
         // succeeds it recolours to the success accent.
-        actionsAlignment: MainAxisAlignment.spaceBetween,
+        //
+        // Handing the dialog's default OverflowBar three icon buttons makes it
+        // stack them onto two lines on narrow phones once their combined width
+        // exceeds the dialog width. Instead we lay them out in a single Row at
+        // the dialog's content width and wrap it in a FittedBox(scaleDown): on
+        // wider screens it renders at full size with the spread intact, and on
+        // a too-narrow phone the whole row scales down uniformly to fit rather
+        // than wrapping or overflowing.
         actions: [
-          FilledButton.tonalIcon(
-            onPressed: _testConnection,
-            label: const Text('Test'),
-            icon: Icon(
-              _testOk
-                  ? Icons.check
-                  : _testFailed
-                  ? Icons.error_outline
-                  : Icons.play_arrow,
-            ),
-            style: _testOk
-                ? FilledButton.styleFrom(
-                    backgroundColor: appColors.success,
-                    foregroundColor: appColors.onSuccess,
-                  )
-                : _testFailed
-                ? FilledButton.styleFrom(
-                    backgroundColor: colorScheme.error,
-                    foregroundColor: colorScheme.onError,
-                  )
-                : null,
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.dismissible) ...[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
+          SizedBox(
+            width: double.infinity,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox(
+                width: _dialogContentWidth,
+                child: Row(
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: _testConnection,
+                      label: const Text('Test'),
+                      icon: Icon(
+                        _testOk
+                            ? Icons.check
+                            : _testFailed
+                            ? Icons.error_outline
+                            : Icons.play_arrow,
+                      ),
+                      style: _testOk
+                          ? FilledButton.styleFrom(
+                              backgroundColor: appColors.success,
+                              foregroundColor: appColors.onSuccess,
+                            )
+                          : _testFailed
+                          ? FilledButton.styleFrom(
+                              backgroundColor: colorScheme.error,
+                              foregroundColor: colorScheme.onError,
+                            )
+                          : null,
+                    ),
+                    const Spacer(),
+                    if (widget.dismissible) ...[
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: Insets.sm),
+                    ],
+                    FilledButton.icon(
+                      onPressed: saveDisabled ? null : _save,
+                      label: const Text('Save'),
+                      icon: const Icon(Icons.save),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: Insets.sm),
-              ],
-              FilledButton.icon(
-                onPressed: saveDisabled ? null : _save,
-                label: const Text('Save'),
-                icon: const Icon(Icons.save),
               ),
-            ],
+            ),
           ),
         ],
       ),
