@@ -163,6 +163,38 @@ class _BackendConfigDialogState extends State<_BackendConfigDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // First run: the connection isn't configured yet, so greet the
+                // user and make clear OOTT relies on a backend running in their
+                // network.
+                if (!widget.dismissible) ...[
+                  Card(
+                    color: colorScheme.secondaryContainer,
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(Insets.lg),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.waving_hand_outlined,
+                            color: colorScheme.onSecondaryContainer,
+                          ),
+                          const SizedBox(width: Insets.md),
+                          Expanded(
+                            child: Text(
+                              'Welcome to OOTT! Point the app at your server’s '
+                              'API to get started. OOTT cannot function without '
+                              'a backend installed in your network.',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onSecondaryContainer,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: Insets.lg),
+                ],
                 TextFormField(
                   controller: _baseUrlController,
                   onChanged: _onConnectionChanged,

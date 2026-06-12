@@ -170,40 +170,10 @@ class _SettingsState extends State<Settings> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_isFirstRun) ...[
-            Card(
-              color: colorScheme.secondaryContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(Insets.lg),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.waving_hand_outlined,
-                      color: colorScheme.onSecondaryContainer,
-                    ),
-                    const SizedBox(width: Insets.md),
-                    Expanded(
-                      child: Text(
-                        'Welcome to OOTT! Point the app at your server’s API '
-                        'to get started.',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSecondaryContainer,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: Insets.lg),
-          ],
           _buildConnectionSummary(context),
           const SizedBox(height: Insets.lg),
           _buildAppSettings(context),

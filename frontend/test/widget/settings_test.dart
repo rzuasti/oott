@@ -88,15 +88,22 @@ void main() {
     );
   });
 
-  testWidgets('shows the welcome intro when no server is configured', (
-    tester,
-  ) async {
-    await PrefUtil.setValue('base_url', '');
-    await pumpScreen(tester, const Settings());
-    await tester.pump(const Duration(milliseconds: 10));
+  testWidgets(
+    'shows the welcome intro in the config dialog when no server is configured',
+    (tester) async {
+      await PrefUtil.setValue('base_url', '');
+      await pumpScreen(tester, const Settings());
+      await tester.pumpAndSettle();
 
-    expect(find.textContaining('Welcome to OOTT'), findsOneWidget);
-  });
+      // The first-run dialog opens automatically and carries the welcome note.
+      expect(find.text('Backend configuration'), findsOneWidget);
+      expect(find.textContaining('Welcome to OOTT'), findsOneWidget);
+      expect(
+        find.textContaining('cannot function without a backend'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('hides the welcome intro once a server is configured', (
     tester,
