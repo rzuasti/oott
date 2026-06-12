@@ -15,10 +15,12 @@
 - [x] Implement push notifications
 - [x] Release 0.2.0
 - [x] Install in test server and test app on iPhone
-- [ ] Test in-house for 3 days
+- [x] Test in-house for 3 days
 - [ ] Test flake install
-- [ ] Release 0.2.1 (or as many versions as needed)
-- [ ] Publish website
+- [x] Release 0.2.1 (or as many versions as needed)
+- [x] Publish website
+- [ ] Release app on App Store (iOS)
+- [ ] Release app on Play Store (Android)
 - [ ] Post on reddit
 
 ## Backend
