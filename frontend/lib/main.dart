@@ -2,7 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:frontend/theme/alucard_theme.dart';
+import 'package:frontend/theme/catppuccin_latte_theme.dart';
 import 'package:frontend/theme/catppuccin_mocha_theme.dart';
+import 'package:frontend/theme/dracula_theme.dart';
+import 'package:frontend/theme/nord_theme.dart';
+import 'package:frontend/theme/tokyo_night_theme.dart';
 import 'package:frontend/utils/local_network_permission.dart';
 import 'package:frontend/utils/pref_utils.dart';
 import 'package:frontend/utils/push_service.dart';
@@ -75,8 +80,13 @@ final class MainApp extends StatelessWidget {
 }
 
 final _themes = {
+  'alucard': alucardLightTheme,
+  'catppuccin_latte': catppuccinLatteLightTheme,
   'catppuccin_mocha': catppuccinMochaDarkTheme,
+  'dracula': draculaDarkTheme,
   'gruvbox_dark': gruvboxDarkTheme,
+  'nord': nordDarkTheme,
+  'tokyo_night': tokyoNightDarkTheme,
 };
 
 class AppState extends ChangeNotifier {

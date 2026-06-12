@@ -292,13 +292,24 @@ class _SettingsState extends State<Settings> {
                 labelText: 'Theme',
               ),
               items: const [
+                DropdownMenuItem(value: 'alucard', child: Text('Alucard')),
+                DropdownMenuItem(
+                  value: 'catppuccin_latte',
+                  child: Text('Catppuccin Latte'),
+                ),
                 DropdownMenuItem(
                   value: 'catppuccin_mocha',
                   child: Text('Catppuccin Mocha'),
                 ),
+                DropdownMenuItem(value: 'dracula', child: Text('Dracula')),
                 DropdownMenuItem(
                   value: 'gruvbox_dark',
                   child: Text('Gruvbox Dark'),
+                ),
+                DropdownMenuItem(value: 'nord', child: Text('Nord')),
+                DropdownMenuItem(
+                  value: 'tokyo_night',
+                  child: Text('Tokyo Night'),
                 ),
               ],
               // Applies immediately; the theme persists itself, no Save needed.

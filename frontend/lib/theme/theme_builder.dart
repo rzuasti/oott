@@ -6,8 +6,9 @@ import 'app_colors.dart';
 /// Builds a Material 3 [ThemeData] from a [ColorScheme] and the app's custom
 /// [AppColorExtension], applying the shared OOTT typography.
 ///
-/// Both bundled themes (Catppuccin Mocha, Gruvbox Dark) go through here so they
-/// stay visually consistent — only their colors differ.
+/// Every bundled theme (Catppuccin Mocha/Latte, Gruvbox Dark, Dracula, Alucard,
+/// Nord, Tokyo Night) goes through here so they stay visually consistent — only
+/// their colors differ.
 ThemeData buildAppTheme({
   required ColorScheme colorScheme,
   required AppColorExtension appColors,

@@ -29,7 +29,7 @@
 
 ## Frontend
 
-- [ ] Add more themes (Dracula, Nord, Catppuccin Latte, Gruvbox light)
+- [x] Add more themes (Dracula, Nord, Catppuccin Latte, Gruvbox light)
 - [x] Remove the license and notice from the UI, just link to the github pages
 - [x] On Android, make the font of the icon (phone screen) bigger
 - [x] In the status screen, the "listening for" property of passive scanners should change to days and months (now its always minutes)
