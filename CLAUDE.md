@@ -1,66 +1,62 @@
 # Project OOTT
 
-OOTT is an easy to setup network monitoring and alert system aimed at notifying when new or unknown devices join a local area network.
+OOTT is an easy-to-setup network monitoring and alert system that notifies when new or unknown devices join a local area network. Two components, communicating exclusively via the backend's REST API:
 
-It has two major components:
-- A backend service that runs the monitoring and other processes and provides a REST API. This is built with [Rust](https://rust-lang.org/).
-- A front-end that enables the user to configure the system and access the data it stores. This is built with [Flutter](https://flutter.dev/) - a front-end framework based on the [Dart](https://dart.dev/) language.
-
-
-## Code style
-
-For Rust code:
-- Use the standard [Rust style guide](https://doc.rust-lang.org/style-guide/)
-- Use `rustfmt` to format the code. This crate is edition 2024, so always pass `--edition 2024` when invoking `rustfmt` directly (e.g. `rustfmt --edition 2024 <file>`) to avoid spurious import-ordering changes
-
-For Flutter/Dart code:
-- Use the standard [Dart style guide](https://dart.dev/effective-dart/style)
-- Use `dart format --output show` to format the code
-
-## Project commands
-
-- `cd backend && ./build.sh` from the `backend/` folder - Build the backend
-- `cd backend && ./run.sh` from the `backend/` folder - Run the backend
-- `cd frontend && ./run_web.sh` from the `frontend/` folder - Run the front-end for the web
-- `cd frontend && ./run_android_emulator.sh` from the `frontend/` folder - Boot the Android emulator (if needed) and run the front-end on it
-- `cd backend && ./run_tests.sh` - Run the backend tests
-- `cd frontend && ./run_tests.sh` - Run the front-end tests
-- `cd backend && ./lint.sh` - Run the clippy linter for Rust code
-- `dart analyze` - Run the Dart linter
-- `cd backend/data && ./update_mac_vendors --llm` - Update the MAC vendors list from the web and re-calculate the vedors -> device type list
+- **Backend** (`backend/`): [Rust](https://rust-lang.org/), edition 2024. Runs the monitoring processes and exposes the REST API.
+- **Front-end** (`frontend/`): [Flutter](https://flutter.dev/) / [Dart](https://dart.dev/). Configures the system and accesses stored data.
 
 ## Architecture
 
-### General
-- All backend source code is under the `backend/` folder
-- All front-end source code is under the `frontend/` folder
-- All interactions between the front-end and the backend are via the backend REST API
-
 ### Backend
-- System state and events are stored in a SQLite database (`oott.db` by default) which is accessed and managed exclusively by the backend via a data access layer (`db.rs` and files under the `backend/src/db/` folder)
-- Database structure is handled through incremental migrations (stored under the `backend/database_migrations` folder). Each set of structural changes should be a new database migration file.
-- The backend's entry point is `src/main.rs` which starts two threads using the [Tokyo](https://tokio.rs/) framework: one for the network scanning process and another one for the web server that exposes the API and hosts the Flutter app (front-end) assets when deployed in a live environment (ie not development)
+- Entry point `src/main.rs` starts two [Tokio](https://tokio.rs/) threads: one for network scanning, one for the web server (serves the API and, in non-dev deployments, hosts the Flutter assets).
+- State and events live in a SQLite database (`oott.db` by default), accessed exclusively through the data access layer (`db.rs` and `backend/src/db/`).
+- Schema changes go through incremental migrations in `backend/database_migrations/`. Each set of structural changes is a new migration file.
 
 ### Front-end
-- The front-end's entry point is `lib/main.dart`
-- It uses the [Material 3](https://m3.material.io/develop/flutter) framework for Flutter
-- The application needs to be responsive and adapt to a web experience in the desktop, tablets and phones
-- The application is also available in iOS and Android as a native experience (via de App Store and Play store) 
-- Backend API access is implemented in the `utils/oott_api.dart` component
- 
-## Important notes
-- NEVER add or commit .env files or files with secrets (passwords, API keys or similar information)
-- Code must be as simple as possible, human readable and modularized
-- ALWAYS write and/or update unit tests for new or modified backend components
-- ALWAYS write and/or update unit, API and widget tests for new or modified frontend components
-- ALWAYS run all tests after making a new change and do not continue until all tests pass
-- When adding a new API endpoint, ALWAYS wire it to the OpenAPI generation
-- When adding a significant chunk of new code (either Rust or Dart), run the corresponding linter
-- In the frontend, use the UISnackbars component to display messages to the user that do not require action on their part.
-- In the frontend, always use colors from the selected theme. Never hard code colors any other way. If a color is needed and it's not covered semantically by the theme, suggest an addition to the theme extension implemented in the project.
-- In the frontend, prefer built-in Flutter/Material components over custom-built ones. Only build a custom component when it is genuinely a better fit for the requirements — and in that case, present the pros/cons of custom vs. built-in to the human and get confirmation before proceeding.
-- In the frontend, when building a new screen, widget, or dialog, make it consistent: follow the patterns already used by similar widgets in this project, and follow Material 3 guidance and best practices (e.g. button emphasis hierarchy, action placement, theming).
-- In the backend Rust code, avoid import aliases ("use ... as ...") unless necessary
-- Do not create branches by default, commit directly to main (this is a single developer project)
-- When files are changed by the formatter do not revert them to keep the commit pure, just add them to the current commit.
-- Never revert a file solely because the formatter reformatted it (even files you did not otherwise touch) — keep the formatter's changes. Only revert if the formatting change actually introduces a bug or other issue.
+- Entry point `lib/main.dart`, built on [Material 3](https://m3.material.io/develop/flutter).
+- Must be responsive across desktop web, tablet, and phone, and ships as a native iOS/Android app (App Store / Play Store).
+- All backend API access goes through `utils/oott_api.dart`.
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `cd backend && ./build.sh` | Build the backend |
+| `cd backend && ./run.sh` | Run the backend |
+| `cd backend && ./run_tests.sh` | Run backend tests |
+| `cd backend && ./lint.sh` | Run clippy (Rust linter) |
+| `cd frontend && ./run_web.sh` | Run the front-end for web |
+| `cd frontend && ./run_android_emulator.sh` | Boot the Android emulator (if needed) and run the front-end |
+| `cd frontend && ./run_tests.sh` | Run front-end tests |
+| `dart analyze` | Run the Dart linter |
+| `cd backend/data && ./update_mac_vendors --llm` | Update MAC vendor list and recalculate the vendor → device-type mapping |
+
+## Code style
+
+- **Rust**: standard [Rust style guide](https://doc.rust-lang.org/style-guide/). Format with `rustfmt`; always pass `--edition 2024` (e.g. `rustfmt --edition 2024 <file>`) to avoid spurious import-ordering changes. Avoid import aliases (`use ... as ...`) unless necessary.
+- **Dart**: standard [Dart style guide](https://dart.dev/effective-dart/style). Format with `dart format --output show`.
+- All code must be as simple, human-readable, and modular as possible.
+
+## Testing & linting
+
+- Write/update tests for every new or modified component: unit tests (backend); unit, API, and widget tests (frontend).
+- After any change, run all tests and do not continue until they pass.
+- Run the matching linter after adding a significant chunk of Rust or Dart.
+
+## Front-end conventions
+
+- Use the `UISnackbars` component for messages that need no user action.
+- Use colors from the selected theme only — never hard-code them. If a needed color isn't covered semantically by the theme, propose an addition to the project's theme extension.
+- Prefer built-in Flutter/Material components. Build a custom one only when it's genuinely a better fit, and in that case present the custom-vs-built-in trade-offs to the human and get confirmation first.
+- Keep new screens/widgets/dialogs consistent with existing similar widgets and with Material 3 guidance (button emphasis hierarchy, action placement, theming).
+
+## Workflow
+
+- Commit directly to `main` by default; don't create branches (single-developer project).
+- Always commit `TODO.md` when it changes, without ticking items — it's fully human-managed.
+- Keep formatter changes: never revert a file just because the formatter reformatted it (even files you didn't otherwise touch), and add such changes to the current commit. Revert only if the reformatting actually introduces a bug.
+
+## Must / must not
+
+- When adding a new API endpoint, always wire it into the OpenAPI generation.
+- NEVER add or commit `.env` files or any files containing secrets (passwords, API keys, etc.).

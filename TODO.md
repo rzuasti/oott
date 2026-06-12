@@ -3,7 +3,7 @@
 - [x] Add support for push notifications to the app (iOS and Android)
 - [x] Remove push notifications plan
 - [x] Add the capability to delete a device from the system
-- [ ] Review CLAUDE.md to make it shorter and easier to read for AIs while keeping all its intentions
+- [x] Review CLAUDE.md to make it shorter and easier to read for AIs while keeping all its intentions
 
 ## Release plan for 0.2.0
 - [x] Test Android UI on emulator
