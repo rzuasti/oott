@@ -12,6 +12,44 @@ Format
 - Keep this header comment in place; the extractor ignores it.
 -->
 
+## v0.2.2 — 2026-06-12
+
+A polish release: more themes to choose from, the ability to permanently delete
+a device, and a round of UI and iOS push refinements.
+
+### Features
+- **More themes.** Five new selectable themes join Catppuccin Mocha and Gruvbox
+  Dark — Catppuccin Latte, Dracula, Alucard, Nord, and Tokyo Night — each using
+  the same shared theme builder so they stay visually consistent.
+- **Permanent device deletion.** Not-registered devices can now be deleted
+  outright (from the device detail screen or the list row), and the Forget
+  dialog gains an opt-in "permanently delete" checkbox that erases the device
+  and its events for good.
+
+### Fixes
+- **iOS foreground push.** Push notifications now display as a banner on iOS
+  even while the app is open, instead of being silently suppressed or
+  double-shown.
+- **Narrow-screen layout.** The device detail action buttons now wrap instead
+  of overflowing horizontally on phone widths.
+
+### Improvements
+- Button emphasis follows Material 3 more closely: a single filled primary
+  action, error-colored text buttons for destructive actions, and the Test
+  button demoted to filled-tonal.
+- The backend-config Test button flashes red when a connection test fails.
+- Snackbars now render above dialogs via a top-level messenger host.
+- The Android adaptive launcher icon shows a larger OOTT wordmark.
+- The About screen links to the project website instead of the source and
+  license.
+
+### Internal
+- The backend adds `db::devices::delete` and a `DELETE
+  /api/devices/{mac}/permanently` endpoint (wired into OpenAPI), both covered by
+  tests.
+- The README documents the one-time paid app model, and the project reserves the
+  "OOTT" name and logo as a trademark while keeping the source under AGPL-3.0.
+
 ## v0.2.1 — 2026-06-09
 
 A follow-up to v0.2.0 that makes mobile push notifications actually arrive on
