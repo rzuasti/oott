@@ -225,55 +225,73 @@ class _DeviceActions extends StatelessWidget {
       foregroundColor: colorScheme.error,
     );
 
+    final List<Widget> leading;
+    final Widget destructive;
     if (device.isRegistered) {
-      return Row(
-        children: [
-          FilledButton.icon(
-            onPressed: () => showEditDeviceDialog(context, device, onAction),
-            icon: const Icon(Icons.edit),
-            label: const Text('Edit'),
-          ),
-          const Spacer(),
-          TextButton.icon(
-            style: destructiveStyle,
-            onPressed: () => confirmForgetDevice(
-              context,
-              device,
-              onAction,
-              onDeleted: () => context.go(Routes.devices),
-            ),
-            icon: const Icon(Icons.link_off),
-            label: const Text('Forget Device'),
-          ),
-        ],
+      leading = [
+        FilledButton.icon(
+          onPressed: () => showEditDeviceDialog(context, device, onAction),
+          icon: const Icon(Icons.edit),
+          label: const Text('Edit'),
+        ),
+      ];
+      destructive = TextButton.icon(
+        style: destructiveStyle,
+        onPressed: () => confirmForgetDevice(
+          context,
+          device,
+          onAction,
+          onDeleted: () => context.go(Routes.devices),
+        ),
+        icon: const Icon(Icons.link_off),
+        label: const Text('Forget Device'),
       );
-    }
-    return Row(
-      children: [
+    } else {
+      leading = [
         FilledButton.icon(
           onPressed: () => showRegisterDeviceDialog(context, device, onAction),
           icon: const Icon(Icons.how_to_reg),
           label: const Text('Register Device'),
         ),
-        const SizedBox(width: Insets.md),
         TextButton.icon(
           onPressed: () => showDeviceIdentificationDialog(context, device),
           icon: const Icon(Icons.help_outline),
           label: const Text('How to identify'),
         ),
-        const Spacer(),
-        TextButton.icon(
-          style: destructiveStyle,
-          onPressed: () => confirmDeleteDevice(
-            context,
-            device,
-            onAction,
-            onDeleted: () => context.go(Routes.devices),
-          ),
-          icon: const Icon(Icons.delete_outline),
-          label: const Text('Delete'),
+      ];
+      destructive = TextButton.icon(
+        style: destructiveStyle,
+        onPressed: () => confirmDeleteDevice(
+          context,
+          device,
+          onAction,
+          onDeleted: () => context.go(Routes.devices),
         ),
-      ],
+        icon: const Icon(Icons.delete_outline),
+        label: const Text('Delete'),
+      );
+    }
+
+    final isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
+    if (isWide) {
+      return Row(
+        children: [
+          for (var i = 0; i < leading.length; i++) ...[
+            if (i > 0) const SizedBox(width: Insets.md),
+            leading[i],
+          ],
+          const Spacer(),
+          destructive,
+        ],
+      );
+    }
+
+    // On narrow phone widths the buttons don't fit on one line, so let them
+    // wrap instead of overflowing.
+    return Wrap(
+      spacing: Insets.md,
+      runSpacing: Insets.sm,
+      children: [...leading, destructive],
     );
   }
 }
