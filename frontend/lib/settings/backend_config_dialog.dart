@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:encrypter/encrypter/xor.dart';
 import 'package:flutter/material.dart';
 
@@ -51,6 +53,12 @@ class _BackendConfigDialogState extends State<_BackendConfigDialog> {
   // prefilled config starts unmodified so it can be re-saved without retesting,
   // but any edit re-gates Save behind a fresh Test.
   bool _connectionModified = false;
+  // Briefly true after a failed test so the Test button flashes red as a clear,
+  // glanceable failure cue (the error snackbar can be missed). Cleared by the
+  // timer below, by editing a field, or by a successful test.
+  bool _testFailed = false;
+  Timer? _failFlashTimer;
+  static const _failFlashDuration = Duration(milliseconds: 1500);
 
   @override
   void initState() {
@@ -65,14 +73,17 @@ class _BackendConfigDialogState extends State<_BackendConfigDialog> {
 
   @override
   void dispose() {
+    _failFlashTimer?.cancel();
     _baseUrlController.dispose();
     _apiKeyController.dispose();
     super.dispose();
   }
 
   void _onConnectionChanged(String _) {
+    _failFlashTimer?.cancel();
     setState(() {
       _testOk = false;
+      _testFailed = false;
       _connectionModified = true;
     });
   }
@@ -84,13 +95,21 @@ class _BackendConfigDialogState extends State<_BackendConfigDialog> {
       _apiKeyController.text,
     );
     if (!mounted) return;
+    final ok = result == null;
+    _failFlashTimer?.cancel();
     setState(() {
-      _testOk = result == null;
-      if (result == null) _connectionModified = false;
+      _testOk = ok;
+      _testFailed = !ok;
+      if (ok) _connectionModified = false;
     });
-    if (result == null) {
+    if (ok) {
       UISnackbars.showSuccess(context, 'It works!');
     } else {
+      // Revert the red flash after a visible beat; the button returns to its
+      // default look so the user can retry.
+      _failFlashTimer = Timer(_failFlashDuration, () {
+        if (mounted) setState(() => _testFailed = false);
+      });
       UISnackbars.showError(context, result);
     }
   }
@@ -190,20 +209,32 @@ class _BackendConfigDialogState extends State<_BackendConfigDialog> {
         // Test is a neutral utility action, so per Material 3 it sits on the
         // left, separated from the dismiss/confirm pair (Cancel, Save) which
         // stays grouped at the trailing edge with the confirming action last.
+        // It is a filled-tonal (medium emphasis) button so Save remains the
+        // single high-emphasis (filled) action in the dialog; once the test
+        // succeeds it recolours to the success accent.
         actionsAlignment: MainAxisAlignment.spaceBetween,
         actions: [
-          FilledButton.icon(
+          FilledButton.tonalIcon(
             onPressed: _testConnection,
             label: const Text('Test'),
-            icon: Icon(_testOk ? Icons.check : Icons.play_arrow),
-            style: FilledButton.styleFrom(
-              backgroundColor: _testOk
-                  ? appColors.success
-                  : colorScheme.secondary,
-              foregroundColor: _testOk
-                  ? appColors.onSuccess
-                  : colorScheme.onSecondary,
+            icon: Icon(
+              _testOk
+                  ? Icons.check
+                  : _testFailed
+                  ? Icons.error_outline
+                  : Icons.play_arrow,
             ),
+            style: _testOk
+                ? FilledButton.styleFrom(
+                    backgroundColor: appColors.success,
+                    foregroundColor: appColors.onSuccess,
+                  )
+                : _testFailed
+                ? FilledButton.styleFrom(
+                    backgroundColor: colorScheme.error,
+                    foregroundColor: colorScheme.onError,
+                  )
+                : null,
           ),
           Row(
             mainAxisSize: MainAxisSize.min,

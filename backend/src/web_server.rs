@@ -60,6 +60,7 @@ pub mod utils;
         devices::register,
         devices::update,
         devices::unregister,
+        devices::delete,
         notifications::list,
         notifications::send_test,
         notifications::read,
@@ -177,6 +178,10 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         .route("/api/devices", put(devices::register))
         .route("/api/devices/summary", get(devices::summary))
         .route("/api/devices/{mac_address}", delete(devices::unregister))
+        .route(
+            "/api/devices/{mac_address}/permanently",
+            delete(devices::delete),
+        )
         .route("/api/devices/{mac_address}", get(devices::read))
         .route("/api/devices/{mac_address}", put(devices::update))
         .route(
@@ -204,10 +209,7 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
             post(notifications::mark_as_new),
         )
         .route("/api/push_tokens", put(push_tokens::register))
-        .route(
-            "/api/push_tokens/{token}",
-            delete(push_tokens::unregister),
-        )
+        .route("/api/push_tokens/{token}", delete(push_tokens::unregister))
         .route_layer(axum::middleware::from_fn(auth))
         .layer(ServiceBuilder::new().layer(cors_layer))
         // Send visitors straight to the UI; the bare "/" has no content of its own.

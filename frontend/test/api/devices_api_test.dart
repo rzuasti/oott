@@ -149,6 +149,15 @@ void main() {
     await BackendAPI.instance.forgetDevice('aa:bb:cc:dd:ee:ff');
   });
 
+  test('deleteDevice DELETEs the permanently path', () async {
+    adapter.onDelete(
+      '/devices/aa:bb:cc:dd:ee:ff/permanently',
+      (server) => server.reply(200, null),
+    );
+
+    await BackendAPI.instance.deleteDevice('aa:bb:cc:dd:ee:ff');
+  });
+
   test('getDeviceEvents decodes a list of events', () async {
     adapter.onGet(
       '/devices/aa:bb:cc:dd:ee:ff/events',

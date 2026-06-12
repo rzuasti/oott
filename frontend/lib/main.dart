@@ -6,6 +6,7 @@ import 'package:frontend/theme/catppuccin_mocha_theme.dart';
 import 'package:frontend/utils/local_network_permission.dart';
 import 'package:frontend/utils/pref_utils.dart';
 import 'package:frontend/utils/push_service.dart';
+import 'package:frontend/utils/ui_snackbars.dart';
 import 'package:provider/provider.dart';
 import 'navigation.dart';
 import 'theme/gruvbox_theme.dart';
@@ -64,6 +65,9 @@ final class MainApp extends StatelessWidget {
           title: 'OOTT',
           theme: appState.theme,
           routerConfig: router,
+          // Host snackbars above the router's Navigator so they render on top
+          // of dialogs (their barrier no longer dims them). See buildSnackbarHost.
+          builder: buildSnackbarHost,
         ),
       ),
     );

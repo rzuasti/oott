@@ -20,16 +20,18 @@ use crate::model::push_tokens::PushPlatform;
     security(("bearer_auth" = []))
 )]
 pub async fn register(Json(payload): Json<RegisterPushTokenPayload>) -> impl IntoResponse {
-    db::run_blocking(move || match db::push_tokens::upsert(&payload.token, payload.platform) {
-        Ok(_) => (StatusCode::OK, "Push token registered"),
-        Err(err) => {
-            error!("Error registering push token in the database: {err}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Error registering push token in the server, check your logs",
-            )
-        }
-    })
+    db::run_blocking(
+        move || match db::push_tokens::upsert(&payload.token, payload.platform) {
+            Ok(_) => (StatusCode::OK, "Push token registered"),
+            Err(err) => {
+                error!("Error registering push token in the database: {err}");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Error registering push token in the server, check your logs",
+                )
+            }
+        },
+    )
     .await
 }
 

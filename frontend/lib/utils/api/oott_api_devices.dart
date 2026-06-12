@@ -81,6 +81,11 @@ extension DeviceApi on BackendAPI {
     await _dio.delete('/devices/$macAddress');
   }
 
+  /// Permanently deletes a device and all of its event history. This cannot be undone.
+  Future<void> deleteDevice(String macAddress) async {
+    await _dio.delete('/devices/$macAddress/permanently');
+  }
+
   Future<List<DeviceEvent>> getDeviceEvents(
     String macAddress, {
     DateTime? createdFrom,

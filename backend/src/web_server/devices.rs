@@ -281,6 +281,43 @@ pub async fn unregister(Path(mac_address): Path<String>) -> impl IntoResponse {
 }
 
 #[utoipa::path(
+    delete,
+    path = "/api/devices/{mac_address}/permanently",
+    tag = "devices",
+    params(
+        ("mac_address" = String, Path, description = "MAC address of the device"),
+    ),
+    responses(
+        (status = 200, description = "Device permanently deleted"),
+        (status = 404, description = "Device not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn delete(Path(mac_address): Path<String>) -> impl IntoResponse {
+    db::run_blocking(move || {
+        if db::devices::read(mac_address.clone()).is_none() {
+            return (
+                axum::http::StatusCode::NOT_FOUND,
+                "Device not found or could not be read",
+            );
+        }
+
+        match db::devices::delete(mac_address) {
+            Ok(_) => (axum::http::StatusCode::OK, "Device permanently deleted"),
+            Err(err) => {
+                error!("Error deleting device from the database: {}", err);
+                (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    "Error deleting device in the server, check your logs",
+                )
+            }
+        }
+    })
+    .await
+}
+
+#[utoipa::path(
     get,
     path = "/api/devices/summary",
     tag = "devices",
@@ -316,4 +353,36 @@ pub struct UpdateDevicePayload {
     device_type: String,
     vendor: String,
     name: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests_common;
+
+    #[tokio::test]
+    async fn delete_removes_existing_device() {
+        tests_common::setup().await;
+
+        // Seed device from tests/database_setup/02-devices.sql
+        let mac = "aa:aa:aa:aa:aa:aa".to_string();
+        assert!(db::devices::read(mac.clone()).is_some());
+
+        let response = delete(Path(mac.clone())).await.into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(
+            db::devices::read(mac).is_none(),
+            "Deleted device should be gone"
+        );
+    }
+
+    #[tokio::test]
+    async fn delete_unknown_device_returns_404() {
+        tests_common::setup().await;
+
+        let response = delete(Path("ff:ff:ff:ff:ff:ff".to_string()))
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
 }

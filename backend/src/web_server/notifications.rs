@@ -11,8 +11,9 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use crate::{
-    db, notifications,
+    db,
     model::notifications::{Notification, NotificationListResponse},
+    notifications,
     web_server::utils,
 };
 

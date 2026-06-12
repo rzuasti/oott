@@ -11,7 +11,7 @@ It has two major components:
 
 For Rust code:
 - Use the standard [Rust style guide](https://doc.rust-lang.org/style-guide/)
-- Use `rustfmt` to format the code
+- Use `rustfmt` to format the code. This crate is edition 2024, so always pass `--edition 2024` when invoking `rustfmt` directly (e.g. `rustfmt --edition 2024 <file>`) to avoid spurious import-ordering changes
 
 For Flutter/Dart code:
 - Use the standard [Dart style guide](https://dart.dev/effective-dart/style)
@@ -58,6 +58,9 @@ For Flutter/Dart code:
 - When adding a significant chunk of new code (either Rust or Dart), run the corresponding linter
 - In the frontend, use the UISnackbars component to display messages to the user that do not require action on their part.
 - In the frontend, always use colors from the selected theme. Never hard code colors any other way. If a color is needed and it's not covered semantically by the theme, suggest an addition to the theme extension implemented in the project.
+- In the frontend, prefer built-in Flutter/Material components over custom-built ones. Only build a custom component when it is genuinely a better fit for the requirements — and in that case, present the pros/cons of custom vs. built-in to the human and get confirmation before proceeding.
+- In the frontend, when building a new screen, widget, or dialog, make it consistent: follow the patterns already used by similar widgets in this project, and follow Material 3 guidance and best practices (e.g. button emphasis hierarchy, action placement, theming).
 - In the backend Rust code, avoid import aliases ("use ... as ...") unless necessary
 - Do not create branches by default, commit directly to main (this is a single developer project)
 - When files are changed by the formatter do not revert them to keep the commit pure, just add them to the current commit.
+- Never revert a file solely because the formatter reformatted it (even files you did not otherwise touch) — keep the formatter's changes. Only revert if the formatting change actually introduces a bug or other issue.

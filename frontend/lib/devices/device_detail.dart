@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../model/device.dart';
 import '../model/device_type.dart';
+import '../routes.dart';
 import '../utils/friendly_date_formatter.dart';
 import '../utils/oott_api.dart';
 import '../widgets/status_badge.dart';
@@ -220,41 +221,57 @@ class _DeviceActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
+    final destructiveStyle = TextButton.styleFrom(
+      foregroundColor: colorScheme.error,
+    );
+
     if (device.isRegistered) {
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
+      return Row(
         children: [
           FilledButton.icon(
             onPressed: () => showEditDeviceDialog(context, device, onAction),
             icon: const Icon(Icons.edit),
             label: const Text('Edit'),
           ),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: colorScheme.error,
-              side: BorderSide(color: colorScheme.error),
+          const Spacer(),
+          TextButton.icon(
+            style: destructiveStyle,
+            onPressed: () => confirmForgetDevice(
+              context,
+              device,
+              onAction,
+              onDeleted: () => context.go(Routes.devices),
             ),
-            onPressed: () => confirmForgetDevice(context, device, onAction),
             icon: const Icon(Icons.link_off),
             label: const Text('Forget Device'),
           ),
         ],
       );
     }
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+    return Row(
       children: [
         FilledButton.icon(
           onPressed: () => showRegisterDeviceDialog(context, device, onAction),
           icon: const Icon(Icons.how_to_reg),
           label: const Text('Register Device'),
         ),
-        OutlinedButton.icon(
+        const SizedBox(width: Insets.md),
+        TextButton.icon(
           onPressed: () => showDeviceIdentificationDialog(context, device),
           icon: const Icon(Icons.help_outline),
-          label: const Text('How to identify this device'),
+          label: const Text('How to identify'),
+        ),
+        const Spacer(),
+        TextButton.icon(
+          style: destructiveStyle,
+          onPressed: () => confirmDeleteDevice(
+            context,
+            device,
+            onAction,
+            onDeleted: () => context.go(Routes.devices),
+          ),
+          icon: const Icon(Icons.delete_outline),
+          label: const Text('Delete'),
         ),
       ],
     );

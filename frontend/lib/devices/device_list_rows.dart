@@ -464,6 +464,8 @@ class _DeviceActionsMenu extends StatelessWidget {
           await confirmForgetDevice(context, device, onRefresh);
         } else if (value == 'register') {
           await showRegisterDeviceDialog(context, device, onRefresh);
+        } else if (value == 'delete') {
+          await confirmDeleteDevice(context, device, onRefresh);
         }
       },
       itemBuilder: (context) => [
@@ -474,6 +476,8 @@ class _DeviceActionsMenu extends StatelessWidget {
           const PopupMenuItem(value: 'forget', child: Text('Forget')),
         if (!device.isRegistered)
           const PopupMenuItem(value: 'register', child: Text('Register')),
+        if (!device.isRegistered)
+          const PopupMenuItem(value: 'delete', child: Text('Delete')),
       ],
     );
   }

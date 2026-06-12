@@ -2,7 +2,8 @@
 
 - [x] Add support for push notifications to the app (iOS and Android)
 - [x] Remove push notifications plan
-- [ ] Add the capability to delete a device from the system
+- [x] Add the capability to delete a device from the system
+- [ ] Review CLAUDE.md to make it shorter and easier to read for AIs while keeping all its intentions
 
 ## Release plan for 0.2.0
 - [x] Test Android UI on emulator
@@ -15,6 +16,7 @@
 - [x] Release 0.2.0
 - [x] Install in test server and test app on iPhone
 - [ ] Test in-house for 3 days
+- [ ] Test flake install
 - [ ] Release 0.2.1 (or as many versions as needed)
 - [ ] Publish website
 - [ ] Post on reddit
@@ -27,6 +29,8 @@
 
 ## Frontend
 
+- [ ] Add more themes (Dracula, Nord, Catppuccin Latte, Gruvbox light)
+- [ ] Remove the license and notice from the UI, just link to the github pages
 - [ ] In the status screen, change the order of the scanners so that SNMP is second
 - [ ] On Android, make the font of the icon (phone screen) bigger
 - [x] In the status screen, the "listening for" property of passive scanners should change to days and months (now its always minutes)

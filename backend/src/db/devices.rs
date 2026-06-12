@@ -406,6 +406,28 @@ pub fn unregister(mac_address: String) -> Result<(), DbError> {
     }
 }
 
+/// Permanently deletes a device and all of its related events. Both deletes run inside a single
+/// transaction so the device and its history are removed atomically. Returns the number of device
+/// rows removed (0 when the device did not exist).
+pub fn delete(mac_address: String) -> Result<usize, DbError> {
+    let mut conn = db::get_db_connection()?;
+    let mac_address = normalize_mac(&mac_address);
+
+    let tx = conn.transaction()?;
+    tx.execute(
+        "DELETE FROM device_events WHERE mac_address=?1",
+        params![mac_address],
+    )?;
+    let deleted = tx.execute(
+        "DELETE FROM devices WHERE mac_address=?1",
+        params![mac_address],
+    )?;
+    tx.commit()?;
+
+    debug!("Deleted device {mac_address} and its events (device rows removed: {deleted})");
+    Ok(deleted)
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::{TimeZone, Utc};
@@ -1084,6 +1106,55 @@ mod tests {
         assert_eq!(device.owner, "".to_string());
         // device_type is left untouched by unregister
         assert_eq!(device.device_type, "Phone".to_string());
+    }
+
+    #[tokio::test]
+    async fn test_delete() {
+        use crate::db::device_events;
+        use crate::model::device_events::{DeviceEvent, DeviceEventScanner, DeviceEventType};
+
+        tests_common::setup().await;
+
+        let last_seen = Utc::now();
+        insert(Device::new(
+            "rr:rr:rr:rr:rr:03".to_string(),
+            "192.168.230.3".to_string(),
+            "Test vendor".to_string(),
+            last_seen,
+        ))
+        .unwrap();
+
+        device_events::insert(DeviceEvent::new(
+            "rr:rr:rr:rr:rr:03".to_string(),
+            Utc::now(),
+            DeviceEventType::NewDevice,
+            "192.168.230.3".to_string(),
+            "Test vendor".to_string(),
+            DeviceEventScanner::Arp,
+        ))
+        .unwrap();
+
+        let deleted = delete("rr:rr:rr:rr:rr:03".to_string()).unwrap();
+        assert_eq!(deleted, 1, "One device row should be removed");
+
+        assert!(
+            read("rr:rr:rr:rr:rr:03".to_string()).is_none(),
+            "Device should no longer exist"
+        );
+        assert!(
+            device_events::list(Some("rr:rr:rr:rr:rr:03".to_string()), None, None, None)
+                .unwrap()
+                .is_empty(),
+            "All device events should be removed"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_delete_unknown_device() {
+        tests_common::setup().await;
+
+        let deleted = delete("rr:rr:rr:rr:rr:99".to_string()).unwrap();
+        assert_eq!(deleted, 0, "Deleting an unknown device removes no rows");
     }
 
     #[tokio::test]

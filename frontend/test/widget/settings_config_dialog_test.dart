@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/settings/settings.dart';
 import 'package:frontend/utils/pref_utils.dart';
+import 'package:http_mock_adapter/http_mock_adapter.dart';
 
 import '../helpers/backend_test_harness.dart';
 import '../helpers/pump_app.dart';
 
 void main() {
+  late DioAdapter adapter;
+
   setUp(() async {
-    final adapter = await setUpBackendForTest(
+    adapter = await setUpBackendForTest(
       prefs: {
         'base_url': 'http://my.server/api',
         'api_key': XOR().xorEncode('topsecret'),
@@ -54,6 +57,47 @@ void main() {
     await tester.pump();
 
     expect(find.text('The URL cannot be empty'), findsOneWidget);
+  });
+
+  // Locates the error icon inside the Test button (its failure-flash state).
+  Finder testButtonErrorIcon() => find.descendant(
+    of: find.widgetWithText(FilledButton, 'Test'),
+    matching: find.byIcon(Icons.error_outline),
+  );
+
+  testWidgets('a failed test flashes the Test button red, then reverts', (
+    tester,
+  ) async {
+    // The test binding fails outbound HTTP, so the connection test fails
+    // without any explicit stubbing.
+    await openDialog(tester);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Test'));
+    // Let the request resolve and the snackbar's entrance animation run.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // The button flashes its failure state...
+    expect(testButtonErrorIcon(), findsOneWidget);
+    // ...and the error snackbar is shown *while the dialog is still open*. (In
+    // the real app it renders above the dialog via the top-level messenger; the
+    // bare test harness falls back to the page messenger, but co-presence still
+    // proves the snackbar fires on failure.)
+    expect(find.text('Backend configuration'), findsOneWidget);
+    expect(find.byType(SnackBar), findsOneWidget);
+
+    // After the flash duration the button reverts to its idle look.
+    await tester.pump(const Duration(milliseconds: 1600));
+    expect(testButtonErrorIcon(), findsNothing);
+    expect(
+      find.descendant(
+        of: find.widgetWithText(FilledButton, 'Test'),
+        matching: find.byIcon(Icons.play_arrow),
+      ),
+      findsOneWidget,
+    );
+
+    await tearDownTree(tester);
   });
 
   testWidgets('editing the connection re-gates Save behind a Test', (
