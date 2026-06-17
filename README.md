@@ -27,11 +27,16 @@ OOTT runs behind the scenes and monitors your local network, notifying you when 
 
 You configure and browse the data it collects through a companion app available on the web, desktop, iOS and Android.
 
-<p align="center">
-  <img src="examples/screenshots/desktop_home.png" alt="OOTT on the web" width="70%">
-  <br>
-  <img src="examples/screenshots/ios_devices.png" alt="OOTT on mobile" width="25%">
-</p>
+<table align="center">
+  <tr>
+    <td align="center" valign="bottom"><img src="examples/screenshots/desktop_home.png" alt="OOTT Web UI" width="640"></td>
+    <td align="center" valign="bottom"><img src="examples/screenshots/ios_devices.png" alt="OOTT mobile app" width="200"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Web UI</b></td>
+    <td align="center"><b>Mobile app</b></td>
+  </tr>
+</table>
 
 ## Getting started
 
