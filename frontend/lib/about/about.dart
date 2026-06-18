@@ -6,7 +6,7 @@ import '../theme/dimens.dart';
 
 // The version is read at runtime from the bundled package metadata
 // (frontend/pubspec.yaml), so it never needs to be hand-edited here.
-const _releaseDate = 'June 12, 2026';
+const _releaseDate = 'June 15, 2026';
 const _websiteUrl = 'https://oott-security.net';
 
 class About extends StatelessWidget {

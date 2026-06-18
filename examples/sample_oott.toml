@@ -36,14 +36,20 @@ enabled=true # Set to false to disable the DHCP scanner
 # UDP/161 from the host running OOTT.
 
 [notifications]
-method="pushover" # For now just pushover, you can set this to "none" to avoid sending notifications (it will just log)
+# Pick ONE delivery method below, then uncomment the matching section if it needs configuration.
+# The provider sections are mutually exclusive: enable only the one that goes with your method.
+method="none" # One of: "pushover" (send via Pushover), "push" (native push to the OOTT mobile apps via the project relay), or "none" (don't send, just log)
 notify_when_not_seen_for="1w" # Send a notification if a device comes back online after not being seen for this timeframe. Defaults to "1w" if omitted
 
-# The [notifications.pushover] section is only required when method="pushover". For any other
-# method (e.g. "none") you can omit this whole section.
-[notifications.pushover]
-token="" # Your pushover token goes here, just copy&paste from their website after creating the app
-user_key="" # User key goes here, this is the account wide code for pushover
+# Required when method="pushover" (and only then) — uncomment this section and set method="pushover" above.
+# [notifications.pushover]
+# token="" # Your pushover token goes here, just copy&paste from their website after creating the app
+# user_key="" # User key goes here, this is the account wide code for pushover
+
+# Only used when method="push", and even then optional: with no section the built-in
+# project-operated relay is used, so you usually need set nothing. Uncomment only to run your own relay.
+# [notifications.push]
+# relay_url="https://relay-dzhbmmulaq-uc.a.run.app/v1/push" # Override only if you run your own push relay.
 
 [web_server]
 ip_address="0.0.0.0" # IP to bind the web server for the API and web UI to, use 0.0.0.0 to bind it to all interfaces. Defaults to "0.0.0.0" if omitted

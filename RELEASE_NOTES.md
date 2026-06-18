@@ -12,6 +12,19 @@ Format
 - Keep this header comment in place; the extractor ignores it.
 -->
 
+## v0.2.3 — 2026-06-15
+
+A small fix-and-polish release.
+
+### Fixes
+- **"Device changed" notifications.** A registered, typed device that changed
+  its IP or vendor was reported in the notification as "Not registered" with
+  type "-". The notification now describes the device as it is stored.
+
+### Improvements
+- The first-run experience now opens straight into the backend-config dialog,
+  with the welcome message folded into it and its actions kept on a single row.
+
 ## v0.2.2 — 2026-06-12
 
 A polish release: more themes to choose from, the ability to permanently delete

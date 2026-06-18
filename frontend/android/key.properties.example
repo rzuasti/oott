@@ -1,0 +1,14 @@
+# Template for android/key.properties (which is gitignored — NEVER commit the
+# real file or the keystore it points to).
+#
+# 1. Generate an upload keystore, storing it OUTSIDE the repo:
+#
+#      keytool -genkey -v -keystore ~/oott-upload-keystore.jks \
+#        -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# 2. Copy this file to android/key.properties and fill in the values below.
+
+storePassword=<password chosen during keytool>
+keyPassword=<password chosen during keytool>
+keyAlias=upload
+storeFile=/absolute/path/to/oott-upload-keystore.jks

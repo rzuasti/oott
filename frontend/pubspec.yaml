@@ -1,7 +1,7 @@
 name: frontend
 description: "OOTT - Easy to setup and use network device discovery and alert system"
 publish_to: "none"
-version: 0.2.2
+version: 0.2.3
 
 environment:
   sdk: ^3.10.8
@@ -24,6 +24,9 @@ dependencies:
   firebase_core: ^3.8.0
   firebase_messaging: ^15.1.6
   flutter_local_notifications: ^18.0.1
+  # Used via package:flutter/cupertino.dart (CupertinoPageTransition); also
+  # provides the CupertinoIcons font the asset bundler expects to be present.
+  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
