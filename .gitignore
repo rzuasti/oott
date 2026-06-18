@@ -1,6 +1,7 @@
 /target
 /backend/target
 /result
+/result-fly
 oott.db
 oott.db-wal
 oott.db-shm

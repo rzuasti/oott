@@ -8,7 +8,7 @@
 # See deploy/fly/README.md for the full deploy procedure.
 
 app = "oott-test"      # change to your chosen Fly app name
-primary_region = "yyz" # change to a region near you / the reviewers
+primary_region = "yyz" # change to a region near you / the reviewersu
 
 # The image is built with Nix and pushed to the Fly registry (see README),
 # so there is no [build] section: deploy with `fly deploy --image ...`.

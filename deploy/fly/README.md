@@ -44,7 +44,10 @@ nix build .#flyImage -o result-fly
 
 # Push the image straight from the Nix store archive to Fly's registry.
 # No Docker daemon involved; skopeo authenticates with a short-lived Fly token.
-skopeo copy --dest-creds "x:$(fly auth token)" \
+# --insecure-policy skips skopeo's trust-policy check: on NixOS there is no
+# default /etc/containers/policy.json, and we are pushing our own freshly built
+# image, so there is nothing to verify.
+skopeo copy --insecure-policy --dest-creds "x:$(fly auth token)" \
   docker-archive:result-fly \
   docker://registry.fly.io/oott-test:latest
 ```
