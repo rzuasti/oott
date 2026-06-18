@@ -155,6 +155,9 @@
     packages = forEachSystem (system: let
       pkgs = pkgsBySystem.${system};
 
+      # The demo dataset applied to the Fly test server on each deployment.
+      seedSql = ./deploy/fly/seed.sql;
+
       # Startup wrapper for the Fly.io image. The backend only reads its config
       # from a TOML file, but on Fly we want the (secret) API key to come from a
       # Fly secret and the rest of the deployment knobs from plain env vars, with
@@ -162,16 +165,23 @@
       # the environment on every boot and then exec the backend against it. The
       # scanners are forced off: a cloud host has no LAN to scan, this is purely
       # an API/UI server for App Store review.
+      #
+      # When OOTT_SEED is set, the wrapper also (re)loads the demo dataset: it
+      # starts the backend (which runs the migrations), waits for the schema to
+      # exist, then prunes and reinserts the demo rows. The backend stays as the
+      # foreground process and we forward signals to it so Fly can stop it
+      # cleanly.
       flyEntrypoint = pkgs.writeShellApplication {
         name = "oott-fly-entrypoint";
-        runtimeInputs = [pkgs.coreutils pkgs.oott];
+        runtimeInputs = [pkgs.coreutils pkgs.oott pkgs.sqlite];
         text = ''
           : "''${OOTT_API_KEY:?OOTT_API_KEY must be set (fly secrets set OOTT_API_KEY=...)}"
           data_dir="''${OOTT_DATA_DIR:-/data}"
+          db_file="$data_dir/oott.db"
           mkdir -p "$data_dir"
           cat > "$data_dir/oott.toml" <<EOF
           [database]
-          path = "$data_dir/oott.db"
+          path = "$db_file"
 
           [log]
           level = "''${OOTT_LOG_LEVEL:-info}"
@@ -196,7 +206,35 @@
           [dhcp_scanner]
           enabled = false
           EOF
-          exec oott --config "$data_dir/oott.toml"
+
+          # Without seeding, just hand the process over to the backend.
+          if [ -z "''${OOTT_SEED:-}" ] || [ "''${OOTT_SEED}" = "0" ]; then
+            exec oott --config "$data_dir/oott.toml"
+          fi
+
+          # Seeding path: run the backend in the background so it creates and
+          # migrates the schema, then load the demo data once the tables exist.
+          oott --config "$data_dir/oott.toml" &
+          oott_pid=$!
+          trap 'kill -TERM "$oott_pid" 2>/dev/null || true' TERM INT
+
+          schema_ready=false
+          for _ in $(seq 1 60); do
+            if sqlite3 "$db_file" "SELECT 1 FROM devices LIMIT 1;" >/dev/null 2>&1; then
+              schema_ready=true
+              break
+            fi
+            sleep 0.5
+          done
+
+          if [ "$schema_ready" = true ]; then
+            echo "Seeding demo data into $db_file"
+            sqlite3 "$db_file" < ${seedSql} || echo "WARNING: demo data seeding failed"
+          else
+            echo "WARNING: schema not ready in time; skipping demo data seeding"
+          fi
+
+          wait "$oott_pid"
         '';
       };
     in {

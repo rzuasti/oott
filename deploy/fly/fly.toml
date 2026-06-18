@@ -18,6 +18,7 @@ primary_region = "ams"       # change to a region near you / the reviewers
   OOTT_NOTIFICATIONS_METHOD = "none"  # no push/pushover on the test server
   OOTT_PORT = "8080"
   OOTT_DATA_DIR = "/data"
+  OOTT_SEED = "1"  # reload deploy/fly/seed.sql demo data on every boot/deploy
 
 # Persistent SQLite storage. Create the volume once with:
 #   fly volumes create oott_data --region ams --size 1

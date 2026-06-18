@@ -81,9 +81,15 @@ fly apps destroy oott-test          # removes the app, machine, and volume
   few US dollars a month, billed by usage — well under a dollar for a few days.
   To trim it further between reviewer sessions, flip `fly.toml` to scale-to-zero
   (`auto_stop_machines = "stop"`, `min_machines_running = 0`) and redeploy.
-- **Empty UI:** the reviewer sees a working but device-less app, since there is
-  no LAN to discover. If the review benefits from a populated screen, seed a few
-  sample devices via the API (`PUT /api/devices`) after deploying.
+- **Demo data:** a cloud host has no LAN to discover, so the server ships with a
+  demo dataset (`deploy/fly/seed.sql`) covering registered/unknown devices,
+  devices in every "last seen" state, all device-event types and scanner
+  sources, and read/unread notifications of each type. It is pruned and reloaded
+  on every boot/deploy while `OOTT_SEED = "1"` is set in `fly.toml`; set it to
+  `0` (or remove it) to run with a clean database. Note that because it reloads
+  on every machine start, a reviewer's own changes are reset if the machine
+  restarts — fine for a review server. The `push_tokens` table is never touched,
+  so app push registrations survive a reseed.
 - **Config knobs** are env vars in `fly.toml` (`OOTT_LOG_LEVEL`,
   `OOTT_NOTIFICATIONS_METHOD`, `OOTT_PORT`, `OOTT_DATA_DIR`); the API key is the
   `OOTT_API_KEY` secret.
