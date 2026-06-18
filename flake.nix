@@ -75,6 +75,8 @@
           clippy # Rust linter
           pythonEnv
           gh # GitHub CLI tool (for release process)
+          flyctl # Fly.io CLI (deploy/fly/: test server for App Store review)
+          skopeo # push the Nix-built image to the Fly registry without a Docker daemon
         ];
 
         # fish > all
@@ -150,13 +152,60 @@
     };
 
     # Package definition
-    packages = forEachSystem (system: {
-      oott = pkgsBySystem.${system}.oott;
-      default = pkgsBySystem.${system}.oott;
+    packages = forEachSystem (system: let
+      pkgs = pkgsBySystem.${system};
+
+      # Startup wrapper for the Fly.io image. The backend only reads its config
+      # from a TOML file, but on Fly we want the (secret) API key to come from a
+      # Fly secret and the rest of the deployment knobs from plain env vars, with
+      # nothing sensitive baked into the image. So we render /data/oott.toml from
+      # the environment on every boot and then exec the backend against it. The
+      # scanners are forced off: a cloud host has no LAN to scan, this is purely
+      # an API/UI server for App Store review.
+      flyEntrypoint = pkgs.writeShellApplication {
+        name = "oott-fly-entrypoint";
+        runtimeInputs = [pkgs.coreutils pkgs.oott];
+        text = ''
+          : "''${OOTT_API_KEY:?OOTT_API_KEY must be set (fly secrets set OOTT_API_KEY=...)}"
+          data_dir="''${OOTT_DATA_DIR:-/data}"
+          mkdir -p "$data_dir"
+          cat > "$data_dir/oott.toml" <<EOF
+          [database]
+          path = "$data_dir/oott.db"
+
+          [log]
+          level = "''${OOTT_LOG_LEVEL:-info}"
+
+          [notifications]
+          method = "''${OOTT_NOTIFICATIONS_METHOD:-none}"
+
+          [web_server]
+          ip_address = "0.0.0.0"
+          port = ''${OOTT_PORT:-8080}
+          api_key = "$OOTT_API_KEY"
+
+          [arp_scanner]
+          enabled = false
+
+          [mdns_scanner]
+          enabled = false
+
+          [ssdp_scanner]
+          enabled = false
+
+          [dhcp_scanner]
+          enabled = false
+          EOF
+          exec oott --config "$data_dir/oott.toml"
+        '';
+      };
+    in {
+      oott = pkgs.oott;
+      default = pkgs.oott;
 
       # Docker image generation
       # use via 'nix build .#dockerImage'
-      dockerImage = with pkgsBySystem.${system};
+      dockerImage = with pkgs;
         dockerTools.buildLayeredImage {
           name = "oott";
           tag = "latest";
@@ -171,6 +220,23 @@
             Env = ["SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt"];
           };
         };
+
+      # Fly.io deployment image (see deploy/fly/). Same backend + bundled
+      # front-end as dockerImage, but its config is generated at startup from the
+      # environment (flyEntrypoint) so the DB can live on a Fly volume and the
+      # API key can come from a Fly secret. Build with 'nix build .#flyImage'.
+      flyImage = pkgs.dockerTools.buildLayeredImage {
+        name = "oott-fly";
+        tag = "latest";
+        contents = [flyEntrypoint pkgs.oott pkgs.cacert];
+        # /tmp for the process, /data as the mountpoint for the Fly volume.
+        extraCommands = "mkdir -p tmp data";
+        config = {
+          Cmd = ["${flyEntrypoint}/bin/oott-fly-entrypoint"];
+          Env = ["SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"];
+          ExposedPorts = {"8080/tcp" = {};};
+        };
+      };
     });
 
     # Modules definition
