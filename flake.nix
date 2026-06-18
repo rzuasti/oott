@@ -53,6 +53,7 @@
       };
     in {
       default = pkgsBySystem.${system}.mkShell rec {
+        DEV_SHELL = "oott";
         androidSdk = androidComposition.androidsdk;
         ANDROID_SDK_ROOT = "${androidSdk}/libexec/android-sdk";
 
@@ -139,8 +140,6 @@
           if [ -f "$gradlewFile" ]; then
             sed -i '1s|^#!.*|#!/usr/bin/env sh|' "$gradlewFile"
           fi
-
-          DEV_SHELL=oott exec fish
         '';
       };
     });
