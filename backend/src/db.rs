@@ -122,3 +122,28 @@ pub async fn init_db() -> Result<(), DbError> {
 
     result
 }
+
+/// Fold the write-ahead log back into the main database file on shutdown.
+///
+/// SQLite checkpoints the WAL on its own, but doing it explicitly when stopping leaves the
+/// database file self-contained — no `-wal`/`-shm` sidecars still carrying committed data — which
+/// is the tidy counterpart to `init_db` enabling WAL at startup. `TRUNCATE` checkpoints and then
+/// shrinks the WAL file back to empty.
+pub fn close() -> Result<(), DbError> {
+    let conn = get_db_connection()?;
+    conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests_common;
+
+    #[tokio::test]
+    async fn close_checkpoints_without_error() {
+        tests_common::setup().await;
+        // The shutdown checkpoint must succeed against an initialised (WAL) database.
+        close().expect("shutdown checkpoint should succeed");
+    }
+}

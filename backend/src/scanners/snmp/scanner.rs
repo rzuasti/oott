@@ -7,12 +7,13 @@ use crate::settings::get_settings;
 use chrono::Utc;
 use log::{error, info};
 use tokio::time::{Duration, sleep};
+use tokio_util::sync::CancellationToken;
 
 /// Periodically poll an SNMP agent (typically the gateway) for its ARP/neighbour cache and feed
 /// the discovered devices into the same pipeline used by the other scanners (devices table +
 /// events + notifications). Unlike the ARP scanner this generates no traffic on the local
 /// segment and can surface devices on subnets the host cannot reach directly.
-pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn scan(shutdown: CancellationToken) -> Result<(), Box<dyn std::error::Error>> {
     let config = &get_settings().snmp_scanner;
     if !config.enabled {
         info!("SNMP scanner disabled in configuration; not starting");
@@ -29,8 +30,12 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
         status::STATUS.set_running();
 
         // A failed poll (unreachable agent, timeout, bad community) must not stop the loop;
-        // log it and try again next cycle.
-        match finder::find(config).await {
+        // log it and try again next cycle. Abandon an in-flight poll immediately on shutdown.
+        let poll = tokio::select! {
+            _ = shutdown.cancelled() => break,
+            result = finder::find(config) => result,
+        };
+        match poll {
             Ok(devices) => {
                 info!("SNMP poll found {} devices in the ARP cache", devices.len());
                 status::STATUS.record_scan(&devices);
@@ -55,6 +60,13 @@ pub async fn scan() -> Result<(), Box<dyn std::error::Error>> {
             config.wait_between_scans
         );
         status::STATUS.set_waiting(next_scan_at);
-        sleep(wait).await;
+        // Wake early if shutdown is requested instead of sleeping out the whole interval.
+        tokio::select! {
+            _ = shutdown.cancelled() => break,
+            _ = sleep(wait) => {}
+        }
     }
+
+    info!("SNMP scanner shutting down");
+    Ok(())
 }

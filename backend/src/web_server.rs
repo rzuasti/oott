@@ -21,6 +21,7 @@ use axum::response::{Redirect, Response};
 use axum::routing::{delete, get, post, put};
 use axum::{Router, http};
 use log::{debug, error, info};
+use tokio_util::sync::CancellationToken;
 use tower::{Layer, ServiceBuilder};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
@@ -153,7 +154,7 @@ fn web_asset_service(web_root: PathBuf) -> SetResponseHeader<ServeDir, http::Hea
     .layer(ServeDir::new(web_root))
 }
 
-pub async fn serve() -> Result<(), Box<dyn Error>> {
+pub async fn serve(shutdown: CancellationToken) -> Result<(), Box<dyn Error>> {
     info!("Starting web server");
     let exe = std::env::current_exe().ok();
     let web_root = resolve_web_root(exe.as_deref().and_then(Path::parent));
@@ -231,7 +232,12 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
 
     debug!("Web server bound to IP and port");
 
-    axum::serve(listener, router).await?;
+    // Drain in-flight requests on shutdown rather than dropping the listener mid-response. The
+    // owned async block moves a clone of the token so the future is 'static, as axum requires.
+    axum::serve(listener, router)
+        .with_graceful_shutdown(async move { shutdown.cancelled().await })
+        .await?;
+    info!("Web server shutting down");
     Ok(())
 }
 

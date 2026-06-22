@@ -1,4 +1,5 @@
 use log::{info, warn};
+use tokio_util::sync::CancellationToken;
 
 use super::finder;
 use super::status;
@@ -11,7 +12,7 @@ use crate::settings::get_settings;
 /// same pipeline used by the ARP, mDNS and SSDP scanners (devices table + events +
 /// notifications). Because a device must request an address before doing almost anything
 /// else, this catches new devices very early — often before they have an IP.
-pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn listen(shutdown: CancellationToken) -> Result<(), Box<dyn std::error::Error>> {
     if !get_settings().dhcp_scanner.enabled {
         info!("DHCP scanner disabled in configuration; not starting");
         return Ok(());
@@ -23,12 +24,15 @@ pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut buf = [0u8; 1500];
     loop {
-        let len = match socket.recv_from(&mut buf).await {
-            Ok((len, _src)) => len,
-            Err(err) => {
-                warn!("DHCP socket receive error: {err}");
-                continue;
-            }
+        let len = tokio::select! {
+            _ = shutdown.cancelled() => break,
+            result = socket.recv_from(&mut buf) => match result {
+                Ok((len, _src)) => len,
+                Err(err) => {
+                    warn!("DHCP socket receive error: {err}");
+                    continue;
+                }
+            },
         };
 
         let discovery = match finder::parse_packet(&buf[..len]) {
@@ -38,6 +42,9 @@ pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
 
         process_discovery(discovery);
     }
+
+    info!("DHCP scanner shutting down");
+    Ok(())
 }
 
 fn process_discovery(discovery: finder::DhcpDiscovery) {

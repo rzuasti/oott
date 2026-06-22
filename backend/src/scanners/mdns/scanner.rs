@@ -2,6 +2,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
 
 use log::{debug, info, warn};
+use tokio_util::sync::CancellationToken;
 
 use super::finder;
 use super::status;
@@ -12,7 +13,7 @@ use crate::settings::get_settings;
 
 /// Passively listen for mDNS/Bonjour announcements and feed discovered devices into the same
 /// pipeline used by the ARP scanner (devices table + events + notifications).
-pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn listen(shutdown: CancellationToken) -> Result<(), Box<dyn std::error::Error>> {
     if !get_settings().mdns_scanner.enabled {
         info!("mDNS scanner disabled in configuration; not starting");
         return Ok(());
@@ -27,12 +28,15 @@ pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut buf = [0u8; 4096];
     loop {
-        let (len, src) = match socket.recv_from(&mut buf).await {
-            Ok(value) => value,
-            Err(err) => {
-                warn!("mDNS socket receive error: {err}");
-                continue;
-            }
+        let (len, src) = tokio::select! {
+            _ = shutdown.cancelled() => break,
+            result = socket.recv_from(&mut buf) => match result {
+                Ok(value) => value,
+                Err(err) => {
+                    warn!("mDNS socket receive error: {err}");
+                    continue;
+                }
+            },
         };
 
         let src_ip = match src.ip() {
@@ -55,6 +59,9 @@ pub async fn listen() -> Result<(), Box<dyn std::error::Error>> {
         )
         .await;
     }
+
+    info!("mDNS scanner shutting down");
+    Ok(())
 }
 
 async fn process_announcement(

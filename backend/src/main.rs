@@ -11,6 +11,7 @@ mod notifications;
 mod retention;
 mod scanners;
 mod settings;
+mod shutdown;
 mod utils;
 mod web_server;
 
@@ -65,21 +66,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     scanners::dhcp::status::STATUS.init();
     scanners::snmp::status::STATUS.init();
 
+    // A shutdown signal (SIGTERM from Kubernetes/`docker stop`, or Ctrl-C) cancels this token; every
+    // long-running task below watches it and winds down at its next safe point, so the process
+    // exits promptly instead of waiting out the orchestrator's grace period and being SIGKILLed.
+    let shutdown_token = tokio_util::sync::CancellationToken::new();
+    tokio::spawn(shutdown::watch_for_signals(shutdown_token.clone()));
+
     // Start the device scanners, web server, retention cleaner, and notification delivery loop in
     // parallel. Notification delivery runs on its own task so a slow Pushover never stalls a scan.
     // Each task is wrapped so that if it exits with an error (e.g. the DHCP scanner failing to bind
     // its socket because the port is already in use) the failure is logged rather than silently
     // swallowed — otherwise a scanner just appears "off" with no explanation.
     tokio::join!(
-        log_task_errors("ARP scanner", scanners::arp::scanner::scan()),
-        log_task_errors("mDNS scanner", scanners::mdns::scanner::listen()),
-        log_task_errors("SSDP scanner", scanners::ssdp::scanner::listen()),
-        log_task_errors("DHCP scanner", scanners::dhcp::scanner::listen()),
-        log_task_errors("SNMP scanner", scanners::snmp::scanner::scan()),
-        log_task_errors("web server", web_server::serve()),
-        retention::run(),
-        notifications::run_delivery(),
+        log_task_errors(
+            "ARP scanner",
+            scanners::arp::scanner::scan(shutdown_token.clone())
+        ),
+        log_task_errors(
+            "mDNS scanner",
+            scanners::mdns::scanner::listen(shutdown_token.clone())
+        ),
+        log_task_errors(
+            "SSDP scanner",
+            scanners::ssdp::scanner::listen(shutdown_token.clone())
+        ),
+        log_task_errors(
+            "DHCP scanner",
+            scanners::dhcp::scanner::listen(shutdown_token.clone())
+        ),
+        log_task_errors(
+            "SNMP scanner",
+            scanners::snmp::scanner::scan(shutdown_token.clone())
+        ),
+        log_task_errors("web server", web_server::serve(shutdown_token.clone())),
+        retention::run(shutdown_token.clone()),
+        notifications::run_delivery(shutdown_token.clone()),
     );
+
+    // Every task has stopped; checkpoint the database so the file is left self-contained.
+    info!("All tasks stopped; checkpointing the database before exit");
+    if let Err(err) = db::close() {
+        error!("Error checkpointing the database during shutdown: {err}");
+    }
+    info!("oott shut down cleanly");
 
     Ok(())
 }

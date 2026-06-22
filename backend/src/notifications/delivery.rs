@@ -1,6 +1,7 @@
 use log::{error, info, warn};
 use once_cell::sync::OnceCell;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 
 use crate::settings::get_settings;
 
@@ -21,17 +22,26 @@ const DELIVERY_QUEUE_CAPACITY: usize = 100;
 static DELIVERY_TX: OnceCell<mpsc::Sender<DeliveryRequest>> = OnceCell::new();
 
 /// Owns the receiving end of the notification-delivery channel and delivers notifications off the
-/// scan loop. Run this as its own task (see `main`); it returns only if the channel is closed.
-pub async fn run_delivery() {
+/// scan loop. Run this as its own task (see `main`); it returns when shutdown is requested or the
+/// channel is closed.
+pub async fn run_delivery(shutdown: CancellationToken) {
     let (tx, mut rx) = mpsc::channel::<DeliveryRequest>(DELIVERY_QUEUE_CAPACITY);
     if DELIVERY_TX.set(tx).is_err() {
         error!("Notification delivery loop started more than once; ignoring");
         return;
     }
 
-    while let Some(request) = rx.recv().await {
-        deliver(request).await;
+    loop {
+        tokio::select! {
+            _ = shutdown.cancelled() => break,
+            request = rx.recv() => match request {
+                Some(request) => deliver(request).await,
+                None => break, // all senders dropped
+            },
+        }
     }
+
+    info!("Notification delivery loop shutting down");
 }
 
 // Deliver a single notification according to the configured method. The Pushover call is blocking,
