@@ -12,6 +12,47 @@ Format
 - Keep this header comment in place; the extractor ignores it.
 -->
 
+## v0.2.4 — 2026-06-22
+
+A reliability and release-readiness pass: cleaner shutdown, clearer error
+reporting, working API docs, and the groundwork for App Store / Play Store
+submission.
+
+### Improvements
+- **Graceful shutdown.** The backend now catches SIGTERM and SIGINT (so
+  `docker stop` and Kubernetes no longer have to force-kill it). A shared
+  cancellation token stops every scanner, the retention cleaner, and the
+  notification loop at their next safe point, the web server drains in-flight
+  requests, and the database WAL is checkpointed on the way out.
+- **Surfaced scanner errors.** A scanner that failed to start (e.g. DHCP unable
+  to bind port 67) previously just showed as "off" with no log; each task's
+  error is now logged instead of being silently dropped.
+
+### Fixes
+- **API docs "Try it out".** Every API operation now has a unique operationId,
+  so Swagger UI's "Try it out" calls the endpoint you're actually looking at
+  instead of always hitting the first one (e.g. the DHCP scanner's docs no
+  longer execute against the ARP scanner).
+- **Narrow-screen config dialog.** The backend-config Test/Save/Cancel actions
+  are laid out full size in a row on wide screens and stacked vertically on
+  narrow phones, instead of being shrunk to tiny buttons by a uniform scale.
+
+### Internal
+- New `deploy/fly/` Fly.io deployment for an App Store review test server:
+  an env-driven `flyImage` Nix output (backend plus bundled web UI), a
+  persistent volume, scanners disabled, the API key supplied via a Fly secret,
+  and an idempotent demo-data seed (`seed.sql`) applied on boot when
+  `OOTT_SEED` is set.
+- Android release builds are now signed with an upload keystore loaded from a
+  gitignored `key.properties` (falling back to the debug key when absent), with
+  a `build_android_release.sh` helper and a documented keytool setup. Added Play
+  Store listing graphics and the `cupertino_icons` dependency.
+- The iOS app is now iPhone-only (`TARGETED_DEVICE_FAMILY = 1`) to drop the iPad
+  screenshot requirement.
+- Documentation: README screenshots, a complete and functional `sample_oott.toml`
+  baseline, the "push" notification method documented, and true-vector OOTT icon
+  SVGs for a dashboardicons submission.
+
 ## v0.2.3 — 2026-06-15
 
 A small fix-and-polish release.
