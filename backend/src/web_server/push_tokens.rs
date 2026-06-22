@@ -11,6 +11,7 @@ use crate::model::push_tokens::PushPlatform;
 #[utoipa::path(
     put,
     path = "/api/push_tokens",
+    operation_id = "push_tokens_register",
     tag = "push_tokens",
     request_body = RegisterPushTokenPayload,
     responses(
@@ -38,6 +39,7 @@ pub async fn register(Json(payload): Json<RegisterPushTokenPayload>) -> impl Int
 #[utoipa::path(
     delete,
     path = "/api/push_tokens/{token}",
+    operation_id = "push_tokens_unregister",
     tag = "push_tokens",
     params(
         ("token" = String, Path, description = "The push token to unregister"),

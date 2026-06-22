@@ -5,6 +5,7 @@ use crate::web_server::scanner_status::{ActiveScannerStatusResponse, active_resp
 #[utoipa::path(
     get,
     path = "/api/snmp_scanner/status",
+    operation_id = "snmp_scanner_status",
     tag = "snmp_scanner",
     responses(
         (status = 200, description = "SNMP scanner status", body = ActiveScannerStatusResponse),

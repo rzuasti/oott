@@ -5,6 +5,7 @@ use crate::web_server::scanner_status::{ActiveScannerStatusResponse, active_resp
 #[utoipa::path(
     get,
     path = "/api/arp_scanner/status",
+    operation_id = "arp_scanner_status",
     tag = "arp_scanner",
     responses(
         (status = 200, description = "ARP scanner status", body = ActiveScannerStatusResponse),

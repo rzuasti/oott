@@ -5,6 +5,7 @@ use crate::web_server::scanner_status::{PassiveScannerStatusResponse, passive_re
 #[utoipa::path(
     get,
     path = "/api/mdns_scanner/status",
+    operation_id = "mdns_scanner_status",
     tag = "mdns_scanner",
     responses(
         (status = 200, description = "mDNS scanner status", body = PassiveScannerStatusResponse),

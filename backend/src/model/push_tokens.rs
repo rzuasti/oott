@@ -107,7 +107,10 @@ mod tests {
 
     #[test]
     fn platform_parse_is_case_insensitive() {
-        assert_eq!("ANDROID".parse::<PushPlatform>().unwrap(), PushPlatform::Android);
+        assert_eq!(
+            "ANDROID".parse::<PushPlatform>().unwrap(),
+            PushPlatform::Android
+        );
         assert_eq!("iOS".parse::<PushPlatform>().unwrap(), PushPlatform::Ios);
     }
 

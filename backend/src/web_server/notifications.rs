@@ -26,6 +26,7 @@ pub struct TestNotificationResponse {
 #[utoipa::path(
     get,
     path = "/api/notifications/{id}",
+    operation_id = "notifications_read",
     tag = "notifications",
     params(
         ("id" = i64, Path, description = "Notification ID"),
@@ -150,6 +151,7 @@ pub async fn send_test() -> Result<Json<TestNotificationResponse>, StatusCode> {
 #[utoipa::path(
     get,
     path = "/api/notifications",
+    operation_id = "notifications_list",
     tag = "notifications",
     params(
         ("is_new" = Option<bool>, Query, description = "Filter by new/read status"),

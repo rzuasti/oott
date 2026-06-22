@@ -124,7 +124,11 @@ mod tests {
         let after_update = list().unwrap();
         let rows: Vec<_> = after_update.iter().filter(|t| t.token == token).collect();
         assert_eq!(rows.len(), 1, "Re-registering must not create a second row");
-        assert_eq!(rows[0].platform, PushPlatform::Ios, "Platform should update");
+        assert_eq!(
+            rows[0].platform,
+            PushPlatform::Ios,
+            "Platform should update"
+        );
         assert_eq!(
             rows[0].created_on, created_on,
             "created_on must be preserved across an upsert"

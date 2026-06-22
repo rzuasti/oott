@@ -18,6 +18,7 @@ use crate::web_server::utils;
 #[utoipa::path(
     get,
     path = "/api/devices",
+    operation_id = "devices_list",
     tag = "devices",
     params(
         ("is_registered" = Option<bool>, Query, description = "Filter by registration status"),
@@ -95,6 +96,7 @@ pub async fn list(
 #[utoipa::path(
     get,
     path = "/api/devices/{mac_address}",
+    operation_id = "devices_read",
     tag = "devices",
     params(
         ("mac_address" = String, Path, description = "MAC address of the device"),
@@ -116,6 +118,7 @@ pub async fn read(Path(mac_address): Path<String>) -> Result<Json<Device>, Statu
 #[utoipa::path(
     put,
     path = "/api/devices",
+    operation_id = "devices_register",
     tag = "devices",
     request_body = RegisterDevicePayload,
     responses(
@@ -235,6 +238,7 @@ pub async fn update(
 #[utoipa::path(
     delete,
     path = "/api/devices/{mac_address}",
+    operation_id = "devices_unregister",
     tag = "devices",
     params(
         ("mac_address" = String, Path, description = "MAC address of the device"),

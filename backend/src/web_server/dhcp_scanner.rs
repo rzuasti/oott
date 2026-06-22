@@ -5,6 +5,7 @@ use crate::web_server::scanner_status::{PassiveScannerStatusResponse, passive_re
 #[utoipa::path(
     get,
     path = "/api/dhcp_scanner/status",
+    operation_id = "dhcp_scanner_status",
     tag = "dhcp_scanner",
     responses(
         (status = 200, description = "DHCP scanner status", body = PassiveScannerStatusResponse),

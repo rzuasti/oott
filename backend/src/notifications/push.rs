@@ -77,7 +77,10 @@ pub async fn send(config: &Push, title: String, body: String) -> Result<usize, D
     let parsed: RelayResponse = response.json().await?;
     let dead = dead_tokens(&parsed.results);
     if !dead.is_empty() {
-        debug!("Pruning {} dead push token(s) reported by the relay", dead.len());
+        debug!(
+            "Pruning {} dead push token(s) reported by the relay",
+            dead.len()
+        );
         db::run_blocking(move || db::push_tokens::delete_many(&dead)).await?;
     }
 
@@ -150,7 +153,10 @@ mod tests {
             relay_url: format!("http://{addr}/v1/push"),
         };
         let delivered = send(&config, "title".into(), "body".into()).await.unwrap();
-        assert_eq!(delivered, 1, "Only the live token should count as delivered");
+        assert_eq!(
+            delivered, 1,
+            "Only the live token should count as delivered"
+        );
 
         let all = db::push_tokens::list().unwrap();
         assert!(

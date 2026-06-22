@@ -12,6 +12,7 @@ use crate::{db, model::device_events::DeviceEvent, web_server::utils};
 #[utoipa::path(
     get,
     path = "/api/devices/{mac_address}/events",
+    operation_id = "device_events_list",
     tag = "device_events",
     params(
         ("mac_address" = String, Path, description = "MAC address of the device"),

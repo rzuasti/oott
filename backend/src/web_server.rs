@@ -335,4 +335,37 @@ mod tests {
         let openapi = <ApiDoc as OpenApi>::openapi();
         assert_eq!(openapi.info.version, env!("CARGO_PKG_VERSION"));
     }
+
+    #[test]
+    fn openapi_operation_ids_are_unique() {
+        // Every operation defaults its operationId to its handler function name, so handlers that
+        // share a name (e.g. each scanner's `status`, or `read`/`list` across resources) collide.
+        // Duplicate operationIds are invalid OpenAPI and make Swagger UI's "Try it out" execute the
+        // first operation with that id (so the DHCP doc hit `/api/arp_scanner/status`). Assert they
+        // are all unique so that regression cannot return.
+        let openapi = <ApiDoc as OpenApi>::openapi();
+        let mut seen = std::collections::HashSet::new();
+        for (path, item) in &openapi.paths.paths {
+            let operations = [
+                &item.get,
+                &item.put,
+                &item.post,
+                &item.delete,
+                &item.options,
+                &item.head,
+                &item.patch,
+                &item.trace,
+            ];
+            for operation in operations.into_iter().flatten() {
+                let id = operation
+                    .operation_id
+                    .as_ref()
+                    .unwrap_or_else(|| panic!("{path} has an operation with no operationId"));
+                assert!(
+                    seen.insert(id.clone()),
+                    "duplicate operationId {id:?} (at {path})"
+                );
+            }
+        }
+    }
 }

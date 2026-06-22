@@ -1,6 +1,7 @@
 use crate::settings::get_settings;
 use clap::Parser;
-use log::{LevelFilter, info};
+use log::{LevelFilter, error, info};
+use std::future::Future;
 
 mod data;
 mod db;
@@ -66,15 +67,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Start the device scanners, web server, retention cleaner, and notification delivery loop in
     // parallel. Notification delivery runs on its own task so a slow Pushover never stalls a scan.
+    // Each task is wrapped so that if it exits with an error (e.g. the DHCP scanner failing to bind
+    // its socket because the port is already in use) the failure is logged rather than silently
+    // swallowed — otherwise a scanner just appears "off" with no explanation.
     tokio::join!(
-        scanners::arp::scanner::scan(),
-        scanners::mdns::scanner::listen(),
-        scanners::ssdp::scanner::listen(),
-        scanners::dhcp::scanner::listen(),
-        scanners::snmp::scanner::scan(),
-        web_server::serve(),
+        log_task_errors("ARP scanner", scanners::arp::scanner::scan()),
+        log_task_errors("mDNS scanner", scanners::mdns::scanner::listen()),
+        log_task_errors("SSDP scanner", scanners::ssdp::scanner::listen()),
+        log_task_errors("DHCP scanner", scanners::dhcp::scanner::listen()),
+        log_task_errors("SNMP scanner", scanners::snmp::scanner::scan()),
+        log_task_errors("web server", web_server::serve()),
         retention::run(),
-        notifications::run_delivery()
-    )
-    .0
+        notifications::run_delivery(),
+    );
+
+    Ok(())
+}
+
+/// Await a long-running task and log its error if it exits with one. Without this the errors of
+/// every task but the first were dropped by `tokio::join!`, so a scanner that failed to start
+/// (for example the DHCP scanner being unable to bind port 67) reported no diagnostic at all.
+async fn log_task_errors<F>(name: &str, task: F)
+where
+    F: Future<Output = Result<(), Box<dyn std::error::Error>>>,
+{
+    if let Err(err) = task.await {
+        error!("{name} exited with error: {err}");
+    }
 }

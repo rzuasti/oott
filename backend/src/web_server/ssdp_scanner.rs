@@ -5,6 +5,7 @@ use crate::web_server::scanner_status::{PassiveScannerStatusResponse, passive_re
 #[utoipa::path(
     get,
     path = "/api/ssdp_scanner/status",
+    operation_id = "ssdp_scanner_status",
     tag = "ssdp_scanner",
     responses(
         (status = 200, description = "SSDP scanner status", body = PassiveScannerStatusResponse),

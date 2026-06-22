@@ -6,6 +6,7 @@ use crate::settings::get_settings;
 #[utoipa::path(
     get,
     path = "/api/config",
+    operation_id = "config_read",
     tag = "config",
     responses(
         (status = 200, description = "Front-end configuration", body = Config),

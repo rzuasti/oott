@@ -62,7 +62,11 @@ async fn deliver(request: DeliveryRequest) {
             // The relay URL defaults to the project-operated relay, so the [notifications.push]
             // section is optional. The send call is async (reqwest), so unlike Pushover it is
             // awaited directly rather than dispatched to the blocking pool.
-            let config = get_settings().notifications.push.clone().unwrap_or_default();
+            let config = get_settings()
+                .notifications
+                .push
+                .clone()
+                .unwrap_or_default();
             if let Err(err) = push::send(&config, request.title, request.body).await {
                 error!("Failed to deliver notification via the push relay: {err}");
             }
