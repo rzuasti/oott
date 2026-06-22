@@ -63,6 +63,9 @@ class _BackendConfigDialogState extends State<_BackendConfigDialog> {
   // measured at this width so the FittedBox can scale the whole row down on
   // narrower screens.
   static const _dialogContentWidth = 420.0;
+  // Below this screen width the dialog is about as wide as the screen and the
+  // Test / Cancel / Save row stops fitting, so the action buttons stack.
+  static const _stackActionsBelowWidth = 480.0;
 
   @override
   void initState() {
@@ -144,9 +147,81 @@ class _BackendConfigDialogState extends State<_BackendConfigDialog> {
     }
   }
 
+  Widget _testButton() {
+    final appColors = Theme.of(context).extension<AppColorExtension>()!;
+    final colorScheme = Theme.of(context).colorScheme;
+    return FilledButton.tonalIcon(
+      onPressed: _testConnection,
+      label: const Text('Test'),
+      icon: Icon(
+        _testOk
+            ? Icons.check
+            : _testFailed
+            ? Icons.error_outline
+            : Icons.play_arrow,
+      ),
+      style: _testOk
+          ? FilledButton.styleFrom(
+              backgroundColor: appColors.success,
+              foregroundColor: appColors.onSuccess,
+            )
+          : _testFailed
+          ? FilledButton.styleFrom(
+              backgroundColor: colorScheme.error,
+              foregroundColor: colorScheme.onError,
+            )
+          : null,
+    );
+  }
+
+  Widget _cancelButton() => TextButton(
+    onPressed: () => Navigator.of(context).pop(false),
+    child: const Text('Cancel'),
+  );
+
+  Widget _saveButton({required bool saveDisabled}) => FilledButton.icon(
+    onPressed: saveDisabled ? null : _save,
+    label: const Text('Save'),
+    icon: const Icon(Icons.save),
+  );
+
+  // Wide layout: Test on the leading edge, Cancel + Save grouped trailing.
+  Widget _buildRowActions() {
+    final saveDisabled = _connectionModified && !_testOk;
+    return Row(
+      children: [
+        _testButton(),
+        const Spacer(),
+        if (widget.dismissible) ...[
+          _cancelButton(),
+          const SizedBox(width: Insets.sm),
+        ],
+        _saveButton(saveDisabled: saveDisabled),
+      ],
+    );
+  }
+
+  // Narrow layout: full-width buttons stacked vertically (Test, then Save, then
+  // Cancel) so they stay full-size and comfortably tappable. Test leads since
+  // it gates Save, and Cancel sits last as the dismissing action.
+  Widget _buildStackedActions() {
+    final saveDisabled = _connectionModified && !_testOk;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _testButton(),
+        const SizedBox(height: Insets.sm),
+        _saveButton(saveDisabled: saveDisabled),
+        if (widget.dismissible) ...[
+          const SizedBox(height: Insets.sm),
+          _cancelButton(),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final appColors = Theme.of(context).extension<AppColorExtension>()!;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final saveDisabled = _connectionModified && !_testOk;
@@ -249,62 +324,25 @@ class _BackendConfigDialogState extends State<_BackendConfigDialog> {
         // single high-emphasis (filled) action in the dialog; once the test
         // succeeds it recolours to the success accent.
         //
-        // Handing the dialog's default OverflowBar three icon buttons makes it
-        // stack them onto two lines on narrow phones once their combined width
-        // exceeds the dialog width. Instead we lay them out in a single Row at
-        // the dialog's content width and wrap it in a FittedBox(scaleDown): on
-        // wider screens it renders at full size with the spread intact, and on
-        // a too-narrow phone the whole row scales down uniformly to fit rather
-        // than wrapping or overflowing.
+        // When the three buttons fit at full size we lay them out in a single
+        // Row with the Test action spread to the leading edge. On a narrow
+        // phone the row would otherwise overflow, so instead of shrinking the
+        // buttons we stack them vertically at full size (confirming action on
+        // top, per Material 3), which keeps them comfortably tappable.
+        actionsPadding: const EdgeInsets.fromLTRB(
+          Insets.lg,
+          0,
+          Insets.lg,
+          Insets.lg,
+        ),
         actions: [
-          SizedBox(
-            width: double.infinity,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: SizedBox(
-                width: _dialogContentWidth,
-                child: Row(
-                  children: [
-                    FilledButton.tonalIcon(
-                      onPressed: _testConnection,
-                      label: const Text('Test'),
-                      icon: Icon(
-                        _testOk
-                            ? Icons.check
-                            : _testFailed
-                            ? Icons.error_outline
-                            : Icons.play_arrow,
-                      ),
-                      style: _testOk
-                          ? FilledButton.styleFrom(
-                              backgroundColor: appColors.success,
-                              foregroundColor: appColors.onSuccess,
-                            )
-                          : _testFailed
-                          ? FilledButton.styleFrom(
-                              backgroundColor: colorScheme.error,
-                              foregroundColor: colorScheme.onError,
-                            )
-                          : null,
-                    ),
-                    const Spacer(),
-                    if (widget.dismissible) ...[
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('Cancel'),
-                      ),
-                      const SizedBox(width: Insets.sm),
-                    ],
-                    FilledButton.icon(
-                      onPressed: saveDisabled ? null : _save,
-                      label: const Text('Save'),
-                      icon: const Icon(Icons.save),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          // Below this width the dialog shrinks to roughly the screen width and
+          // the three-button row no longer fits, so stack the buttons instead
+          // of squeezing them. (AlertDialog measures its actions' intrinsics, so
+          // a LayoutBuilder can't be used here.)
+          MediaQuery.sizeOf(context).width < _stackActionsBelowWidth
+              ? _buildStackedActions()
+              : _buildRowActions(),
         ],
       ),
     );

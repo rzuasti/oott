@@ -159,6 +159,31 @@ void main() {
     expect(PrefUtil.getValue('base_url', ''), 'http://my.server/api');
   });
 
+  testWidgets('stacks full-size action buttons on a narrow screen', (
+    tester,
+  ) async {
+    // Pump on a narrow phone surface so the three-button action row can't fit.
+    await pumpScreen(tester, const Settings(), size: const Size(360, 800));
+    await tester.pump(const Duration(milliseconds: 10));
+    await tester.tap(find.widgetWithText(TextButton, 'Re-configure'));
+    await tester.pumpAndSettle();
+
+    final testButton = find.widgetWithText(FilledButton, 'Test');
+    final saveButton = find.widgetWithText(FilledButton, 'Save');
+
+    // Test on top, Save below it: the buttons are stacked, not squeezed into a
+    // single shrunken row.
+    expect(
+      tester.getTopLeft(testButton).dy,
+      lessThan(tester.getTopLeft(saveButton).dy),
+    );
+
+    // Each button is laid out at a comfortable, full-size width rather than
+    // being scaled down to a tiny sliver.
+    expect(tester.getSize(saveButton).width, greaterThan(200));
+    expect(tester.getSize(testButton).width, greaterThan(200));
+  });
+
   testWidgets('first run auto-opens a non-dismissible dialog', (tester) async {
     await PrefUtil.setValue('base_url', '');
     await pumpScreen(tester, const Settings());
