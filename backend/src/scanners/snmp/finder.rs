@@ -1,8 +1,10 @@
+use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 
 use csnmp::{ObjectIdentifier, ObjectValue, Snmp2cClient};
 use log::{debug, info, warn};
 
+use crate::db;
 use crate::model::devices::Device;
 use crate::scanners::common::enrichment::build_device;
 use crate::settings::SnmpScanner;
@@ -39,6 +41,9 @@ pub async fn find(config: &SnmpScanner) -> Result<Vec<Device>, Box<dyn std::erro
     info!("SNMP ARP table walk returned {} rows", rows.len());
 
     let pairs = parse_arp_table(rows.iter(), &base);
+    let pairs = dedup_by_mac(pairs, |mac| {
+        db::devices::read(mac.to_string()).and_then(|d| d.ipv4_address.parse().ok())
+    });
 
     let devices = pairs
         .into_iter()
@@ -46,6 +51,68 @@ pub async fn find(config: &SnmpScanner) -> Result<Vec<Device>, Box<dyn std::erro
         .collect();
 
     Ok(devices)
+}
+
+/// Collapse the parsed ARP rows so that each MAC yields a single `(mac, ipv4)` pair.
+///
+/// A router's neighbour cache can legitimately hold the same MAC at several IPs at once (e.g. a
+/// device that changed address while the old entry has not yet aged out). Walking the table then
+/// produces multiple rows for one MAC, and persisting each in turn makes the stored IP flap back
+/// and forth, emitting a `DeviceChanged` every scan. Collapsing to one IP per MAC stops that.
+///
+/// `stored_ip` resolves a MAC to the IP OOTT currently has on record (`None` if the device is
+/// unknown or its stored address is unparseable). The lookup is injected so this stays pure and
+/// unit-testable; `find` supplies the database-backed version. Output is ordered by MAC (BTreeMap)
+/// so it is deterministic.
+fn dedup_by_mac<F>(pairs: Vec<(String, Ipv4Addr)>, stored_ip: F) -> Vec<(String, Ipv4Addr)>
+where
+    F: Fn(&str) -> Option<Ipv4Addr>,
+{
+    let mut by_mac: BTreeMap<String, Vec<Ipv4Addr>> = BTreeMap::new();
+    for (mac, ip) in pairs {
+        let ips = by_mac.entry(mac).or_default();
+        if !ips.contains(&ip) {
+            ips.push(ip);
+        }
+    }
+
+    by_mac
+        .into_iter()
+        .map(|(mac, ips)| {
+            let stored = stored_ip(&mac);
+            let chosen = choose_ip(&ips, stored);
+            if ips.len() > 1 {
+                let reason = match stored {
+                    Some(s) if s == chosen => "the IP already on record".to_string(),
+                    Some(s) => format!("stored IP {s} no longer present, picked lowest"),
+                    None => "device not yet known, picked lowest".to_string(),
+                };
+                debug!(
+                    "Deduplicating device {mac}: seen at {} IPs this scan {ips:?}, keeping {chosen} ({reason})",
+                    ips.len()
+                );
+            }
+            (mac, chosen)
+        })
+        .collect()
+}
+
+/// Pick which IP to keep for a MAC seen at several IPs in one scan.
+///
+/// Prefer the IP OOTT already has stored, when it is among those found, so a known device stays
+/// put and stops flapping. Otherwise fall back to the numerically lowest IP: a deterministic
+/// choice that lets a new or genuinely-moved device settle on one value and converge on the next
+/// scan. `candidates` is never empty.
+fn choose_ip(candidates: &[Ipv4Addr], stored: Option<Ipv4Addr>) -> Ipv4Addr {
+    if let Some(stored) = stored
+        && candidates.contains(&stored)
+    {
+        return stored;
+    }
+    *candidates
+        .iter()
+        .min()
+        .expect("a MAC group always has at least one IP")
 }
 
 /// Decode the rows of an `ipNetToMediaPhysAddress` walk into `(mac, ipv4)` pairs.
@@ -176,5 +243,73 @@ mod tests {
             "66:77:88:99:aa:bb".to_string(),
             Ipv4Addr::new(192, 168, 1, 3)
         )));
+    }
+
+    fn ip(a: u8, b: u8, c: u8, d: u8) -> Ipv4Addr {
+        Ipv4Addr::new(a, b, c, d)
+    }
+
+    const MAC: &str = "8c:16:45:bc:b2:79";
+
+    #[test]
+    fn keeps_stored_ip_when_mac_seen_at_several_ips() {
+        let pairs = vec![
+            (MAC.to_string(), ip(10, 10, 238, 249)),
+            (MAC.to_string(), ip(10, 10, 2, 211)),
+        ];
+        // OOTT already has the device at 10.10.2.211, which is one of the two found.
+        let deduped = dedup_by_mac(pairs, |_| Some(ip(10, 10, 2, 211)));
+        assert_eq!(deduped, vec![(MAC.to_string(), ip(10, 10, 2, 211))]);
+    }
+
+    #[test]
+    fn falls_back_to_lowest_ip_when_device_unknown() {
+        let pairs = vec![
+            (MAC.to_string(), ip(10, 10, 238, 249)),
+            (MAC.to_string(), ip(10, 10, 2, 211)),
+        ];
+        let deduped = dedup_by_mac(pairs, |_| None);
+        assert_eq!(deduped, vec![(MAC.to_string(), ip(10, 10, 2, 211))]);
+    }
+
+    #[test]
+    fn falls_back_to_lowest_ip_when_stored_ip_no_longer_present() {
+        let pairs = vec![
+            (MAC.to_string(), ip(10, 10, 238, 249)),
+            (MAC.to_string(), ip(10, 10, 2, 211)),
+        ];
+        // The device genuinely moved: its old stored IP is no longer in the table.
+        let deduped = dedup_by_mac(pairs, |_| Some(ip(10, 10, 9, 9)));
+        assert_eq!(deduped, vec![(MAC.to_string(), ip(10, 10, 2, 211))]);
+    }
+
+    #[test]
+    fn single_ip_is_kept_regardless_of_stored_value() {
+        let pairs = vec![(MAC.to_string(), ip(10, 10, 2, 211))];
+        let deduped = dedup_by_mac(pairs, |_| Some(ip(10, 10, 9, 9)));
+        assert_eq!(deduped, vec![(MAC.to_string(), ip(10, 10, 2, 211))]);
+    }
+
+    #[test]
+    fn distinct_macs_are_each_retained() {
+        let other = "00:11:22:33:44:55";
+        let pairs = vec![
+            (MAC.to_string(), ip(10, 10, 2, 211)),
+            (other.to_string(), ip(10, 10, 1, 5)),
+        ];
+        let deduped = dedup_by_mac(pairs, |_| None);
+        assert_eq!(deduped.len(), 2);
+        assert!(deduped.contains(&(MAC.to_string(), ip(10, 10, 2, 211))));
+        assert!(deduped.contains(&(other.to_string(), ip(10, 10, 1, 5))));
+    }
+
+    #[test]
+    fn exact_duplicate_rows_collapse_to_one() {
+        let pairs = vec![
+            (MAC.to_string(), ip(10, 10, 2, 211)),
+            (MAC.to_string(), ip(10, 10, 2, 211)),
+        ];
+        let deduped = dedup_by_mac(pairs, |_| None);
+        assert_eq!(deduped, vec![(MAC.to_string(), ip(10, 10, 2, 211))]);
     }
 }
